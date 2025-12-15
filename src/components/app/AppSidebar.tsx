@@ -1,0 +1,168 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import type { OrganizationSettings, User } from "@prisma/client";
+import { t, type Locale } from "@/lib/i18n";
+import { isFeatureEnabled } from "@/lib/features";
+import clsx from "clsx";
+
+type SidebarProps = {
+  user: User & { organizationId: string };
+  locale: Locale;
+  settings: OrganizationSettings;
+};
+
+export function AppSidebar({ user, locale, settings }: SidebarProps) {
+  const pathname = usePathname();
+  const schedulesEnabled = isFeatureEnabled("schedules", settings);
+  const notificationsEnabled = isFeatureEnabled("notifications", settings);
+  const billingEnabled = isFeatureEnabled("growth_module_v1", settings);
+
+  const navItems = [
+    { href: "/app/overview", label: user.role === "MANAGER" ? t(locale, "navMyTeams") : t(locale, "navOverview"), icon: HomeIcon, roles: ["ADMIN", "MANAGER"] },
+    { href: "/app/my/home", label: "My wellbeing", icon: HomeIcon, roles: ["EMPLOYEE", "MANAGER", "HR", "ADMIN"] },
+    { href: "/app/employees", label: t(locale, "navEmployees"), icon: UsersIcon, roles: ["ADMIN"] },
+    { href: "/app/teams", label: t(locale, "navTeams"), icon: LayersIcon, roles: ["ADMIN", "MANAGER"] },
+    { href: "/app/teams/[id]/stress", label: t(locale, "navTeamStress"), icon: LayersIcon, roles: [] }, // placeholder not shown
+    { href: "/app/surveys", label: t(locale, "navSurveys"), icon: ClipboardIcon, roles: ["ADMIN", "MANAGER"] },
+    ...(notificationsEnabled ? [{ href: "/app/notifications", label: t(locale, "navNotifications"), icon: BellIcon, roles: ["ADMIN", "MANAGER"] }] : []),
+    ...(schedulesEnabled ? [{ href: "/app/schedules", label: t(locale, "navSchedules"), icon: CalendarIcon, roles: ["ADMIN"] }] : []),
+    { href: "/app/developers", label: "Developers", icon: CodeIcon, roles: ["ADMIN"] },
+    { href: "/app/settings", label: t(locale, "navSettings"), icon: SettingsIcon, roles: ["ADMIN"] },
+    { href: "/app/settings/billing", label: "Billing", icon: CreditCardIcon, roles: ["ADMIN"], visible: billingEnabled },
+  ].filter((item) => item.roles.includes(user.role as string));
+
+  return (
+    <aside className="hidden h-screen w-64 shrink-0 border-r border-slate-200 bg-white/80 p-4 shadow-sm md:flex md:flex-col">
+      <div className="mb-6 flex items-center gap-3 rounded-xl bg-slate-50 p-3">
+        <span className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-primary to-primary-strong text-sm font-semibold text-white shadow-sm">
+          💜
+        </span>
+        <div className="leading-tight">
+          <p className="text-sm font-semibold text-slate-900">StressSense</p>
+          <p className="text-xs font-medium text-slate-500">Workspace</p>
+        </div>
+      </div>
+
+      <nav className="space-y-1">
+        {navItems.map((item) => {
+          const active = pathname?.startsWith(item.href);
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={clsx(
+                "flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold transition",
+                active
+                  ? "bg-primary/10 text-primary ring-1 ring-primary/20"
+                  : "text-slate-700 hover:bg-slate-100 hover:text-slate-900"
+              )}
+            >
+              <item.icon className={clsx("h-4 w-4", active ? "text-primary" : "text-slate-500")} />
+              {item.label}
+            </Link>
+          );
+        })}
+      </nav>
+
+      <div className="mt-auto rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
+        <p className="font-semibold text-slate-800">{user.name}</p>
+        <p className="truncate text-slate-500">{user.role}</p>
+      </div>
+    </aside>
+  );
+}
+
+function HomeIcon(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" {...props}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="m3 9 9-6 9 6v10a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z" />
+    </svg>
+  );
+}
+
+function UsersIcon(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" {...props}>
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M17 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"
+      />
+      <circle cx="9" cy="7" r="4" strokeLinecap="round" strokeLinejoin="round" />
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M17 3a4 4 0 0 1 0 8M23 21v-2a4 4 0 0 0-3-3.87"
+      />
+    </svg>
+  );
+}
+
+function LayersIcon(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" {...props}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="m12 3 9 4.5L12 12 3 7.5z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="m3 12 9 4.5 9-4.5M3 16.5 12 21l9-4.5" />
+    </svg>
+  );
+}
+
+function ClipboardIcon(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" {...props}>
+      <rect x="4" y="5" width="16" height="16" rx="2" ry="2" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9 3h6v4H9z" />
+    </svg>
+  );
+}
+
+function SettingsIcon(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" {...props}>
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M10.5 4.5h3l.6 2.4a2 2 0 0 0 1.6 1.5l2.4.4v3.4l-2.4.4a2 2 0 0 0-1.6 1.5l-.6 2.4h-3l-.6-2.4a2 2 0 0 0-1.6-1.5l-2.4-.4v-3.4l2.4-.4a2 2 0 0 0 1.6-1.5z"
+      />
+      <circle cx="12" cy="12" r="2.5" />
+    </svg>
+  );
+}
+
+function CalendarIcon(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" {...props}>
+      <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M16 2v4M8 2v4M3 10h18" />
+    </svg>
+  );
+}
+
+function BellIcon(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" {...props}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 0 0-12 0v3.2c0 .5-.2 1-.6 1.4L4 17h5" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9 17a3 3 0 0 0 6 0" />
+    </svg>
+  );
+}
+
+function CodeIcon(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" {...props}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M16 18l6-6-6-6" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M8 6l-6 6 6 6" />
+    </svg>
+  );
+}
+
+function CreditCardIcon(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" {...props}>
+      <rect x="2" y="5" width="20" height="14" rx="2" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M2 10h20M6 15h4" />
+    </svg>
+  );
+}

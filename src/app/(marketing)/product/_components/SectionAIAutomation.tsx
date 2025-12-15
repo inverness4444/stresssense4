@@ -1,0 +1,52 @@
+export default function SectionAIAutomation() {
+  const cards = [
+    {
+      title: "AI coach для сотрудников",
+      text: "Личные подсказки, привычки и обучение без раскрытия личных данных. Ответы идут через privacy слой и анонимизацию.",
+    },
+    {
+      title: "AI lens для менеджеров",
+      text: "Summary рисков, сильных сторон и действий по команде. Action center с готовыми шагами и playbooks.",
+    },
+    {
+      title: "AI для HR/People",
+      text: "Подсказки для 1:1, целей, onboarding-шагов и комп-циклов. Никаких решений за людей — только предложения.",
+    },
+    {
+      title: "Privacy-first",
+      text: "Анонимизация, min responses, data minimization. Никаких сырых PII в моделях, только агрегаты и безопасные фичи.",
+    },
+  ];
+
+  return (
+    <section id="ai" className="relative overflow-hidden py-16 sm:py-24">
+      <div className="absolute inset-0 bg-gradient-to-br from-primary/8 via-white to-indigo-50" />
+      <div className="relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+        <div className="space-y-4 text-center">
+          <p className="text-xs font-semibold uppercase tracking-[0.25em] text-primary">AI & automation</p>
+          <h2 className="text-3xl font-semibold text-slate-900 sm:text-4xl">AI, который коучит, а не просто отчёт</h2>
+          <p className="mx-auto max-w-3xl text-slate-600">
+            Подсказки, summary, предложения по действиям и автоматизация nudges/шагов — всё с учётом приватности и прозрачности.
+          </p>
+        </div>
+
+        <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          {cards.map((card) => (
+            <div key={card.title} className="rounded-2xl bg-white/90 p-5 shadow-sm ring-1 ring-slate-200">
+              <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">✦</div>
+              <h3 className="text-lg font-semibold text-slate-900">{card.title}</h3>
+              <p className="mt-2 text-sm text-slate-700">{card.text}</p>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-8 rounded-2xl bg-slate-900 px-6 py-5 text-sm text-slate-100">
+          <p className="font-semibold">"No raw personal data leaves your tenant"</p>
+          <p className="mt-2 text-slate-300">
+            AI работает поверх агрегированных данных и анонимизированных фрагментов. Управление доступами и фичами — через role-based access и feature flags.
+          </p>
+        </div>
+      </div>
+    </section>
+  );
+}

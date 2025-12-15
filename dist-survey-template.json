@@ -1,0 +1,54 @@
+{
+  "name": "Stress Pulse v1",
+  "description": "Lightweight stress pulse to capture early signals.",
+  "questions": [
+    {
+      "order": 1,
+      "text": "Overall, how stressed do you feel about work right now?",
+      "type": "SCALE",
+      "scaleMin": 1,
+      "scaleMax": 5,
+      "helpText": "1 = Not stressed at all, 5 = Extremely stressed"
+    },
+    {
+      "order": 2,
+      "text": "I feel I can disconnect from work after hours.",
+      "type": "SCALE",
+      "scaleMin": 1,
+      "scaleMax": 5,
+      "helpText": "1 = Strongly disagree, 5 = Strongly agree"
+    },
+    {
+      "order": 3,
+      "text": "My current workload feels sustainable.",
+      "type": "SCALE",
+      "scaleMin": 1,
+      "scaleMax": 5
+    },
+    {
+      "order": 4,
+      "text": "I have the support I need from my manager and team.",
+      "type": "SCALE",
+      "scaleMin": 1,
+      "scaleMax": 5
+    },
+    {
+      "order": 5,
+      "text": "How clear are priorities for your team this week?",
+      "type": "SCALE",
+      "scaleMin": 1,
+      "scaleMax": 5,
+      "helpText": "1 = Not clear, 5 = Very clear"
+    },
+    {
+      "order": 6,
+      "text": "Anything else you want to share about how work feels lately?",
+      "type": "TEXT"
+    },
+    {
+      "order": 7,
+      "text": "If stress is rising, what is the biggest contributor?",
+      "type": "TEXT"
+    }
+  ]
+}

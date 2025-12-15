@@ -1,0 +1,183 @@
+
+model OnboardingTask {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  key            String
+  title          String
+  description    String?
+  status         String       @default("pending")
+  completedAt    DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
+model UsageRecord {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  periodStart    DateTime
+  periodEnd      DateTime
+  metric         String
+  value          Int
+  createdAt      DateTime     @default(now())
+}
+
+model AddOn {
+  id             String   @id @default(cuid())
+  key            String   @unique
+  name           String
+  description    String?
+  monthlyPriceCents Int
+  featureKeys    String[]
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  organizationAddOns OrganizationAddOn[]
+}
+
+model OrganizationAddOn {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  addOnId        String
+  addOn          AddOn        @relation(fields: [addOnId], references: [id])
+  startedAt      DateTime     @default(now())
+  canceledAt     DateTime?
+  createdAt      DateTime     @default(now())
+}
+
+model CRMIntegration {
+  id             String   @id @default(cuid())
+  type           String
+  apiBaseUrl     String?
+  apiKey         String?
+  clientId       String?
+  clientSecret   String?
+  authType       String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  mappings       OrgCRMMapping[]
+}
+
+model OrgCRMMapping {
+  id                String       @id @default(cuid())
+  organizationId    String
+  organization      Organization @relation(fields: [organizationId], references: [id])
+  crmIntegrationId  String
+  crmIntegration    CRMIntegration @relation(fields: [crmIntegrationId], references: [id])
+  crmAccountId      String?
+  crmOwnerId        String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model Invoice {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  stripeInvoiceId String?
+  number         String?
+  periodStart    DateTime
+  periodEnd      DateTime
+  amountCents    Int
+  currency       String       @default("usd")
+  status         String
+  pdfUrl         String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  lineItems      InvoiceLineItem[]
+}
+
+model InvoiceLineItem {
+  id             String    @id @default(cuid())
+  invoiceId      String
+  invoice        Invoice   @relation(fields: [invoiceId], references: [id])
+  description    String
+  quantity       Int
+  unitPriceCents Int
+  amountCents    Int
+  metadata       Json?
+  createdAt      DateTime  @default(now())
+}
+
+model DunningState {
+  id             String       @id @default(cuid())
+  organizationId String       @unique
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  status         String       @default("none")
+  lastReminderAt DateTime?
+  failedAttempts Int          @default(0)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
+model ReferralProgram {
+  id             String   @id @default(cuid())
+  key            String   @unique
+  isActive       Boolean  @default(true)
+  rewardType     String
+  rewardValue    Int
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  orgReferrals   OrgReferral[]
+}
+
+model OrgReferral {
+  id                      String        @id @default(cuid())
+  referrerOrganizationId  String
+  referrerOrganization    Organization  @relation("ReferrerOrg", fields: [referrerOrganizationId], references: [id])
+  referredOrganizationId  String?
+  referredOrganization    Organization? @relation("ReferredOrg", fields: [referredOrganizationId], references: [id])
+  referralCode            String        @unique
+  status                  String        @default("pending")
+  createdAt               DateTime      @default(now())
+  updatedAt               DateTime      @updatedAt
+}
+
+model InAppSurvey {
+  id             String   @id @default(cuid())
+  type           String
+  question       String
+  isActive       Boolean  @default(true)
+  triggerLocation String[]
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  responses      InAppSurveyResponse[]
+}
+
+model InAppSurveyResponse {
+  id        String   @id @default(cuid())
+  surveyId  String
+  survey    InAppSurvey @relation(fields: [surveyId], references: [id])
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+  score     Int?
+  comment   String?
+  createdAt DateTime @default(now())
+}
+
+model FeatureFlag {
+  id             String   @id @default(cuid())
+  key            String   @unique
+  description    String?
+  defaultEnabled Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  overrides      FeatureFlagOverride[]
+}
+
+model FeatureFlagOverride {
+  id             String   @id @default(cuid())
+  featureKey     String
+  flag           FeatureFlag @relation(fields: [featureKey], references: [key])
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+  userId         String?
+  user           User?     @relation(fields: [userId], references: [id])
+  environment    String?
+  enabled        Boolean
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}

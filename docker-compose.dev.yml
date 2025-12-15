@@ -1,0 +1,41 @@
+version: "3.9"
+services:
+  web:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.web
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgres://stresssense:stresssense@db:5432/stresssense
+      REDIS_URL: redis://redis:6379
+    ports:
+      - "3000:3000"
+    depends_on:
+      - db
+      - redis
+
+  worker:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.worker
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgres://stresssense:stresssense@db:5432/stresssense
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      - db
+      - redis
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: stresssense
+      POSTGRES_PASSWORD: stresssense
+      POSTGRES_DB: stresssense
+    ports:
+      - "5432:5432"
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"

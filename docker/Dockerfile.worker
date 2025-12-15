@@ -1,0 +1,18 @@
+# Worker image for queues/background jobs
+FROM node:20-alpine AS base
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+COPY . .
+
+# Build TS (Next build not required for worker, but type-checks are useful)
+RUN npx tsc --project tsconfig.json --outDir /app/dist-worker
+
+FROM node:20-alpine AS runner
+ENV NODE_ENV=production
+WORKDIR /app
+COPY --from=base /app/package*.json ./
+COPY --from=base /app/node_modules ./node_modules
+COPY --from=base /app/dist-worker ./dist-worker
+# worker entrypoint
+CMD ["node", "dist-worker/scripts/worker.js"]

@@ -1,0 +1,2613 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum SurveyStatus {
+  DRAFT
+  ACTIVE
+  CLOSED
+}
+
+enum QuestionType {
+  SCALE
+  TEXT
+}
+
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  region    String   @default("eu")
+  dataResidency String?
+  signupSource String?
+  trialStartedAt DateTime?
+  trialEndsAt   DateTime?
+  trialConvertedAt DateTime?
+  lifecycleStage String?
+  brandingPrimaryColor String?
+  brandingSecondaryColor String?
+  brandingLogoUrl String?
+  brandingFaviconUrl String?
+  domain    String?
+  subdomain String?
+  whiteLabelEnabled Boolean @default(false)
+  users     User[]
+  teams     Team[]
+  surveys   Survey[]
+  schedules SurveySchedule[]
+  notifications Notification[]
+  subscription Subscription?
+  auditLogs AuditLog[]
+  slackIntegration SlackIntegration?
+  ssoConfig SSOConfig?
+  hrisIntegration HRISIntegration?
+  hrisSyncLogs HRISSyncLog[]
+  employeeAttributeDefinitions EmployeeAttributeDefinition[]
+  employeeAttributeValues EmployeeAttributeValue[]
+  apiKeys   ApiKey[]
+  webhookEndpoints WebhookEndpoint[]
+  embedConfig EmbedConfig?
+  kioskSessions KioskSession[]
+  productEvents ProductEvent[]
+  roles     Role[]
+  actionItems ActionItem[]
+  playbooks Playbook[]
+  emailTemplates EmailTemplate[]
+  dwhCursors DwhExportCursor[]
+  teamRiskSnapshots TeamRiskSnapshot[]
+  orgRiskSnapshots OrgRiskSnapshot[]
+  anomalyEvents AnomalyEvent[]
+  recommendationTemplates RecommendationTemplate[]
+  nudgeRules NudgeRule[]
+  nudgeEvents NudgeEvent[]
+  experiments Experiment[]
+  organizationBrands OrganizationBrand[]
+  partnerOrganizations PartnerOrganization[]
+  marketplaceInstallations MarketplaceInstallation[]
+  automationWorkflows AutomationWorkflow[]
+  automationRuns AutomationRun[]
+  projectSpacesOwned ProjectSpace[] @relation("ProjectOrgOwner")
+  onboardingTasks OnboardingTask[]
+  usageRecords UsageRecord[]
+  organizationAddOns OrganizationAddOn[]
+  orgCRMMapping OrgCRMMapping[]
+  invoices Invoice[]
+  dunningState DunningState?
+  referralsGiven OrgReferral[] @relation("ReferrerOrg")
+  referralsReceived OrgReferral[] @relation("ReferredOrg")
+  featureFlagOverrides FeatureFlagOverride[]
+  inAppSurveyResponses InAppSurveyResponse[]
+  coachSessions CoachSession[]
+  habitPlans HabitPlan[]
+  safetyIncidents SafetyIncident[]
+  orgSafetySettings OrgSafetySettings?
+  wellbeingResources WellbeingResource[]
+  orgPrivacySettings OrgPrivacySettings?
+  dataSubjectRequests DataSubjectRequest[]
+  retentionPolicies RetentionPolicy[]
+  legalHolds LegalHold[]
+  consentRecords ConsentRecord[]
+  apiClients ApiClient[]
+  apiTokens  ApiToken[]
+  hrisConnection HRISConnection?
+  ssoConnection SSOConnection?
+  ssoDomains SSODomain[]
+  scimConnection SCIMConnection?
+  slackWorkspace SlackWorkspace?
+  slackChannelMappings SlackChannelMapping[]
+  slackUserLinks SlackUserLink[]
+  calendarConnections CalendarConnection[]
+  customerWarehouseConnection CustomerWarehouseConnection?
+  actionCenterItems ActionCenterItem[]
+  teamStatusSnapshots TeamStatusSnapshot[] @relation("OrgTeamStatus")
+  personalStatusSnapshots PersonalStatusSnapshot[] @relation("OrgPersonalStatus")
+  experimentAssignments ExperimentAssignment[]
+  academyEnrollments AcademyEnrollment[]
+  learningPrograms LearningProgram[]
+  learningCohorts LearningCohort[]
+  communityThreads CommunityThread[]
+  surveyEngagementSnapshots SurveyEngagementSnapshot[] @relation("OrgEngagementSnapshot")
+  experimentExposures ExperimentExposure[]
+  experimentMetricEvents ExperimentMetricEvent[]
+  modelInferenceLogs ModelInferenceLog[]
+  coachBookings CoachBooking[]
+  oneOnOneTemplates OneOnOneMeetingTemplate[]
+  oneOnOneRelationships OneOnOneRelationship[]
+  oneOnOneMeetings OneOnOneMeeting[]
+  goals Goal[]
+  feedbackRequests FeedbackRequest[]
+  feedbackResponses FeedbackResponse[]
+  recognitions Recognition[]
+  compensationBands CompensationBand[]
+  compensationBandAssignments CompensationBandAssignment[]
+  compensationReviewCycles CompensationReviewCycle[]
+  compensationReviewParticipants CompensationReviewParticipant[]
+  compensationReviewRecommendations CompensationReviewRecommendation[]
+  onboardingJourneyTemplates OnboardingJourneyTemplate[]
+  onboardingJourneys OnboardingJourney[]
+  onboardingSteps OnboardingStep[]
+  promoCodes PromoCode[]
+  referralCodes ReferralCode[]
+  referralRedemptions ReferralRedemption[]
+  settings  OrganizationSettings?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model User {
+  id              String     @id @default(cuid())
+  name            String
+  email           String     @unique
+  passwordHash    String
+  role            String     @default("EMPLOYEE")
+  slackUserId     String?
+  jobTitle        String?
+  department      String?
+  location        String?
+  managerId       String?
+  manager         User?      @relation("UserManager", fields: [managerId], references: [id])
+  directReports   User[]     @relation("UserManager")
+  employeeId      String?
+  isDeleted       Boolean    @default(false)
+  deletedAt       DateTime?
+  preferredLanguage String?
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id])
+  teams           UserTeam[]
+  createdSurveys  Survey[]   @relation("UserCreatedSurveys")
+  createdSchedules SurveySchedule[]
+  inviteTokens    SurveyInviteToken[]
+  notifications   Notification[]
+  auditLogs       AuditLog[]
+  apiKeysCreated  ApiKey[]
+  kioskSessions   KioskSession[]
+  productEvents   ProductEvent[]
+  userRoles       UserRole[]
+  actionItems     ActionItem[] @relation("ActionAssignee")
+  createdActionItems ActionItem[] @relation("ActionCreator")
+  createdPlaybooks Playbook[]
+  nudgeEvents     NudgeEvent[]
+  marketplaceInstallations MarketplaceInstallation[]
+  automationWorkflows AutomationWorkflow[]
+  inAppSurveyResponses InAppSurveyResponse[]
+  featureFlagOverrides FeatureFlagOverride[]
+  experimentsOwned Experiment[]
+  experimentAssignments ExperimentAssignment[]
+  coachSessions   CoachSession[]
+  habitPlans      HabitPlan[]
+  habitCheckins   HabitCheckin[]
+  wellbeingPreferences UserWellbeingPreferences?
+  privacyProfile  UserPrivacyProfile?
+  safetyIncidents SafetyIncident[]
+  actionCenterItems ActionCenterItem[] @relation("ManagerActionCenter")
+  completedActions ActionCenterItem[] @relation("CompletedBy")
+  personalActions ActionCenterItem[] @relation("UserPersonalActions")
+  personalStatuses PersonalStatusSnapshot[]
+  academyEnrollments AcademyEnrollment[]
+  learningProgramsCreated LearningProgram[]
+  facilitatedCohorts LearningCohort[]
+  learningCohortMembers LearningCohortMember[]
+  communityThreads CommunityThread[]
+  communityReplies CommunityReply[]
+  communityUpvotes CommunityUpvote[]
+  coachBookings CoachBooking[]
+  dataSubjectRequests DataSubjectRequest[]
+  consentRecords ConsentRecord[]
+  apiClientsCreated ApiClient[]
+  slackUserLinks SlackUserLink[]
+  calendarConnections CalendarConnection[]
+  experimentExposures ExperimentExposure[]
+  experimentMetricEvents ExperimentMetricEvent[]
+  modelInferenceLogs ModelInferenceLog[]
+  researchNotebooks ResearchNotebook[]
+  oneOnOneManagerRelations OneOnOneRelationship[] @relation("OneOnOneManager")
+  oneOnOneEmployeeRelations OneOnOneRelationship[] @relation("OneOnOneEmployee")
+  goalsOwned      Goal[]   @relation("GoalOwner")
+  goalCheckins    GoalCheckin[] @relation("GoalCheckins")
+  feedbackRequested FeedbackRequest[] @relation("FeedbackRequester")
+  feedbackTargeted  FeedbackRequest[] @relation("FeedbackTarget")
+  feedbackResponses FeedbackResponse[]
+  recognitionsFrom Recognition[] @relation("RecognitionFromUser")
+  recognitionsTo   Recognition[] @relation("RecognitionToUser")
+  compensationAssignments CompensationBandAssignment[]
+  compensationReviewParticipants CompensationReviewParticipant[]
+  compensationRecommendationsCreated CompensationReviewRecommendation[] @relation("CompRecomCreatedBy")
+  compensationRecommendationsApprovedManager CompensationReviewRecommendation[] @relation("CompRecomApprovedManager")
+  compensationRecommendationsApprovedHr CompensationReviewRecommendation[] @relation("CompRecomApprovedHr")
+  compensationReviewCyclesCreated CompensationReviewCycle[] @relation("CompCycleCreatedBy")
+  compensationManagedParticipants CompensationReviewParticipant[] @relation("CompParticipantManager")
+  onboardingJourneys OnboardingJourney[]
+  onboardingJourneysManaged OnboardingJourney[] @relation("OnboardingManager")
+  onboardingJourneyTemplatesCreated OnboardingJourneyTemplate[]
+  referralCodesCreated ReferralCode[]
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  attributes      EmployeeAttributeValue[]
+}
+
+model Team {
+  id             String     @id @default(cuid())
+  name           String
+  description    String?
+  archivedAt     DateTime?
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  users          UserTeam[]
+  surveyTargets  SurveyTarget[]
+  scheduleTargets SurveyScheduleTarget[]
+  actionItems    ActionItem[]
+  actionCenterItems ActionCenterItem[]
+  teamRiskSnapshots TeamRiskSnapshot[]
+  anomalyEvents  AnomalyEvent[]
+  teamStatusSnapshots TeamStatusSnapshot[] @relation("TeamStatus")
+  engagementSnapshots SurveyEngagementSnapshot[] @relation("TeamEngagementSnapshot")
+  oneOnOneRelationships OneOnOneRelationship[]
+  goals Goal[]
+  recognitions Recognition[]
+  onboardingJourneys OnboardingJourney[] @relation("TeamOnboardingJourneys")
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+}
+
+model UserTeam {
+  userId String
+  teamId String
+  user   User @relation(fields: [userId], references: [id])
+  team   Team @relation(fields: [teamId], references: [id])
+  assignedAt DateTime @default(now())
+
+  @@id([userId, teamId])
+}
+
+model SurveyTemplate {
+  id          String             @id @default(cuid())
+  name        String
+  description String?
+  defaultLanguage String @default("en")
+  version     Int @default(1)
+  isDeprecated Boolean @default(false)
+  parentTemplateId String?
+  parentTemplate   SurveyTemplate? @relation("TemplateHierarchy", fields: [parentTemplateId], references: [id])
+  childTemplates   SurveyTemplate[] @relation("TemplateHierarchy")
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  questions   TemplateQuestion[]
+  surveys     Survey[]
+  schedules   SurveySchedule[]
+  scaleCalibrations ScaleCalibration[]
+}
+
+model TemplateQuestion {
+  id         String          @id @default(cuid())
+  templateId String
+  template   SurveyTemplate  @relation(fields: [templateId], references: [id])
+  order      Int
+  text       String
+  type       QuestionType
+  scaleMin   Int?
+  scaleMax   Int?
+  helpText   String?
+}
+
+model Survey {
+  id                      String           @id @default(cuid())
+  organizationId          String
+  organization            Organization     @relation(fields: [organizationId], references: [id])
+  templateId              String
+  template                SurveyTemplate   @relation(fields: [templateId], references: [id])
+  createdById             String
+  createdBy               User             @relation("UserCreatedSurveys", fields: [createdById], references: [id])
+  scheduleId              String?
+  schedule                SurveySchedule?  @relation(fields: [scheduleId], references: [id])
+  name                    String
+  description             String?
+  language                String?   @default("en")
+  status                  SurveyStatus
+  startsAt                DateTime?
+  endsAt                  DateTime?
+  invitesSentAt           DateTime?
+  remindersSentAt         DateTime?
+  minResponsesForBreakdown Int             @default(4)
+  createdAt               DateTime         @default(now())
+  updatedAt               DateTime         @updatedAt
+  questions               SurveyQuestion[]
+  targets                 SurveyTarget[]
+  responses               SurveyResponse[]
+  inviteTokens            SurveyInviteToken[]
+  insight                 SurveyInsight?
+  kioskSessions           KioskSession[]
+  archivedAt              DateTime?
+  actionItems             ActionItem[]
+  teamRiskSnapshots       TeamRiskSnapshot[]
+  orgRiskSnapshots        OrgRiskSnapshot[]
+  engagementSnapshots     SurveyEngagementSnapshot[] @relation("SurveyEngagement")
+}
+
+model SurveyQuestion {
+  id       String       @id @default(cuid())
+  surveyId String
+  survey   Survey       @relation(fields: [surveyId], references: [id])
+  order    Int
+  text     String
+  type     QuestionType
+  scaleMin Int?
+  scaleMax Int?
+  answers  SurveyAnswer[]
+}
+
+model SurveyTarget {
+  id       String @id @default(cuid())
+  surveyId String
+  survey   Survey @relation(fields: [surveyId], references: [id])
+  teamId   String
+  team     Team   @relation(fields: [teamId], references: [id])
+}
+
+model SurveyInviteToken {
+  id        String   @id @default(cuid())
+  surveyId  String
+  survey    Survey   @relation(fields: [surveyId], references: [id])
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  token     String   @unique
+  usedAt    DateTime?
+  variantKey String?
+  createdAt DateTime @default(now())
+  responses SurveyResponse[]
+}
+
+model SurveySchedule {
+  id                       String        @id @default(cuid())
+  organizationId           String
+  organization             Organization  @relation(fields: [organizationId], references: [id])
+  templateId               String
+  template                 SurveyTemplate @relation(fields: [templateId], references: [id])
+  createdById              String
+  createdBy                User          @relation(fields: [createdById], references: [id])
+  name                     String
+  description              String?
+  cronExpression           String?
+  frequency                String
+  dayOfWeek                Int?
+  dayOfMonth               Int?
+  isActive                 Boolean       @default(true)
+  minResponsesForBreakdown Int?
+  startsOn                 DateTime?
+  createdAt                DateTime      @default(now())
+  updatedAt                DateTime      @updatedAt
+  surveys                  Survey[]
+  targets                  SurveyScheduleTarget[]
+}
+
+model Notification {
+  id              String        @id @default(cuid())
+  organizationId  String
+  organization    Organization  @relation(fields: [organizationId], references: [id])
+  userId          String?
+  user            User?         @relation(fields: [userId], references: [id])
+  type            String
+  title           String
+  body            String?
+  link            String?
+  isRead          Boolean       @default(false)
+  createdAt       DateTime      @default(now())
+}
+
+model SurveyScheduleTarget {
+  id          String        @id @default(cuid())
+  scheduleId  String
+  schedule    SurveySchedule @relation(fields: [scheduleId], references: [id])
+  teamId      String
+  team        Team           @relation(fields: [teamId], references: [id])
+}
+
+model SurveyResponse {
+  id            String          @id @default(cuid())
+  surveyId      String
+  survey        Survey          @relation(fields: [surveyId], references: [id])
+  inviteTokenId String
+  inviteToken   SurveyInviteToken @relation(fields: [inviteTokenId], references: [id])
+  submittedAt   DateTime        @default(now())
+  answers       SurveyAnswer[]
+  kioskSessionId String?
+  kioskSession   KioskSession?  @relation(fields: [kioskSessionId], references: [id])
+}
+
+model SurveyAnswer {
+  id         String         @id @default(cuid())
+  responseId String
+  response   SurveyResponse @relation(fields: [responseId], references: [id])
+  questionId String
+  question   SurveyQuestion @relation(fields: [questionId], references: [id])
+  scaleValue Int?
+  textValue  String?
+}
+
+model OrganizationSettings {
+  id                          String        @id @default(cuid())
+  organizationId              String        @unique
+  organization                Organization  @relation(fields: [organizationId], references: [id])
+  minResponsesForBreakdown    Int           @default(4)
+  stressScaleMin              Int           @default(1)
+  stressScaleMax              Int           @default(5)
+  timezone                    String?
+  allowManagerAccessToAllSurveys Boolean    @default(false)
+  featureFlags                Json?
+  slackEnabled                Boolean       @default(false)
+  slackAlertsChannelId        String?
+  defaultLanguage             String        @default("en")
+  dataRetentionDays           Int?
+  createdAt                   DateTime      @default(now())
+  updatedAt                   DateTime      @updatedAt
+}
+
+model AuditLog {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  userId         String?
+  user           User?        @relation(fields: [userId], references: [id])
+  action         String
+  targetType     String
+  targetId       String?
+  metadata       Json?
+  createdAt      DateTime     @default(now())
+}
+
+model Plan {
+  id                 String   @id @default(cuid())
+  key                String?
+  stripePriceId      String   @unique
+  name               String
+  description        String?
+  monthlyPriceCents  Int
+  maxEmployees       Int?
+  maxActiveSurveys   Int?
+  maxTeams           Int?
+  billingMode        String?
+  baseSeats          Int?
+  pricePerSeatCents  Int?
+  includedAIRequests Int?
+  includedAutomationWorkflows Int?
+  includedMarketplaceApps Int?
+  featureKeys        String[]
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  subscriptions      Subscription[]
+}
+
+model Subscription {
+  id                    String       @id @default(cuid())
+  organizationId        String       @unique
+  organization          Organization @relation(fields: [organizationId], references: [id])
+  planId                String?
+  plan                  Plan?        @relation(fields: [planId], references: [id])
+  stripeCustomerId      String?
+  stripeSubscriptionId  String?
+  status                String
+  currentPeriodEnd      DateTime?
+  trialEndsAt           DateTime?
+  isTrial               Boolean      @default(false)
+  canceledAt            DateTime?
+  cancelReason          String?
+  seats                 Int?
+  usedSeats             Int?
+  createdAt             DateTime     @default(now())
+  updatedAt             DateTime     @updatedAt
+}
+
+model SlackIntegration {
+  id              String       @id @default(cuid())
+  organizationId  String       @unique
+  organization    Organization @relation(fields: [organizationId], references: [id])
+  accessToken     String
+  botUserId       String?
+  teamId          String?
+  teamName        String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+}
+
+model Article {
+  id           String   @id @default(cuid())
+  slug         String   @unique
+  title        String
+  description  String?
+  content      String
+  category     String
+  featured     Boolean  @default(false)
+  publishedAt  DateTime?
+  isHelpCenter Boolean  @default(false)
+  inAppContext String[]
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model ApiKey {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  name           String
+  tokenHash      String
+  prefix         String
+  scopes         String[]
+  createdById    String
+  createdBy      User         @relation(fields: [createdById], references: [id])
+  createdAt      DateTime     @default(now())
+  lastUsedAt     DateTime?
+  isActive       Boolean      @default(true)
+}
+
+model WebhookEndpoint {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  url            String
+  description    String?
+  secret         String
+  eventTypes     String[]
+  isActive       Boolean      @default(true)
+  lastDeliveryAt DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  deliveries     WebhookDelivery[]
+}
+
+model WebhookDelivery {
+  id             String          @id @default(cuid())
+  endpointId     String
+  endpoint       WebhookEndpoint @relation(fields: [endpointId], references: [id])
+  eventType      String
+  payload        Json
+  status         String
+  responseStatus Int?
+  responseBody   String?
+  attempt        Int
+  createdAt      DateTime        @default(now())
+}
+
+model EmbedConfig {
+  id             String       @id @default(cuid())
+  organizationId String       @unique
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  publicKey      String
+  allowedOrigins String[]
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
+model Role {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  name           String
+  key            String
+  description    String?
+  isSystem       Boolean      @default(false)
+  permissions    String[]
+  users          UserRole[]
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
+model UserRole {
+  userId String
+  roleId String
+  user   User @relation(fields: [userId], references: [id])
+  role   Role @relation(fields: [roleId], references: [id])
+
+  @@id([userId, roleId])
+}
+
+model Playbook {
+  id             String    @id @default(cuid())
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+  name           String
+  description    String?
+  triggerType    String
+  triggerConfig  Json?
+  isActive       Boolean   @default(true)
+  createdById    String?
+  createdBy      User?     @relation(fields: [createdById], references: [id])
+  steps          PlaybookStep[]
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+
+model PlaybookStep {
+  id          String    @id @default(cuid())
+  playbookId  String
+  playbook    Playbook  @relation(fields: [playbookId], references: [id])
+  order       Int
+  title       String
+  description String?
+  suggestedTemplate String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model ActionItem {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  surveyId       String
+  survey         Survey       @relation(fields: [surveyId], references: [id])
+  teamId         String?
+  team           Team?        @relation(fields: [teamId], references: [id])
+  assigneeId     String?
+  assignee       User?        @relation("ActionAssignee", fields: [assigneeId], references: [id])
+  title          String
+  description    String?
+  status         String       @default("open")
+  dueDate        DateTime?
+  createdById    String
+  createdBy      User         @relation("ActionCreator", fields: [createdById], references: [id])
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
+model DwhExportCursor {
+  id            String   @id @default(cuid())
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+  entityType    String
+  lastExportedAt DateTime?
+  lastId        String?
+  updatedAt     DateTime @updatedAt
+  createdAt     DateTime @default(now())
+}
+
+model EmailTemplate {
+  id             String       @id @default(cuid())
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+  type           String
+  variantKey     String
+  subjectTemplate String
+  bodyTemplate   String
+  isActive       Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
+model KioskSession {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  surveyId       String
+  survey         Survey       @relation(fields: [surveyId], references: [id])
+  name           String?
+  createdById    String
+  createdBy      User         @relation(fields: [createdById], references: [id])
+  isActive       Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  lastUsedAt     DateTime?
+  responses      SurveyResponse[]
+}
+
+model ProductEvent {
+  id             String    @id @default(cuid())
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+  userId         String?
+  user           User?     @relation(fields: [userId], references: [id])
+  sessionId      String?
+  source         String
+  eventName      String
+  properties     Json?
+  createdAt      DateTime  @default(now())
+}
+
+model InternalUser {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String?
+  role         String
+  passwordHash String
+  createdAt    DateTime @default(now())
+}
+
+model EmployeeAttributeDefinition {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  key            String
+  label          String
+  type           String
+  options        String[]
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  values         EmployeeAttributeValue[]
+}
+
+model EmployeeAttributeValue {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  userId         String
+  user           User         @relation(fields: [userId], references: [id])
+  attributeId    String
+  attribute      EmployeeAttributeDefinition @relation(fields: [attributeId], references: [id])
+  value          String
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([userId, attributeId])
+}
+
+model SSOConfig {
+  id              String       @id @default(cuid())
+  organizationId  String       @unique
+  organization    Organization @relation(fields: [organizationId], references: [id])
+  providerType    String
+  displayName     String
+  issuer          String?
+  ssoUrl          String?
+  certificate     String?
+  oidcClientId    String?
+  oidcClientSecret String?
+  oidcTokenUrl    String?
+  oidcUserInfoUrl String?
+  oidcScope       String?
+  emailClaim      String?
+  nameClaim       String?
+  isEnabled       Boolean      @default(false)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+}
+
+model HRISIntegration {
+  id              String       @id @default(cuid())
+  organizationId  String       @unique
+  organization    Organization @relation(fields: [organizationId], references: [id])
+  provider        String
+  apiBaseUrl      String?
+  apiKey          String?
+  subdomain       String?
+  lastSyncAt      DateTime?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+}
+
+model TeamRiskSnapshot {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  teamId         String
+  team           Team         @relation(fields: [teamId], references: [id])
+  surveyId       String?
+  survey         Survey?      @relation(fields: [surveyId], references: [id])
+  windowStart    DateTime
+  windowEnd      DateTime
+  riskScore      Int
+  stressLevel    String
+  confidence     Float?
+  drivers        Json?
+  createdAt      DateTime     @default(now())
+}
+
+model OrgRiskSnapshot {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  windowStart    DateTime
+  windowEnd      DateTime
+  riskScore      Int
+  stressLevel    String
+  confidence     Float?
+  drivers        Json?
+  surveyId       String?
+  survey         Survey?      @relation(fields: [surveyId], references: [id])
+  createdAt      DateTime     @default(now())
+}
+
+model AnomalyEvent {
+  id                   String       @id @default(cuid())
+  organizationId       String
+  organization         Organization @relation(fields: [organizationId], references: [id])
+  scopeType            String
+  scopeId              String?
+  teamId               String?
+  team                 Team?        @relation(fields: [teamId], references: [id])
+  metric               String
+  windowStart          DateTime
+  windowEnd            DateTime
+  baselineWindowStart  DateTime
+  baselineWindowEnd    DateTime
+  changeDirection      String
+  changeMagnitude      Float
+  statisticalScore     Float?
+  severity             String
+  details              Json?
+  createdAt            DateTime     @default(now())
+}
+
+model RecommendationTemplate {
+  id             String       @id @default(cuid())
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+  key            String
+  title          String
+  description    String?
+  triggerTags    String[]
+  audience       String
+  suggestedActions Json?
+  isActive       Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
+model NudgeRule {
+  id             String       @id @default(cuid())
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+  key            String
+  description    String?
+  triggerType    String
+  audienceRole   String
+  channels       String[]
+  isActive       Boolean      @default(true)
+  config         Json?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  events         NudgeEvent[]
+}
+
+model NudgeEvent {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  ruleId         String
+  rule           NudgeRule    @relation(fields: [ruleId], references: [id])
+  userId         String
+  user           User         @relation(fields: [userId], references: [id])
+  channel        String
+  payload        Json?
+  status         String       @default("sent")
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
+model Experiment {
+  id             String       @id @default(cuid())
+  key            String       @unique
+  name           String?
+  description    String?
+  type           String?
+  population     String?
+  scope          String       @default("GLOBAL")
+  status         String       @default("draft")
+  startAt        DateTime?
+  endAt          DateTime?
+  ownerUserId    String?
+  ownerUser      User?        @relation(fields: [ownerUserId], references: [id])
+  primaryMetric  String?
+  secondaryMetrics String[]
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+  variants       Json
+  targetMetric   String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  assignments    ExperimentAssignment[]
+  variantList    ExperimentVariant[]
+  exposures      ExperimentExposure[]
+  metricEvents   ExperimentMetricEvent[]
+}
+
+model ExperimentAssignment {
+  id             String      @id @default(cuid())
+  experimentId   String
+  experiment     Experiment  @relation(fields: [experimentId], references: [id])
+  subjectType    String
+  subjectId      String
+  variantKey     String
+  variantId      String?
+  variant        ExperimentVariant? @relation(fields: [variantId], references: [id])
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+  userId         String?
+  user           User?     @relation(fields: [userId], references: [id])
+  anonymousId    String?
+  createdAt      DateTime    @default(now())
+}
+
+model ScaleCalibration {
+  id             String       @id @default(cuid())
+  templateId     String
+  template       SurveyTemplate @relation(fields: [templateId], references: [id])
+  locale         String
+  normSampleSize Int
+  normMean       Float
+  normStdDev     Float
+  percentileMapping Json?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+model SurveyInsight {
+  id                 String   @id @default(cuid())
+  surveyId           String   @unique
+  survey             Survey   @relation(fields: [surveyId], references: [id])
+  language           String?
+  summaryText        String
+  managerSuggestions String?
+  sentimentLabel     String?
+  themes             Json?
+  lastGeneratedAt    DateTime @default(now())
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+model BrandProfile {
+  id               String   @id @default(cuid())
+  name             String
+  primaryColor     String?
+  secondaryColor   String?
+  logoUrl          String?
+  faviconUrl       String?
+  loginBackgroundUrl String?
+  isDefault        Boolean  @default(false)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  organizations    OrganizationBrand[]
+}
+
+model OrganizationBrand {
+  id               String       @id @default(cuid())
+  organizationId   String
+  organization     Organization @relation(fields: [organizationId], references: [id])
+  brandProfileId   String
+  brandProfile     BrandProfile @relation(fields: [brandProfileId], references: [id])
+  isPrimary        Boolean      @default(false)
+}
+
+model Partner {
+  id           String   @id @default(cuid())
+  name         String
+  slug         String   @unique
+  contactEmail String?
+  websiteUrl   String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  users        PartnerUser[]
+  organizations PartnerOrganization[]
+  listedApps   MarketplaceApp[] @relation("PartnerListedApps")
+  projectSpaces ProjectSpace[] @relation("ProjectPartnerOwner")
+}
+
+model PartnerUser {
+  id           String   @id @default(cuid())
+  partnerId    String
+  partner      Partner  @relation(fields: [partnerId], references: [id])
+  email        String
+  name         String?
+  role         String
+  passwordHash String
+  createdAt    DateTime @default(now())
+}
+
+model PartnerOrganization {
+  id                String       @id @default(cuid())
+  partnerId         String
+  partner           Partner      @relation(fields: [partnerId], references: [id])
+  organizationId    String
+  organization      Organization @relation(fields: [organizationId], references: [id])
+  relationshipType  String
+  createdAt         DateTime @default(now())
+}
+
+model MarketplaceApp {
+  id             String   @id @default(cuid())
+  slug           String   @unique
+  name           String
+  description    String?
+  category       String
+  listingType    String
+  listedByPartnerId String?
+  listedByPartner  Partner? @relation("PartnerListedApps", fields: [listedByPartnerId], references: [id])
+  iconUrl        String?
+  configSchema   Json?
+  isPublished    Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  installations  MarketplaceInstallation[]
+}
+
+model MarketplaceInstallation {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  appId          String
+  app            MarketplaceApp @relation(fields: [appId], references: [id])
+  installedById  String
+  installedBy    User         @relation(fields: [installedById], references: [id])
+  config         Json?
+  status         String       @default("active")
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
+model AutomationWorkflow {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  name           String
+  description    String?
+  isActive       Boolean      @default(true)
+  triggerType    String
+  triggerEvent   String?
+  scheduleCron   String?
+  definition     Json
+  createdById    String
+  createdBy      User         @relation(fields: [createdById], references: [id])
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  runs           AutomationRun[]
+}
+
+model AutomationRun {
+  id             String       @id @default(cuid())
+  workflowId     String
+  workflow       AutomationWorkflow @relation(fields: [workflowId], references: [id])
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  status         String       @default("running")
+  startedAt      DateTime     @default(now())
+  finishedAt     DateTime?
+  input          Json?
+  logs           Json?
+}
+
+model ProjectSpace {
+  id             String   @id @default(cuid())
+  name           String
+  description    String?
+  ownerType      String
+  ownerOrgId     String?
+  ownerPartnerId String?
+  ownerOrg       Organization? @relation("ProjectOrgOwner", fields: [ownerOrgId], references: [id])
+  ownerPartner   Partner? @relation("ProjectPartnerOwner", fields: [ownerPartnerId], references: [id])
+  memberships    ProjectMembership[]
+  createdAt      DateTime @default(now())
+}
+
+model ProjectMembership {
+  id             String   @id @default(cuid())
+  projectId      String
+  project        ProjectSpace @relation(fields: [projectId], references: [id])
+  userType       String
+  orgUserId      String?
+  partnerUserId  String?
+  role           String
+  createdAt      DateTime @default(now())
+}
+
+model OnboardingTask {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  key            String
+  title          String
+  description    String?
+  status         String       @default("pending")
+  completedAt    DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
+model UsageRecord {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  periodStart    DateTime
+  periodEnd      DateTime
+  metric         String
+  value          Int
+  createdAt      DateTime     @default(now())
+}
+
+model AddOn {
+  id             String   @id @default(cuid())
+  key            String   @unique
+  name           String
+  description    String?
+  monthlyPriceCents Int
+  featureKeys    String[]
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  organizationAddOns OrganizationAddOn[]
+}
+
+model OrganizationAddOn {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  addOnId        String
+  addOn          AddOn        @relation(fields: [addOnId], references: [id])
+  startedAt      DateTime     @default(now())
+  canceledAt     DateTime?
+  createdAt      DateTime     @default(now())
+}
+
+model CRMIntegration {
+  id             String   @id @default(cuid())
+  type           String
+  apiBaseUrl     String?
+  apiKey         String?
+  clientId       String?
+  clientSecret   String?
+  authType       String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  mappings       OrgCRMMapping[]
+}
+
+model OrgCRMMapping {
+  id                String       @id @default(cuid())
+  organizationId    String
+  organization      Organization @relation(fields: [organizationId], references: [id])
+  crmIntegrationId  String
+  crmIntegration    CRMIntegration @relation(fields: [crmIntegrationId], references: [id])
+  crmAccountId      String?
+  crmOwnerId        String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model Invoice {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  stripeInvoiceId String?
+  number         String?
+  periodStart    DateTime
+  periodEnd      DateTime
+  amountCents    Int
+  currency       String       @default("usd")
+  status         String
+  pdfUrl         String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  lineItems      InvoiceLineItem[]
+}
+
+model InvoiceLineItem {
+  id             String    @id @default(cuid())
+  invoiceId      String
+  invoice        Invoice   @relation(fields: [invoiceId], references: [id])
+  description    String
+  quantity       Int
+  unitPriceCents Int
+  amountCents    Int
+  metadata       Json?
+  createdAt      DateTime  @default(now())
+}
+
+model DunningState {
+  id             String       @id @default(cuid())
+  organizationId String       @unique
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  status         String       @default("none")
+  lastReminderAt DateTime?
+  failedAttempts Int          @default(0)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
+model ReferralProgram {
+  id             String   @id @default(cuid())
+  key            String   @unique
+  isActive       Boolean  @default(true)
+  rewardType     String
+  rewardValue    Int
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  orgReferrals   OrgReferral[]
+}
+
+model OrgReferral {
+  id                      String        @id @default(cuid())
+  referrerOrganizationId  String
+  referrerOrganization    Organization  @relation("ReferrerOrg", fields: [referrerOrganizationId], references: [id])
+  referredOrganizationId  String?
+  referredOrganization    Organization? @relation("ReferredOrg", fields: [referredOrganizationId], references: [id])
+  referralCode            String        @unique
+  status                  String        @default("pending")
+  referralProgramId       String?
+  referralProgram         ReferralProgram? @relation(fields: [referralProgramId], references: [id])
+  createdAt               DateTime      @default(now())
+  updatedAt               DateTime      @updatedAt
+}
+
+model InAppSurvey {
+  id             String   @id @default(cuid())
+  type           String
+  question       String
+  isActive       Boolean  @default(true)
+  triggerLocation String[]
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  responses      InAppSurveyResponse[]
+}
+
+model InAppSurveyResponse {
+  id        String   @id @default(cuid())
+  surveyId  String
+  survey    InAppSurvey @relation(fields: [surveyId], references: [id])
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+  score     Int?
+  comment   String?
+  createdAt DateTime @default(now())
+}
+
+model FeatureFlag {
+  id             String   @id @default(cuid())
+  key            String   @unique
+  description    String?
+  defaultEnabled Boolean  @default(false)
+  experimentKey  String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  overrides      FeatureFlagOverride[]
+}
+
+model FeatureFlagOverride {
+  id             String   @id @default(cuid())
+  featureKey     String
+  flag           FeatureFlag @relation(fields: [featureKey], references: [key])
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+  userId         String?
+  user           User?     @relation(fields: [userId], references: [id])
+  environment    String?
+  enabled        Boolean
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model CoachSession {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  userId         String
+  user           User         @relation(fields: [userId], references: [id])
+  mode           String
+  title          String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  closedAt       DateTime?
+  isPinned       Boolean      @default(false)
+  lastRiskLevel  String?
+  messages       CoachMessage[]
+  summary        CoachSummary?
+}
+
+model CoachMessage {
+  id          String        @id @default(cuid())
+  sessionId   String
+  session     CoachSession  @relation(fields: [sessionId], references: [id])
+  role        String
+  content     String
+  createdAt   DateTime      @default(now())
+  safetyLabel String?
+  metadata    Json?
+  modelVersionId String?
+  evalScoreSafety Float?
+  evalScoreHelpfulness Float?
+  flaggedForReview Boolean @default(false)
+}
+
+model CoachSummary {
+  id                 String       @id @default(cuid())
+  sessionId          String       @unique
+  session            CoachSession @relation(fields: [sessionId], references: [id])
+  summary            String
+  focusAreas         String[]
+  recommendedIntensity String?
+  lastUpdatedAt      DateTime     @default(now())
+}
+
+model HabitPlan {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  userId         String
+  user           User         @relation(fields: [userId], references: [id])
+  title          String
+  description    String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  status         String       @default("active")
+  source         String?
+  tasks          HabitTask[]
+}
+
+model HabitTask {
+  id             String    @id @default(cuid())
+  planId         String
+  plan           HabitPlan @relation(fields: [planId], references: [id])
+  title          String
+  description    String?
+  frequency      String
+  targetPerPeriod Int?
+  dueTimeLocal   String?
+  sortOrder      Int       @default(0)
+  status         String    @default("active")
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  checkins       HabitCheckin[]
+}
+
+model HabitCheckin {
+  id        String    @id @default(cuid())
+  taskId    String
+  task      HabitTask @relation(fields: [taskId], references: [id])
+  userId    String
+  user      User      @relation(fields: [userId], references: [id])
+  date      DateTime
+  status    String
+  moodAfter Int?
+  createdAt DateTime  @default(now())
+}
+
+model UserWellbeingPreferences {
+  id                     String   @id @default(cuid())
+  userId                 String   @unique
+  user                   User     @relation(fields: [userId], references: [id])
+  allowCheckinReminders  Boolean  @default(true)
+  preferredCheckinTimes  String[]
+  topicsToFocus          String[]
+  topicsToAvoid          String[]
+  language               String?
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+}
+
+model SafetyIncident {
+  id                   String       @id @default(cuid())
+  organizationId       String
+  organization         Organization @relation(fields: [organizationId], references: [id])
+  userId               String?
+  user                 User?        @relation(fields: [userId], references: [id])
+  source               String
+  sourceId             String?
+  riskLevel            String
+  detectedAt           DateTime     @default(now())
+  tags                 String[]
+  status               String       @default("open")
+  handledByInternalId  String?
+  resolutionNotes      String?
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
+}
+
+model OrgSafetySettings {
+  id                  String       @id @default(cuid())
+  organizationId      String       @unique
+  organization        Organization @relation(fields: [organizationId], references: [id])
+  emergencyText       String?
+  emergencyLinks      String[]
+  notifyHRForHighRisk Boolean      @default(false)
+  hrNotificationEmail String?
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+}
+
+model WellbeingResource {
+  id              String   @id @default(cuid())
+  title           String
+  slug            String   @unique
+  type            String
+  content         String
+  tags            String[]
+  difficulty      String
+  estimatedMinutes Int?
+  isPublic        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  organizationId  String?
+  organization    Organization? @relation(fields: [organizationId], references: [id])
+}
+
+model AcademyCourse {
+  id               String   @id @default(cuid())
+  slug             String   @unique
+  title            String
+  shortDescription String?
+  fullDescription  String?
+  level            String
+  targetAudience   String[]
+  estimatedHours   Int?
+  isPublic         Boolean  @default(false)
+  isLive           Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  modules          AcademyModule[]
+  enrollments      AcademyEnrollment[]
+}
+
+model AcademyModule {
+  id               String   @id @default(cuid())
+  courseId         String
+  course           AcademyCourse @relation(fields: [courseId], references: [id])
+  title            String
+  sortOrder        Int      @default(0)
+  contentType      String
+  contentRef       String?
+  estimatedMinutes Int?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  quizQuestions    AcademyQuizQuestion[]
+  progresses       AcademyProgress[]
+}
+
+model AcademyQuizQuestion {
+  id              String   @id @default(cuid())
+  moduleId        String
+  module          AcademyModule @relation(fields: [moduleId], references: [id])
+  type            String
+  question        String
+  options         Json
+  correctOptionIds String[]
+  sortOrder       Int      @default(0)
+}
+
+model AcademyEnrollment {
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  userId         String
+  user           User     @relation(fields: [userId], references: [id])
+  courseId       String
+  course         AcademyCourse @relation(fields: [courseId], references: [id])
+  role           String   @default("learner")
+  status         String   @default("in_progress")
+  startedAt      DateTime @default(now())
+  completedAt    DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  progresses     AcademyProgress[]
+  certificate    AcademyCertificate?
+}
+
+model AcademyProgress {
+  id             String   @id @default(cuid())
+  enrollmentId   String
+  enrollment     AcademyEnrollment @relation(fields: [enrollmentId], references: [id])
+  moduleId       String
+  module         AcademyModule @relation(fields: [moduleId], references: [id])
+  status         String   @default("not_started")
+  lastVisitedAt  DateTime?
+  score          Float?
+  attempts       Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model AcademyCertificate {
+  id                 String   @id @default(cuid())
+  enrollmentId       String   @unique
+  enrollment         AcademyEnrollment @relation(fields: [enrollmentId], references: [id])
+  certificateNumber  String   @unique
+  issuedAt           DateTime @default(now())
+  pdfUrl             String?
+  metadata           Json?
+}
+
+model LearningProgram {
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  title          String
+  description    String?
+  courseIds      String[]
+  targetAudience String[]
+  durationWeeks  Int?
+  status         String   @default("active")
+  createdById    String
+  createdBy      User     @relation(fields: [createdById], references: [id])
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  cohorts        LearningCohort[]
+}
+
+model LearningCohort {
+  id               String   @id @default(cuid())
+  programId        String
+  program          LearningProgram @relation(fields: [programId], references: [id])
+  organizationId   String?
+  organization     Organization? @relation(fields: [organizationId], references: [id])
+  name             String
+  startsAt         DateTime
+  endsAt           DateTime?
+  facilitatorUserId String?
+  facilitator      User?    @relation(fields: [facilitatorUserId], references: [id])
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  members          LearningCohortMember[]
+}
+
+model LearningCohortMember {
+  id             String   @id @default(cuid())
+  cohortId       String
+  cohort         LearningCohort @relation(fields: [cohortId], references: [id])
+  userId         String
+  user           User     @relation(fields: [userId], references: [id])
+  enrollmentIds  String[]
+  joinedAt       DateTime @default(now())
+  status         String   @default("active")
+}
+
+model CommunitySpace {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  name        String
+  description String?
+  audience    String[]
+  isPublic    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  threads     CommunityThread[]
+}
+
+model CommunityThread {
+  id             String   @id @default(cuid())
+  spaceId        String
+  space          CommunitySpace @relation(fields: [spaceId], references: [id])
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+  authorUserId   String
+  author         User     @relation(fields: [authorUserId], references: [id])
+  title          String
+  content        String
+  tags           String[]
+  isAnonymous    Boolean  @default(false)
+  pinned         Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  replies        CommunityReply[]
+  upvotes        CommunityUpvote[]
+}
+
+model CommunityReply {
+  id           String   @id @default(cuid())
+  threadId     String
+  thread       CommunityThread @relation(fields: [threadId], references: [id])
+  authorUserId String
+  author       User     @relation(fields: [authorUserId], references: [id])
+  content      String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model CommunityUpvote {
+  id        String   @id @default(cuid())
+  threadId  String
+  thread    CommunityThread @relation(fields: [threadId], references: [id])
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@unique([threadId, userId])
+}
+
+model CoachProfile {
+  id           String   @id @default(cuid())
+  type         String
+  name         String
+  bio          String?
+  specialties  String[]
+  languages    String[]
+  timezone     String?
+  hourlyRateCents Int?
+  currency     String   @default("usd")
+  isVerified   Boolean  @default(false)
+  isVisible    Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  slots        CoachAvailabilitySlot[]
+  bookings     CoachBooking[]
+}
+
+model CoachAvailabilitySlot {
+  id        String   @id @default(cuid())
+  coachId   String
+  coach     CoachProfile @relation(fields: [coachId], references: [id])
+  start     DateTime
+  end       DateTime
+  isBooked  Boolean  @default(false)
+}
+
+model CoachBooking {
+  id             String   @id @default(cuid())
+  coachId        String
+  coach          CoachProfile @relation(fields: [coachId], references: [id])
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  userId         String?
+  user           User?    @relation(fields: [userId], references: [id])
+  status         String   @default("pending")
+  startsAt       DateTime
+  endsAt         DateTime
+  priceCents     Int?
+  currency       String   @default("usd")
+  stripePaymentIntentId String?
+  notes          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model BenchmarkGroup {
+  id             String   @id @default(cuid())
+  key            String   @unique
+  name           String
+  description    String?
+  criteria       Json
+  minOrganizations Int    @default(10)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  snapshots      BenchmarkSnapshot[]
+}
+
+model BenchmarkSnapshot {
+  id                 String   @id @default(cuid())
+  groupId            String
+  group              BenchmarkGroup @relation(fields: [groupId], references: [id])
+  periodStart        DateTime
+  periodEnd          DateTime
+  metric             String
+  value              Float
+  percentile25       Float?
+  percentile50       Float?
+  percentile75       Float?
+  organizationsCount Int
+  createdAt          DateTime @default(now())
+}
+
+model UserPrivacyProfile {
+  id                      String   @id @default(cuid())
+  userId                  String   @unique
+  user                    User     @relation(fields: [userId], references: [id])
+  allowAnonymizedUse      Boolean  @default(true)
+  allowProductFeedbackUse Boolean  @default(true)
+  shareCoachUsageWithOrg  Boolean  @default(true)
+  allowEmailsTips         Boolean  @default(true)
+  allowAIOnCoachHistory   Boolean  @default(true)
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+}
+
+model OrgPrivacySettings {
+  id                          String   @id @default(cuid())
+  organizationId              String   @unique
+  organization                Organization @relation(fields: [organizationId], references: [id])
+  allowAggregatedTeamInsights Boolean  @default(true)
+  minResponsesForTeamInsights Int      @default(5)
+  allowCoachEmployeeUsage     Boolean  @default(true)
+  allowCoachManagerMode       Boolean  @default(true)
+  allowCommunityPosting       Boolean  @default(true)
+  allowBenchmarking           Boolean  @default(true)
+  allowThirdPartyAI           Boolean  @default(true)
+  requireOnPremiseAI          Boolean  @default(false)
+  dataRegion                  String?
+  createdAt                   DateTime @default(now())
+  updatedAt                   DateTime @updatedAt
+}
+
+model DataSubjectRequest {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  userId         String?
+  user           User?        @relation(fields: [userId], references: [id])
+  email          String
+  type           String
+  status         String       @default("open")
+  reason         String?
+  internalNotes  String?
+  requestedAt    DateTime     @default(now())
+  completedAt    DateTime?
+  handledByInternalId String?
+  metadata       Json?
+  exportBundle   DataSubjectExportBundle?
+}
+
+model DataSubjectExportBundle {
+  id        String   @id @default(cuid())
+  requestId String   @unique
+  request   DataSubjectRequest @relation(fields: [requestId], references: [id])
+  storageUrl String?
+  expiresAt DateTime?
+}
+
+model RetentionPolicy {
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  dataType       String
+  retentionDays  Int
+  softDeleteOnly Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model LegalHold {
+  id                 String   @id @default(cuid())
+  organizationId     String
+  organization       Organization @relation(fields: [organizationId], references: [id])
+  reason             String
+  appliesToDataTypes String[]
+  isActive           Boolean  @default(true)
+  createdByInternalId String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+model ConsentRecord {
+  id             String   @id @default(cuid())
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+  userId         String?
+  user           User?    @relation(fields: [userId], references: [id])
+  subjectEmail   String?
+  type           String
+  version        String
+  granted        Boolean
+  grantedAt      DateTime
+  ipAddress      String?
+  userAgent      String?
+  metadata       Json?
+  createdAt      DateTime @default(now())
+}
+
+model ApiClient {
+  id               String   @id @default(cuid())
+  organizationId   String
+  organization     Organization @relation(fields: [organizationId], references: [id])
+  name             String
+  description      String?
+  clientId         String   @unique
+  clientSecretHash String
+  scopes           String[]
+  createdById      String
+  createdBy        User @relation(fields: [createdById], references: [id])
+  lastUsedAt       DateTime?
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  tokens           ApiToken[]
+}
+
+model ApiToken {
+  id          String   @id @default(cuid())
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+  apiClientId String
+  apiClient   ApiClient @relation(fields: [apiClientId], references: [id])
+  tokenHash   String   @unique
+  expiresAt   DateTime?
+  revokedAt   DateTime?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+}
+
+model HRISConnection {
+  id             String   @id @default(cuid())
+  organizationId String   @unique
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  provider       String
+  status         String   @default("disconnected")
+  authConfig     Json
+  lastSyncAt     DateTime?
+  lastSyncStatus String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  fieldMappings  HRISFieldMapping[]
+  syncLogs       HRISSyncLog[]
+}
+
+model HRISFieldMapping {
+  id                String   @id @default(cuid())
+  hrisConnectionId  String
+  connection        HRISConnection @relation(fields: [hrisConnectionId], references: [id])
+  hrisField         String
+  localField        String
+  isKey             Boolean  @default(false)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model HRISSyncLog {
+  id                   String   @id @default(cuid())
+  hrisConnectionId     String
+  connection           HRISConnection @relation(fields: [hrisConnectionId], references: [id])
+  organizationId       String?
+  organization         Organization? @relation(fields: [organizationId], references: [id])
+  startedAt            DateTime @default(now())
+  finishedAt           DateTime?
+  status               String   @default("running")
+  employeesFetched     Int      @default(0)
+  employeesCreated     Int      @default(0)
+  employeesUpdated     Int      @default(0)
+  employeesDeactivated Int      @default(0)
+  errors               Json?
+}
+
+model SSOConnection {
+  id                    String   @id @default(cuid())
+  organizationId        String   @unique
+  organization          Organization @relation(fields: [organizationId], references: [id])
+  protocol              String
+  idpEntityId           String?
+  idpMetadataUrl        String?
+  idpMetadataXml        String?
+  ssoUrl                String?
+  oidcIssuer            String?
+  oidcClientId          String?
+  oidcClientSecret      String?
+  oidcAuthorizationUrl  String?
+  oidcTokenUrl          String?
+  oidcJwksUrl           String?
+  defaultRoleKey        String?
+  attributeMapping      Json?
+  isActive              Boolean  @default(false)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  domains               SSODomain[]
+}
+
+model SSODomain {
+  id              String   @id @default(cuid())
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id])
+  domain          String   @unique
+  ssoConnectionId String
+  ssoConnection   SSOConnection @relation(fields: [ssoConnectionId], references: [id])
+  createdAt       DateTime @default(now())
+}
+
+model SCIMConnection {
+  id             String   @id @default(cuid())
+  organizationId String   @unique
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  bearerTokenHash String
+  baseUrl        String?
+  isActive       Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model SlackWorkspace {
+  id             String   @id @default(cuid())
+  organizationId String   @unique
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  teamId         String
+  botUserId      String?
+  accessToken    String
+  scopes         String[]
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  channelMappings SlackChannelMapping[]
+  userLinks      SlackUserLink[]
+}
+
+model SlackChannelMapping {
+  id                String   @id @default(cuid())
+  slackWorkspaceId  String
+  workspace         SlackWorkspace @relation(fields: [slackWorkspaceId], references: [id])
+  type              String
+  slackChannelId    String
+  createdAt         DateTime @default(now())
+  organizationId    String?
+  organization      Organization? @relation(fields: [organizationId], references: [id])
+}
+
+model SlackUserLink {
+  id                String   @id @default(cuid())
+  slackWorkspaceId  String
+  workspace         SlackWorkspace @relation(fields: [slackWorkspaceId], references: [id])
+  userId            String
+  user              User     @relation(fields: [userId], references: [id])
+  slackUserId       String
+  createdAt         DateTime @default(now())
+  organizationId    String?
+  organization      Organization? @relation(fields: [organizationId], references: [id])
+}
+
+model CalendarConnection {
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  userId         String?
+  user           User?    @relation(fields: [userId], references: [id])
+  provider       String
+  accountId      String
+  accessToken    String
+  refreshToken   String?
+  tokenExpiresAt DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model CustomerWarehouseConnection {
+  id             String   @id @default(cuid())
+  organizationId String   @unique
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  type           String
+  config         Json
+  status         String   @default("disconnected")
+  lastSyncAt     DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model ExperimentVariant {
+  id             String   @id @default(cuid())
+  experimentId   String
+  experiment     Experiment @relation(fields: [experimentId], references: [id])
+  key            String
+  name           String?
+  description    String?
+  allocation     Float
+  isControl      Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  assignments    ExperimentAssignment[]
+  exposures      ExperimentExposure[]
+  metricEvents   ExperimentMetricEvent[]
+}
+
+model ExperimentExposure {
+  id             String   @id @default(cuid())
+  experimentId   String
+  experiment     Experiment @relation(fields: [experimentId], references: [id])
+  variantId      String
+  variant        ExperimentVariant @relation(fields: [variantId], references: [id])
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+  teamId         String?
+  userId         String?
+  user           User?    @relation(fields: [userId], references: [id])
+  anonymousId    String?
+  context        String?
+  occurredAt     DateTime @default(now())
+}
+
+model ExperimentMetricEvent {
+  id             String   @id @default(cuid())
+  experimentId   String
+  experiment     Experiment @relation(fields: [experimentId], references: [id])
+  variantId      String
+  variant        ExperimentVariant @relation(fields: [variantId], references: [id])
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+  teamId         String?
+  userId         String?
+  user           User?    @relation(fields: [userId], references: [id])
+  anonymousId    String?
+  metricKey      String
+  value          Float
+  metadata       Json?
+  occurredAt     DateTime @default(now())
+  createdAt      DateTime @default(now())
+}
+
+model ModelRegistry {
+  id               String   @id @default(cuid())
+  key              String   @unique
+  name             String
+  description      String?
+  type             String
+  currentVersionId String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  versions         ModelVersion[]
+}
+
+model ModelVersion {
+  id                 String   @id @default(cuid())
+  registryId         String
+  registry           ModelRegistry @relation(fields: [registryId], references: [id])
+  version            String
+  status             String   @default("candidate")
+  storageUri         String
+  config             Json?
+  trainedAt          DateTime?
+  trainingDataSummary Json?
+  metrics            Json?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  inferenceLogs      ModelInferenceLog[]
+  evalTasks          AIEvalTask[]
+}
+
+model ModelInferenceLog {
+  id             String   @id @default(cuid())
+  modelVersionId String
+  version        ModelVersion @relation(fields: [modelVersionId], references: [id])
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+  userId         String?
+  user           User?    @relation(fields: [userId], references: [id])
+  inputSnapshot  Json?
+  output         Json
+  latencyMs      Int?
+  occurredAt     DateTime @default(now())
+}
+
+model AIEvalTask {
+  id             String   @id @default(cuid())
+  type           String
+  sourceId       String
+  modelVersionId String?
+  modelVersion   ModelVersion? @relation(fields: [modelVersionId], references: [id])
+  status         String   @default("pending")
+  createdAt      DateTime @default(now())
+  completedAt    DateTime?
+  autoScores     Json?
+  humanScores    Json?
+}
+
+model ResearchNotebook {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  name        String
+  description String?
+  ownerUserId String
+  ownerUser   User @relation(fields: [ownerUserId], references: [id])
+  status      String   @default("active")
+  tags        String[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  datasets    ResearchDataset[]
+}
+
+model ResearchDataset {
+  id         String   @id @default(cuid())
+  notebookId String
+  notebook   ResearchNotebook @relation(fields: [notebookId], references: [id])
+  type       String
+  sourceRef  String
+  metadata   Json?
+  createdAt  DateTime @default(now())
+}
+
+model ActionCenterItem {
+  id                String   @id @default(cuid())
+  organizationId    String
+  organization      Organization @relation(fields: [organizationId], references: [id])
+  teamId            String?
+  team              Team?    @relation(fields: [teamId], references: [id])
+  managerUserId     String?
+  manager           User?    @relation("ManagerActionCenter", fields: [managerUserId], references: [id])
+  userId            String?
+  user              User?    @relation("UserPersonalActions", fields: [userId], references: [id])
+  type              String
+  sourceRef         String?
+  title             String
+  description       String?
+  severity          String   @default("medium")
+  status            String   @default("open")
+  dueAt             DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  completedAt       DateTime?
+  completedByUserId String?
+  completedBy       User?    @relation("CompletedBy", fields: [completedByUserId], references: [id])
+
+  @@index([organizationId])
+  @@index([teamId])
+  @@index([managerUserId])
+  @@index([userId])
+  @@index([organizationId, userId, status])
+  @@index([status])
+}
+
+// People Management: 1:1s
+model OneOnOneMeetingTemplate {
+  id                  String   @id @default(cuid())
+  organizationId      String
+  organization        Organization @relation(fields: [organizationId], references: [id])
+  title               String
+  description         String?
+  defaultCadenceDays  Int?
+  defaultTalkingPoints Json?
+  isDefault           Boolean  @default(false)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  relationships       OneOnOneRelationship[]
+
+  @@index([organizationId])
+}
+
+// Compensation module
+model CompensationBand {
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  key            String
+  title          String
+  description    String?
+  currency       String
+  minBase        Float
+  midBase        Float?
+  maxBase        Float
+  minBonusPct    Float?
+  maxBonusPct    Float?
+  jobFamily      String?
+  level          Int?
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  assignments    CompensationBandAssignment[]
+  participants   CompensationReviewParticipant[] @relation("ParticipantCurrentBand")
+  recommendations CompensationReviewRecommendation[] @relation("ProposedBandRelation")
+
+  @@index([organizationId, key], name: "CompBand_org_key")
+  @@index([organizationId, jobFamily])
+}
+
+model CompensationBandAssignment {
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  userId         String
+  user           User @relation(fields: [userId], references: [id])
+  bandId         String
+  band           CompensationBand @relation(fields: [bandId], references: [id])
+  effectiveFrom  DateTime
+  effectiveTo    DateTime?
+  reason         String?
+  baseSalary     Float?
+  bonusPct       Float?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([organizationId, userId, effectiveFrom], name: "CompBandAssign_org_user_from")
+}
+
+model CompensationReviewCycle {
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  key            String
+  title          String
+  description    String?
+  currency       String
+  periodStart    DateTime
+  periodEnd      DateTime
+  status         String  @default("draft")
+  createdById    String
+  createdBy      User @relation("CompCycleCreatedBy", fields: [createdById], references: [id])
+  lockDate       DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  participants   CompensationReviewParticipant[]
+  recommendations CompensationReviewRecommendation[]
+
+  @@index([organizationId, key])
+}
+
+model CompensationReviewParticipant {
+  id             String   @id @default(cuid())
+  cycleId        String
+  cycle          CompensationReviewCycle @relation(fields: [cycleId], references: [id])
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  userId         String
+  user           User @relation(fields: [userId], references: [id])
+  managerId      String?
+  manager        User? @relation("CompParticipantManager", fields: [managerId], references: [id])
+  currentBandId  String?
+  currentBand    CompensationBand? @relation("ParticipantCurrentBand", fields: [currentBandId], references: [id])
+  currentBase    Float?
+  currentBonusPct Float?
+  currentFte     Float?
+  perfRating     String?
+  riskLevel      String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  recommendations CompensationReviewRecommendation[]
+
+  @@index([cycleId, userId])
+  @@index([organizationId, managerId])
+}
+
+model CompensationReviewRecommendation {
+  id             String   @id @default(cuid())
+  cycleId        String
+  cycle          CompensationReviewCycle @relation(fields: [cycleId], references: [id])
+  participantId  String
+  participant    CompensationReviewParticipant @relation(fields: [participantId], references: [id])
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  proposedBandId String?
+  proposedBand   CompensationBand? @relation("ProposedBandRelation", fields: [proposedBandId], references: [id])
+  proposedBase   Float?
+  proposedBonusPct Float?
+  lumpSumBonus   Float?
+  outOfRangeFlag Boolean @default(false)
+  rationale      String?
+  status         String @default("draft")
+  createdById    String
+  createdBy      User @relation("CompRecomCreatedBy", fields: [createdById], references: [id])
+  approvedByManagerId String?
+  approvedByManager   User? @relation("CompRecomApprovedManager", fields: [approvedByManagerId], references: [id])
+  approvedByHrId   String?
+  approvedByHr     User? @relation("CompRecomApprovedHr", fields: [approvedByHrId], references: [id])
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([cycleId, participantId])
+  @@index([organizationId, status])
+}
+
+model OnboardingJourneyTemplate {
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  key            String
+  title          String
+  description    String?
+  audienceType   String
+  jobFamily      String?
+  levelHint      String?
+  estimatedDurationDays Int?
+  isActive       Boolean  @default(true)
+  createdById    String
+  createdBy      User @relation(fields: [createdById], references: [id])
+  steps          OnboardingStepTemplate[]
+  journeys       OnboardingJourney[]
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([organizationId, key])
+}
+
+model OnboardingStepTemplate {
+  id             String   @id @default(cuid())
+  templateId     String
+  template       OnboardingJourneyTemplate @relation(fields: [templateId], references: [id])
+  orderIndex     Int
+  title          String
+  description    String?
+  type           String
+  category       String?
+  relativeDayOffset Int?
+  expectedDurationMinutes Int?
+  academyCourseId String?
+  habitTemplateKey String?
+  surveyTemplateKey String?
+  isRequired     Boolean @default(true)
+  steps          OnboardingStep[]
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([templateId, orderIndex])
+}
+
+model OnboardingJourney {
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  templateId     String?
+  template       OnboardingJourneyTemplate? @relation(fields: [templateId], references: [id])
+  userId         String
+  user           User @relation(fields: [userId], references: [id])
+  managerId      String?
+  manager        User? @relation("OnboardingManager", fields: [managerId], references: [id])
+  teamId         String?
+  team           Team? @relation("TeamOnboardingJourneys", fields: [teamId], references: [id])
+  title          String
+  description    String?
+  startDate      DateTime
+  targetEndDate  DateTime?
+  actualEndDate  DateTime?
+  status         String @default("active")
+  progress       Float  @default(0)
+  steps          OnboardingStep[]
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([organizationId, userId, status])
+  @@index([organizationId, managerId])
+}
+
+model OnboardingStep {
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  journeyId      String
+  journey        OnboardingJourney @relation(fields: [journeyId], references: [id])
+  templateStepId String?
+  templateStep   OnboardingStepTemplate? @relation(fields: [templateStepId], references: [id])
+  orderIndex     Int
+  title          String
+  description    String?
+  type           String
+  category       String?
+  dueDate        DateTime?
+  completedAt    DateTime?
+  status         String @default("pending")
+  linkedCourseId  String?
+  linkedHabitTaskId String?
+  linkedSurveyRunId String?
+  linkedOneOnOneId String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([journeyId, orderIndex])
+  @@index([journeyId, status])
+}
+
+model OneOnOneRelationship {
+  id            String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  managerId     String
+  manager       User     @relation("OneOnOneManager", fields: [managerId], references: [id])
+  employeeId    String
+  employee      User     @relation("OneOnOneEmployee", fields: [employeeId], references: [id])
+  teamId        String?
+  team          Team?    @relation(fields: [teamId], references: [id])
+  templateId    String?
+  template      OneOnOneMeetingTemplate? @relation(fields: [templateId], references: [id])
+  cadenceDays   Int?
+  nextPlannedAt DateTime?
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  meetings      OneOnOneMeeting[]
+
+  @@index([organizationId, managerId])
+  @@index([organizationId, employeeId])
+}
+
+model OneOnOneMeeting {
+  id            String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  relationshipId String
+  relationship   OneOnOneRelationship @relation(fields: [relationshipId], references: [id])
+  scheduledAt   DateTime
+  endedAt       DateTime?
+  status        String   @default("scheduled")
+  agendaManager Json?
+  agendaEmployee Json?
+  notesManager  Json?
+  notesEmployee Json?
+  externalEventId String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([organizationId, relationshipId, scheduledAt])
+}
+
+// Goals / OKR-like
+model Goal {
+  id            String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  ownerUserId   String
+  ownerUser     User     @relation("GoalOwner", fields: [ownerUserId], references: [id])
+  teamId        String?
+  team          Team?    @relation(fields: [teamId], references: [id])
+  title         String
+  description   String?
+  category      String?
+  alignment     String?
+  startDate     DateTime?
+  dueDate       DateTime?
+  status        String   @default("active")
+  progress      Float    @default(0)
+  unit          String?
+  targetValue   Float?
+  currentValue  Float?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  checkins      GoalCheckin[]
+
+  @@index([organizationId, ownerUserId])
+  @@index([organizationId, teamId])
+}
+
+model GoalCheckin {
+  id            String   @id @default(cuid())
+  goalId        String
+  goal          Goal     @relation(fields: [goalId], references: [id])
+  createdById   String
+  createdBy     User     @relation("GoalCheckins", fields: [createdById], references: [id])
+  createdAt     DateTime @default(now())
+  value         Float?
+  progress      Float?
+  comment       String?
+
+  @@index([goalId, createdAt])
+}
+
+// Feedback and recognition
+model FeedbackRequest {
+  id            String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  requesterId   String
+  requester     User     @relation("FeedbackRequester", fields: [requesterId], references: [id])
+  targetUserId  String
+  targetUser    User     @relation("FeedbackTarget", fields: [targetUserId], references: [id])
+  context       String?
+  question      String?
+  status        String   @default("open")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  responses     FeedbackResponse[]
+
+  @@index([organizationId, targetUserId])
+  @@index([organizationId, requesterId])
+}
+
+model FeedbackResponse {
+  id            String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  requestId     String
+  request       FeedbackRequest @relation(fields: [requestId], references: [id])
+  responderId   String
+  responder     User     @relation(fields: [responderId], references: [id])
+  rating        Int?
+  comments      String?
+  isAnonymousToTarget Boolean @default(false)
+  createdAt     DateTime @default(now())
+
+  @@index([organizationId])
+  @@index([requestId])
+}
+
+model Recognition {
+  id            String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  fromUserId    String
+  fromUser      User     @relation("RecognitionFromUser", fields: [fromUserId], references: [id])
+  toUserId      String
+  toUser        User     @relation("RecognitionToUser", fields: [toUserId], references: [id])
+  teamId        String?
+  team          Team?    @relation(fields: [teamId], references: [id])
+  message       String
+  tags          String[]
+  isPublic      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+
+  @@index([organizationId, toUserId])
+  @@index([organizationId, teamId])
+}
+
+model TeamStatusSnapshot {
+  id                    String   @id @default(cuid())
+  organizationId        String
+  organization          Organization @relation("OrgTeamStatus", fields: [organizationId], references: [id])
+  teamId                String
+  team                  Team     @relation("TeamStatus", fields: [teamId], references: [id])
+  periodStart           DateTime
+  periodEnd             DateTime
+  engagementScore       Float?
+  stressIndex           Float?
+  riskLevel             String?
+  participationRate     Float?
+  coachUsageScore       Float?
+  academyCompletionRate Float?
+  trendLabel            String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@index([organizationId])
+  @@index([teamId])
+  @@index([periodStart])
+}
+
+model PersonalStatusSnapshot {
+  id                    String   @id @default(cuid())
+  organizationId        String
+  organization          Organization @relation("OrgPersonalStatus", fields: [organizationId], references: [id])
+  userId                String
+  user                  User   @relation(fields: [userId], references: [id])
+  periodStart           DateTime
+  periodEnd             DateTime
+  engagementScore       Float?
+  stressLevelScore      Float?
+  moodAverage           Float?
+  habitCompletionRate   Float?
+  coachConversations    Int?
+  academyProgressScore  Float?
+  trendLabel            String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@index([organizationId, userId, periodStart])
+}
+
+model SurveyEngagementSnapshot {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation("OrgEngagementSnapshot", fields: [organizationId], references: [id])
+  surveyId       String?
+  survey         Survey?      @relation("SurveyEngagement", fields: [surveyId], references: [id])
+  teamId         String?
+  team           Team?        @relation("TeamEngagementSnapshot", fields: [teamId], references: [id])
+  periodStart    DateTime
+  periodEnd      DateTime
+  engagementScore Float
+  prevPeriodScore Float?
+  delta          Float?
+  responsesCount Int
+  drivers        Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  timeseries     SurveyEngagementTimeseriesPoint[]
+}
+
+model SurveyEngagementTimeseriesPoint {
+  id         String   @id @default(cuid())
+  snapshotId String
+  snapshot   SurveyEngagementSnapshot @relation(fields: [snapshotId], references: [id])
+  date       DateTime
+  score      Float
+  responsesCount Int
+}
+
+model PromoCode {
+  id             String   @id @default(cuid())
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+  code           String   @unique
+  description    String?
+  discountPct    Int?
+  discountAmount Int?
+  currency       String?
+  maxRedemptions Int?
+  redemptions    Int      @default(0)
+  validFrom      DateTime?
+  validUntil     DateTime?
+  appliesToPlanKey String?
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model ReferralCode {
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  createdByUserId String
+  createdByUser   User @relation(fields: [createdByUserId], references: [id])
+  code           String   @unique
+  description    String?
+  rewardType     String   @default("credit")
+  rewardValue    Int?
+  rewardCurrency String?
+  maxUses        Int?
+  uses           Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  redemptions    ReferralRedemption[]
+}
+
+model ReferralRedemption {
+  id             String   @id @default(cuid())
+  referralCodeId String
+  referralCode   ReferralCode @relation(fields: [referralCodeId], references: [id])
+  referredOrgId  String
+  referredOrg    Organization @relation(fields: [referredOrgId], references: [id])
+  createdAt      DateTime @default(now())
+}
