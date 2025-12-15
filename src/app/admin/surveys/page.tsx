@@ -1,12 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { getOrganizationBySlug, getSurveyRunsByOrg, getTeamById } from "@/lib/orgData";
 import { getTeamStatus, teamStatusMeta } from "@/lib/statusLogic";
 
 export default function AdminSurveysPage() {
-  const org = getOrganizationBySlug("nova-bank");
-  const runs = org ? getSurveyRunsByOrg(org.id) : [];
+  // Demo stub: data loading is disabled
+  const runs: any[] = [];
 
   return (
     <div className="space-y-6">
@@ -38,7 +37,6 @@ export default function AdminSurveysPage() {
           </thead>
           <tbody className="divide-y divide-slate-100 bg-white">
             {runs.map((run) => {
-              const team = run.teamId ? getTeamById(run.teamId) : undefined;
               const status = getTeamStatus(run.avgStressIndex ?? 5, run.avgEngagementScore ?? 6, (run.completedCount / (run.targetCount || 1)) * 100);
               const meta = teamStatusMeta[status];
               return (
@@ -47,7 +45,7 @@ export default function AdminSurveysPage() {
                     <div className="font-semibold text-slate-900">{run.title}</div>
                     <div className="text-xs text-slate-500">Template: {run.templateId}</div>
                   </td>
-                  <td className="px-4 py-3 text-slate-700">{team ? team.name : "Вся организация"}</td>
+                  <td className="px-4 py-3 text-slate-700">{"Вся организация"}</td>
                   <td className="px-4 py-3 text-slate-700">{new Date(run.launchedAt).toLocaleDateString("ru-RU")}</td>
                   <td className="px-4 py-3 text-slate-700">
                     {run.completedCount}/{run.targetCount}

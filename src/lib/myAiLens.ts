@@ -32,8 +32,8 @@ export async function generatePersonalAiLens(params: { orgId: string; userId: st
   const prompt = `You are a supportive stress and habits coach. Do not give medical advice. Input:
 engagementScore=${snapshot?.engagementScore ?? "n/a"}, stressLevelScore=${snapshot?.stressLevelScore ?? "n/a"}, moodAverage=${snapshot?.moodAverage ?? "n/a"},
 habitCompletionRate=${snapshot?.habitCompletionRate ?? "n/a"}, coachConversations=${snapshot?.coachConversations ?? "n/a"}, academyProgressScore=${snapshot?.academyProgressScore ?? "n/a"}, trend=${snapshot?.trendLabel ?? "n/a"}.
-Recent habits: ${tasks.map((t) => t.title).join(", ") || "none"}.
-Recent habit checkins: ${checkins.length}. Comments: ${comments.map((c) => sanitizeTextForAI(c.textValue ?? "")).join(" | ")}.
+Recent habits: ${tasks.map((t: any) => t.title).join(", ") || "none"}.
+Recent habit checkins: ${checkins.length}. Comments: ${comments.map((c: any) => sanitizeTextForAI(c.textValue ?? "")).join(" | ")}.
 Return JSON {summary:string<=4 sentences, risks:string[], strengths:string[], suggestedHabits:string[], suggestedCourses:string[]} with no PII.`;
 
   try {

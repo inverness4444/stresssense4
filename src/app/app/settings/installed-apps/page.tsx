@@ -24,7 +24,7 @@ export default async function InstalledAppsPage() {
         <h1 className="text-2xl font-semibold text-slate-900">Extensions in your workspace</h1>
       </div>
       <div className="divide-y divide-slate-100 rounded-2xl border border-slate-200 bg-white">
-        {installs.map((inst) => (
+        {installs.map((inst: any) => (
           <div key={inst.id} className="flex items-center justify-between px-4 py-3">
             <div>
               <p className="font-semibold text-slate-900">{inst.app.name}</p>

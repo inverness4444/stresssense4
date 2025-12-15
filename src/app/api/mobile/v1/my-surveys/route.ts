@@ -6,7 +6,7 @@ export async function GET(req: NextRequest) {
   const user = await getMobileUser(req);
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const teamIds = user.teams.map((t) => t.teamId);
+  const teamIds = user.teams.map((t: any) => t.teamId);
   const surveys = await prisma.survey.findMany({
     where: {
       organizationId: user.organizationId,
@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
     include: { inviteTokens: true, responses: true },
   });
 
-  const data = surveys.map((s) => ({
+  const data = surveys.map((s: any) => ({
     id: s.id,
     name: s.name,
     status: s.status,

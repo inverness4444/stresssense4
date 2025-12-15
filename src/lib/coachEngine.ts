@@ -51,7 +51,7 @@ export async function generateCoachReply(params: {
     .filter(Boolean)
     .join("\n");
 
-  const history = messages.map((m) => ({ role: m.role as "user" | "assistant" | "system", content: m.content }));
+  const history = messages.map((m: any) => ({ role: m.role as "user" | "assistant" | "system", content: m.content }));
   history.push({ role: "user", content: params.userMessage });
 
   const ai = getAIClient();

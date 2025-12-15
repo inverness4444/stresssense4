@@ -150,7 +150,7 @@ export default async function NewSchedulePage() {
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Teams</p>
           <p className="text-sm text-slate-600">Select which teams should receive this pulse on each run.</p>
           <div className="mt-4 grid gap-3 md:grid-cols-2">
-            {teams.map((team) => (
+            {teams.map((team: any) => (
               <label key={team.id} className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-800 shadow-sm">
                 <div>
                   <p className="font-semibold">{team.name}</p>

@@ -47,7 +47,7 @@ export default async function TeamsPage() {
   ]);
 
   const isAdmin = currentUser.role === "ADMIN";
-  const visibleTeams = isAdmin ? teams : teams.filter((t) => myTeams.some((mt) => mt.teamId === t.id));
+  const visibleTeams = isAdmin ? teams : teams.filter((t: any) => myTeams.some((mt: any) => mt.teamId === t.id));
 
   return (
     <div className="space-y-6">
@@ -73,11 +73,11 @@ export default async function TeamsPage() {
 
       {visibleTeams.length > 0 && (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {visibleTeams.map((team) => {
+          {visibleTeams.map((team: any) => {
             const memberCount = team.users.length;
             const managers = team.users
-              .filter((tu) => tu.user.role === "MANAGER")
-              .map((tu) => tu.user.name);
+              .filter((tu: any) => tu.user.role === "MANAGER")
+              .map((tu: any) => tu.user.name);
 
             return (
               <div
@@ -101,7 +101,7 @@ export default async function TeamsPage() {
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-2 pt-2">
-                    {team.users.slice(0, 3).map((tu) => (
+                    {team.users.slice(0, 3).map((tu: any) => (
                       <span
                         key={tu.userId}
                         className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary"

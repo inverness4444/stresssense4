@@ -31,16 +31,16 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
   const managerTeams = (
     await prisma.userTeam.findMany({ where: { userId: user.id }, select: { teamId: true } })
-  ).map((t) => t.teamId);
-  const overlap = survey.targets.some((t) => managerTeams.includes(t.teamId));
+  ).map((t: any) => t.teamId);
+  const overlap = survey.targets.some((t: any) => managerTeams.includes(t.teamId));
   if (user.role === "MANAGER" && (!overlap || !settings.allowManagerAccessToAllSurveys)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   const allowedTeamIds = user.role === "MANAGER" ? managerTeams : undefined;
 
   const teamResponseCounts: Record<string, number> = {};
-  survey.responses.forEach((r) => {
-    const team = r.inviteToken.user.teams.find((t) => survey.targets.some((st) => st.teamId === t.teamId));
+  survey.responses.forEach((r: any) => {
+    const team = r.inviteToken.user.teams.find((t: any) => survey.targets.some((st: any) => st.teamId === t.teamId));
     if (allowedTeamIds && team && !allowedTeamIds.includes(team.teamId)) return;
     if (team) {
       teamResponseCounts[team.teamId] = (teamResponseCounts[team.teamId] ?? 0) + 1;
@@ -50,17 +50,17 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const lines: string[] = [];
   lines.push("surveyId,surveyName,teamName,questionOrder,questionText,questionType,scaleValue,textValue,submittedAt");
 
-  survey.responses.forEach((response) => {
-    const team = response.inviteToken.user.teams.find((t) => survey.targets.some((st) => st.teamId === t.teamId));
+  survey.responses.forEach((response: any) => {
+    const team = response.inviteToken.user.teams.find((t: any) => survey.targets.some((st: any) => st.teamId === t.teamId));
     if (allowedTeamIds && team && !allowedTeamIds.includes(team.teamId)) return;
     const teamId = team?.teamId;
     const teamNameSafe =
       teamId && (teamResponseCounts[teamId] ?? 0) >= (survey.minResponsesForBreakdown ?? settings.minResponsesForBreakdown)
-        ? survey.targets.find((t) => t.teamId === teamId)?.team.name ?? "Aggregated"
+        ? survey.targets.find((t: any) => t.teamId === teamId)?.team.name ?? "Aggregated"
         : "Hidden";
 
-    response.answers.forEach((answer) => {
-      const question = survey.questions.find((q) => q.id === answer.questionId);
+    response.answers.forEach((answer: any) => {
+      const question = survey.questions.find((q: any) => q.id === answer.questionId);
       if (!question) return;
       const row = [
         survey.id,

@@ -1,104 +1,58 @@
 import { prisma } from "@/lib/prisma";
-import { generateManagerAiLens } from "@/lib/managerAiLens";
 import { cache } from "react";
 
 export const getManagerTeams = cache(async (userId: string) => {
-  const teams = await prisma.userTeam.findMany({ where: { userId }, include: { team: true } });
-  return teams.map((t) => ({ teamId: t.teamId, name: t.team.name }));
+  const memberships = await prisma.member.findMany({ where: { userId }, include: { team: true } });
+  return memberships.map((m: any) => ({ teamId: m.teamId, name: m.team.name }));
 });
 
 export async function getTeamStatusOverview(params: { orgId: string; teamId: string }) {
-  const status = await prisma.teamStatusSnapshot.findFirst({
-    where: { organizationId: params.orgId, teamId: params.teamId },
-    orderBy: { periodEnd: "desc" },
-  });
-
-  const engagementSnap = await prisma.surveyEngagementSnapshot.findFirst({
-    where: { organizationId: params.orgId, teamId: params.teamId },
-    include: { timeseries: true },
-    orderBy: { periodEnd: "desc" },
-  });
-
-  const risk = await prisma.teamRiskSnapshot.findFirst({
-    where: { organizationId: params.orgId, teamId: params.teamId },
-    orderBy: { createdAt: "desc" },
-  });
-
-  const participation =
-    status?.participationRate ??
-    (await prisma.survey.findFirst({
-      where: { organizationId: params.orgId, targets: { some: { teamId: params.teamId } } },
-      select: {
-        inviteTokens: { select: { id: true }, where: { usedAt: null } },
-        responses: { select: { id: true } },
-      },
-      orderBy: { createdAt: "desc" },
-    }).then((s) => {
-      if (!s) return undefined;
-      const total = s.inviteTokens.length + s.responses.length;
-      return total ? s.responses.length / total : undefined;
-    })) ??
-    0;
-
-  const coachUsageCount = await prisma.usageRecord.aggregate({
-    where: { organizationId: params.orgId, metric: "ai_coach_requests", periodStart: { gte: new Date(Date.now() - 30 * 86400000) } },
-    _sum: { value: true },
-  });
-
+  const team = await prisma.team.findFirst({ where: { organizationId: params.orgId, id: params.teamId } });
+  const history = await prisma.teamMetricsHistory.findMany({ where: { teamId: params.teamId }, orderBy: { createdAt: "asc" } });
   return {
-    status,
+    status: {
+      stressIndex: team?.stressIndex ?? 0,
+      engagementScore: team?.engagementScore ?? 0,
+      participationRate: team?.participation ?? 0,
+    },
     engagement: {
-      score: engagementSnap?.engagementScore ?? status?.engagementScore ?? 0,
-      delta: engagementSnap?.delta ?? 0,
-      timeseries: engagementSnap?.timeseries ?? [],
+      score: team?.engagementScore ?? 0,
+      delta: 0,
+      timeseries: history.map((h: any) => ({ date: h.createdAt, score: h.engagementScore })),
     },
     stress: {
-      index: status?.stressIndex ?? risk?.riskScore ?? 0,
+      index: team?.stressIndex ?? 0,
       delta: 0,
-      riskLevel: status?.riskLevel ?? risk?.stressLevel ?? "medium",
-      trend: status?.trendLabel ?? risk?.stressLevel ?? "stable",
+      riskLevel: team?.status ?? "Watch",
+      trend: "stable",
     },
-    participation: { rate: participation ?? 0, delta: 0 },
-    coachUsage: {
-      conversationsLast30d: coachUsageCount._sum.value ?? 0,
-      activeUsersShare: status?.coachUsageScore ?? 0,
-    },
-    academy: { completionRate: status?.academyCompletionRate ?? 0, learnersCount: 0 },
-    timeseries: engagementSnap?.timeseries?.map((p) => ({ date: p.date.toISOString(), score: p.score })) ?? [],
+    participation: { rate: (team?.participation ?? 0) / 100, delta: 0 },
+    coachUsage: { conversationsLast30d: 0, activeUsersShare: 0 },
+    academy: { completionRate: 0, learnersCount: 0 },
+    timeseries: history.map((h: any) => ({ date: h.createdAt.toISOString(), score: h.engagementScore })),
   };
 }
 
 export async function getActionCenterItems(params: { orgId: string; managerId: string; teamIds: string[]; limit?: number }) {
-  return prisma.actionCenterItem.findMany({
-    where: {
-      organizationId: params.orgId,
-      status: { in: ["open", "in_progress"] },
-      OR: [{ managerUserId: params.managerId }, { teamId: { in: params.teamIds } }],
-    },
-    orderBy: [{ dueAt: "asc" }, { createdAt: "desc" }],
+  const nudges = await prisma.nudgeInstance.findMany({
+    where: { orgId: params.orgId, teamId: { in: params.teamIds }, status: { in: ["todo", "planned"] } },
+    include: { template: true },
+    orderBy: { createdAt: "desc" },
     take: params.limit ?? 10,
   });
+  return nudges;
 }
 
 export async function getUpcomingEvents(params: { orgId: string; teamIds: string[] }) {
-  const surveys = await prisma.surveySchedule.findMany({
-    where: {
-      organizationId: params.orgId,
-      startsOn: { gt: new Date() },
-      targets: params.teamIds.length ? { some: { teamId: { in: params.teamIds } } } : undefined,
-    },
-    take: 5,
-    orderBy: { startsOn: "asc" },
-  });
-
-  return surveys.map((s) => ({
-    type: "survey" as const,
-    title: s.name ?? "Scheduled pulse",
-    date: s.startsOn?.toISOString() ?? "",
-    ref: s.id,
-  }));
+  return [];
 }
 
 export async function getAILensSummary(params: { orgId: string; teamId: string }) {
-  return generateManagerAiLens(params);
+  const team = await prisma.team.findUnique({ where: { id: params.teamId } });
+  return {
+    summary: team ? `Stress ${team.stressIndex.toFixed(1)}, engagement ${team.engagementScore.toFixed(1)}.` : "No data",
+    risks: ["workload", "clarity"],
+    strengths: ["support", "recognition"],
+    suggestedActions: ["Провести ревизию митингов", "Обсудить приоритеты"],
+  };
 }

@@ -25,7 +25,7 @@ export async function getRecommendationsForContext(ctx: RecommendationContext) {
   });
   const drivers = ctx.riskDrivers ?? [];
   const anomalies = ctx.anomalyMetrics ?? [];
-  const filtered = templates.filter((t) => {
+  const filtered = templates.filter((t: any) => {
     if (t.audience && t.audience !== ctx.role) return false;
     if (t.triggerTags?.length) return matches(t.triggerTags, drivers, anomalies);
     return true;

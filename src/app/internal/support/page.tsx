@@ -11,7 +11,7 @@ export default async function InternalSupport() {
     <div className="space-y-4">
       <h1 className="text-2xl font-semibold text-slate-900">Support console</h1>
       <div className="rounded-2xl border border-slate-200 bg-white">
-        {orgs.map((o) => (
+        {orgs.map((o: any) => (
           <div key={o.id} className="flex items-center justify-between border-b border-slate-100 px-4 py-3 text-sm last:border-b-0">
             <div>
               <p className="font-semibold text-slate-900">{o.name}</p>

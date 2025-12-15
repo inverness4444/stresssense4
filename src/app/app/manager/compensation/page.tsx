@@ -60,7 +60,7 @@ export default async function ManagerCompensationPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {overview.myParticipants.map(({ participant, recommendation, bandPosition }) => (
+            {overview.myParticipants.map(({ participant, recommendation, bandPosition }: any) => (
               <tr key={participant.id} className="hover:bg-slate-50/70">
                 <td className="px-4 py-3 font-semibold text-slate-900">{participant.user.name}</td>
                 <td className="px-4 py-3 text-slate-700">{participant.currentBand?.key ?? "—"}</td>

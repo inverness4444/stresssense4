@@ -21,7 +21,7 @@ export default async function AutomationPage() {
         </div>
       </div>
       <div className="divide-y divide-slate-100 rounded-2xl border border-slate-200 bg-white">
-        {workflows.map((wf) => (
+        {workflows.map((wf: any) => (
           <div key={wf.id} className="flex items-center justify-between px-4 py-3">
             <div>
               <p className="font-semibold text-slate-900">{wf.name}</p>

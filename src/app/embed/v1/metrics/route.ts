@@ -36,8 +36,8 @@ export async function GET(req: Request) {
   const participation = invites ? Math.round((responses / invites) * 100) : 0;
   let sum = 0;
   let count = 0;
-  survey.responses.forEach((r) =>
-    r.answers.forEach((a) => {
+  survey.responses.forEach((r: any) =>
+    r.answers.forEach((a: any) => {
       if (a.scaleValue != null) {
         sum += a.scaleValue;
         count += 1;

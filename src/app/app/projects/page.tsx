@@ -19,7 +19,7 @@ export default async function ProjectsPage() {
         <p className="text-sm text-slate-600">Coordinate cross-team stress programs.</p>
       </div>
       <div className="divide-y divide-slate-100 rounded-2xl border border-slate-200 bg-white">
-        {projects.map((p) => (
+        {projects.map((p: any) => (
           <div key={p.id} className="flex items-center justify-between px-4 py-3">
             <div>
               <p className="font-semibold text-slate-900">{p.name}</p>

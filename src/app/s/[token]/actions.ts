@@ -1,9 +1,8 @@
 'use server';
 
 import { prisma } from "@/lib/prisma";
-import { triggerWebhookEvent } from "@/lib/webhooks";
-import { trackProductEvent } from "@/lib/analytics";
 import { revalidatePath } from "next/cache";
+import { updateTeamMetricsFromSurvey } from "@/lib/orgData";
 
 type AnswerInput = {
   questionId: string;
@@ -12,56 +11,78 @@ type AnswerInput = {
   textValue?: string;
 };
 
-export async function submitSurveyResponse(token: string, answers: AnswerInput[]) {
-  const invite = await prisma.surveyInviteToken.findUnique({
-    where: { token },
-    include: {
-      survey: {
-        include: {
-          questions: true,
-        },
-      },
-    },
+function normalizeValue(type: string, value: number) {
+  if (type === "Scale1_5") {
+    return Math.max(0, Math.min(10, ((value - 1) / 4) * 10));
+  }
+  return Math.max(0, Math.min(10, value));
+}
+
+export async function submitSurveyResponse(runId: string, answers: AnswerInput[]) {
+  const run = await prisma.surveyRun.findUnique({
+    where: { id: runId },
+    include: { template: { include: { questions: true } }, team: true },
   });
+  if (!run) return { error: "Survey link is invalid." };
 
-  if (!invite) return { error: "Survey link is invalid." };
-  if (invite.usedAt) return { error: "This survey was already completed." };
-  if (invite.survey.status !== "ACTIVE") return { error: "Survey is not active." };
+  const answerMap: Record<string, AnswerInput> = {};
+  answers.forEach((a) => (answerMap[a.questionId] = a));
 
-  const now = new Date();
-  if (invite.survey.startsAt && now < invite.survey.startsAt) return { error: "Survey hasn't started yet." };
-  if (invite.survey.endsAt && now > invite.survey.endsAt) return { error: "Survey is closed." };
-
-  const response = await prisma.surveyResponse.create({
+  await prisma.surveyResponse.create({
     data: {
-      surveyId: invite.surveyId,
-      inviteTokenId: invite.id,
-      answers: {
-        create: answers.map((a) => ({
-          questionId: a.questionId,
-          scaleValue: a.type === "SCALE" ? a.scaleValue ?? null : null,
-          textValue: a.type === "TEXT" ? a.textValue ?? null : null,
-        })),
-      },
+      runId,
+      answers: answerMap as any,
     },
   });
 
-  await prisma.surveyInviteToken.update({
-    where: { id: invite.id },
-    data: { usedAt: now },
+  // Recalculate metrics for the run
+  const responses = await prisma.surveyResponse.findMany({ where: { runId } });
+  const questions = run.template.questions;
+  let stressSum = 0;
+  let stressCount = 0;
+  let engagementSum = 0;
+  let engagementCount = 0;
+  const tags: string[] = [];
+
+  responses.forEach((resp: any) => {
+    const ans = resp.answers as Record<string, any>;
+    questions.forEach((q: any) => {
+      const v = ans[q.id];
+      if (v == null) return;
+      if (q.type === "Scale1_5" || q.type === "Scale0_10") {
+        const val = normalizeValue(q.type, Number(v));
+        if (q.dimension === "stress" || q.dimension === "workload") {
+          stressSum += val;
+          stressCount += 1;
+          if (!tags.includes(q.dimension)) tags.push(q.dimension);
+        } else if (q.dimension === "engagement") {
+          engagementSum += val;
+          engagementCount += 1;
+        }
+      }
+    });
   });
 
-  await triggerWebhookEvent(invite.survey.organizationId, "survey.response.created", {
-    surveyId: invite.surveyId,
-    responseId: response.id,
-    submittedAt: now.toISOString(),
-  });
-  await trackProductEvent({
-    eventName: "survey_response_submitted",
-    source: "web_app",
-    properties: { surveyId: invite.surveyId, variantKey: invite.variantKey },
+  const stressIndex = stressCount ? stressSum / stressCount : 0;
+  const engagementScore = engagementCount ? engagementSum / engagementCount : 0;
+
+  await prisma.surveyRun.update({
+    where: { id: runId },
+    data: {
+      avgStressIndex: stressIndex,
+      avgEngagementScore: engagementScore,
+      tags,
+      completedCount: responses.length,
+    },
   });
 
-  revalidatePath(`/app/surveys/${invite.surveyId}`);
-  return { success: true, responseId: response.id };
+  if (run.teamId) {
+    const team = await prisma.team.findUnique({ where: { id: run.teamId } });
+    const participation =
+      team && team.memberCount ? Math.min(100, Math.round((responses.length / team.memberCount) * 100)) : responses.length;
+    await updateTeamMetricsFromSurvey(run.teamId, { stressIndex, engagementScore, participation }, tags as any);
+  }
+
+  revalidatePath(`/app/overview`);
+  return { success: true };
 }

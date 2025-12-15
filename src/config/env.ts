@@ -2,7 +2,7 @@ import { z } from "zod";
 
 const serverSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
-  DATABASE_URL: z.string().url().default("postgresql://postgres:postgres@localhost:5432/stresssense"),
+  DATABASE_URL: z.string().default("file:./dev.db"),
   DATABASE_URL_EU: z.string().url().optional(),
   DATABASE_URL_US: z.string().url().optional(),
   DATABASE_URL_APAC: z.string().url().optional(),
@@ -13,6 +13,7 @@ const serverSchema = z.object({
   SMTP_USER: z.string().optional(),
   SMTP_PASSWORD: z.string().optional(),
   SMTP_SECURE: z.string().optional(),
+  NEXTAUTH_SECRET: z.string().min(16, "NEXTAUTH_SECRET must be set and at least 16 characters").default("dev-nextauth-secret"),
   STRIPE_SECRET_KEY: z.string().optional(),
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
   STRIPE_PUBLISHABLE_KEY: z.string().optional(),

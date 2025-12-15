@@ -41,7 +41,7 @@ export async function createSchedule(input: CreateScheduleInput) {
       dayOfMonth: input.frequency !== "WEEKLY" ? input.dayOfMonth ?? 1 : null,
       minResponsesForBreakdown: input.minResponsesForBreakdown ?? null,
       startsOn: input.startsOn ? new Date(input.startsOn) : null,
-      targets: { create: teams.map((t) => ({ teamId: t.id })) },
+      targets: { create: teams.map((t: any) => ({ teamId: t.id })) },
     },
   });
 

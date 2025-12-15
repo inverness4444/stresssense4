@@ -12,12 +12,15 @@ import {
 } from "../../actions";
 import type { Locale } from "@/lib/i18n";
 import { StressSenseAiWidget } from "@/components/StressSenseAiWidget";
+import { SurveyReport } from "@/components/app/SurveyReport";
 
 type HomeData = Awaited<ReturnType<typeof import("../../actions").getMyHomeData>>;
 
 export default function MyHomeClient({ data, userName, locale }: { data: HomeData; userName: string; locale: Locale }) {
   const [selectedTab, setSelectedTab] = useState<"focus" | "nudges">("focus");
   const [isPending, startTransition] = useTransition();
+  const [personalNudges, setPersonalNudges] = useState<any[]>([]);
+  const [loadingNudges, setLoadingNudges] = useState(false);
   const isRu = locale === "ru";
   const safeName = userName || "there";
 
@@ -28,6 +31,18 @@ export default function MyHomeClient({ data, userName, locale }: { data: HomeDat
   const habitsCompletion = habitsTotal > 0 ? (habitsDone / habitsTotal) * 100 : 0;
   const employeeStatus = getEmployeeStatus(wellbeing, moodValue, habitsCompletion);
   const statusMeta = employeeStatusMeta[employeeStatus];
+  useEffect(() => {
+    const load = async () => {
+      setLoadingNudges(true);
+      const res = await fetch("/app/api/nudges/personal");
+      const json = await res.json();
+      if (res.ok) {
+        setPersonalNudges(json.nudges ?? []);
+      }
+      setLoadingNudges(false);
+    };
+    void load();
+  }, []);
   const moodLabels: Record<number, { emoji: string; label: string }> = {
     1: { emoji: "😵", label: isRu ? "Очень тяжело" : "Rough" },
     2: { emoji: "😣", label: isRu ? "Сложный день" : "Hard day" },
@@ -47,6 +62,33 @@ export default function MyHomeClient({ data, userName, locale }: { data: HomeDat
       : isRu
         ? "Почти нет опоры"
         : "Little habit support";
+
+  const addPersonalNudge = (title: string, description?: string, tags?: string[]) => {
+    startTransition(() => {
+      void fetch("/app/api/nudges/personal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title, description, tags }),
+      })
+        .then((r) => r.json())
+        .then((json) => {
+          if (json.nudge) {
+            setPersonalNudges((prev) => [json.nudge, ...prev]);
+          }
+        });
+    });
+  };
+
+  const completePersonalNudge = (id: string) => {
+    startTransition(() => {
+      setPersonalNudges((prev) => prev.filter((n) => n.id !== id));
+      void fetch("/app/api/nudges/personal", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, status: "done" }),
+      });
+    });
+  };
   const trendDataSource = (data.personalStatus.engagement as any)?.timeseries ?? [];
   const trendData: TrendPoint[] = trendDataSource.map((p: any, idx: number) => ({
     label: p.date ? new Date(p.date).toLocaleDateString("ru-RU", { month: "short" }) : `W${idx + 1}`,
@@ -163,6 +205,24 @@ export default function MyHomeClient({ data, userName, locale }: { data: HomeDat
         </div>
       </div>
 
+      <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
+        <SurveyReport
+          title={isRu ? "Мой стресс" : "My stress index"}
+          subtitle={isRu ? "Последние недели" : "Recent weeks"}
+          score={balanceScore || wellbeing || 0}
+          delta={engagementDelta || 0}
+          deltaDirection={engagementDelta >= 0 ? "up" : "down"}
+          periodLabel={isRu ? "Последние 6 недель" : "Last 6 weeks"}
+          timeseries={trendData}
+          drivers={[
+            { name: "Workload", score: status.stress.score ?? 6.5, delta: -0.1 },
+            { name: "Recognition", score: 7.1, delta: 0.2 },
+            { name: "Wellbeing", score: status.engagement.score ?? wellbeing ?? 7.0, delta: 0.1 },
+          ]}
+          ctaLabel={isRu ? "Посмотреть детали" : "See details"}
+        />
+      </div>
+
       <div className="grid gap-4 md:grid-cols-3">
         <div className={`rounded-3xl border border-slate-200 bg-gradient-to-br p-5 shadow-sm ${statusMeta.tone === "emerald" ? "from-emerald-50 to-white" : statusMeta.tone === "amber" ? "from-amber-50 to-white" : "from-rose-50 to-white"}`}>
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
@@ -195,7 +255,7 @@ export default function MyHomeClient({ data, userName, locale }: { data: HomeDat
           <p className="mt-2 text-sm font-semibold text-slate-800">{isRu ? "Выполнено сегодня" : "Completed today"}: {habitsCompletion.toFixed(0)}%</p>
           <p className="text-xs text-slate-500">{habitsLabel}</p>
           <div className="mt-3 space-y-2">
-            {data.habitsOverview.todayTasks.slice(0, 4).map((t) => (
+            {data.habitsOverview.todayTasks.slice(0, 4).map((t: any) => (
               <label key={t.task.id} className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-slate-50 px-3 py-2">
                 <input type="checkbox" checked={t.done} readOnly className="h-4 w-4 rounded border-slate-300" />
                 <div>
@@ -219,7 +279,9 @@ export default function MyHomeClient({ data, userName, locale }: { data: HomeDat
           </p>
           {data.academyOverview.activeCourses[0] ? (
             <div className="mt-3 space-y-1">
-              <p className="text-sm font-semibold text-slate-900">{data.academyOverview.activeCourses[0].course.title}</p>
+              <p className="text-sm font-semibold text-slate-900">
+                {(data.academyOverview.activeCourses as any[])[0]?.course?.title ?? "Course"}
+              </p>
               <p className="text-xs text-slate-500">
                 {isRu ? "Прогресс" : "Progress"}: {(data.academyOverview.completionRate * 100).toFixed(0)}%
               </p>
@@ -337,7 +399,7 @@ export default function MyHomeClient({ data, userName, locale }: { data: HomeDat
         <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">{isRu ? "Мои цели" : "My goals"}</p>
           <div className="mt-3 space-y-2">
-            {data.goals.activeGoals.map((g) => (
+            {data.goals.activeGoals.map((g: any) => (
               <div key={g.id} className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
                 <p className="font-semibold text-slate-900">{g.title}</p>
                 <p className="text-xs text-slate-500">
@@ -353,7 +415,7 @@ export default function MyHomeClient({ data, userName, locale }: { data: HomeDat
         <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">{isRu ? "Признание" : "Recognition"}</p>
           <div className="mt-3 space-y-2">
-            {data.nudges.slice(0, 2).map((n) => (
+            {data.nudges.slice(0, 2).map((n: any) => (
               <div key={n.id} className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
                 <p className="font-semibold text-slate-900">{n.title}</p>
                 {n.description && <p className="text-xs text-slate-600">{n.description}</p>}
@@ -409,13 +471,51 @@ export default function MyHomeClient({ data, userName, locale }: { data: HomeDat
             {data.nudges.length === 0 && (
               <p className="text-sm text-slate-500">{isRu ? "Подсказок пока нет." : "No nudges yet."}</p>
             )}
-            {data.nudges.map((n) => (
+            {data.nudges.map((n: any) => (
               <div key={n.id} className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
                 <p className="text-sm font-semibold text-slate-900">{n.title}</p>
                 {n.description && <p className="text-xs text-slate-600 mt-1">{n.description}</p>}
               </div>
             ))}
           </div>
+        </div>
+      </div>
+
+      <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-semibold text-slate-900">{isRu ? "Мои шаги" : "My steps"}</p>
+            <p className="text-xs text-slate-500">{isRu ? "Личные небольшие действия из AI-коуча" : "Small personal nudges from the coach"}</p>
+          </div>
+          <div className="flex gap-2">
+            <button
+              disabled={isPending}
+              onClick={() => addPersonalNudge(isRu ? "10-минутная прогулка" : "10-minute walk", isRu ? "Короткая прогулка без экрана" : "Short walk off-screen", ["wellbeing"])}
+              className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary disabled:opacity-50"
+            >
+              {isRu ? "Добавить прогулку" : "Add walk"}
+            </button>
+            <button
+              disabled={isPending}
+              onClick={() => addPersonalNudge(isRu ? "Фокус-блок 25 минут" : "25 min focus block", isRu ? "Выключите уведомления и закройте почту" : "Mute notifications and pick one task", ["focus"])}
+              className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-800 disabled:opacity-50"
+            >
+              {isRu ? "Фокус-блок" : "Focus"}
+            </button>
+          </div>
+        </div>
+        <div className="mt-3 space-y-2">
+          {loadingNudges && <p className="text-sm text-slate-500">{isRu ? "Загружаем..." : "Loading..."}</p>}
+          {!loadingNudges && personalNudges.length === 0 && <p className="text-sm text-slate-500">{isRu ? "Пока нет персональных шагов." : "No personal steps yet."}</p>}
+          {personalNudges.map((n) => (
+            <label key={n.id} className="flex cursor-pointer items-start gap-3 rounded-2xl border border-slate-100 bg-slate-50 px-3 py-2">
+              <input type="checkbox" className="mt-1" onChange={() => completePersonalNudge(n.id)} />
+              <div>
+                <p className="text-sm font-semibold text-slate-900">{n.title}</p>
+                {n.description && <p className="text-xs text-slate-600">{n.description}</p>}
+              </div>
+            </label>
+          ))}
         </div>
       </div>
 

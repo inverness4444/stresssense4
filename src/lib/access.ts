@@ -16,7 +16,7 @@ export async function getUserWithTeams() {
     where: { userId: user.id },
     select: { teamId: true },
   });
-  return { ...user, teamIds: teams.map((t) => t.teamId) };
+  return { ...user, teamIds: teams.map((t: any) => t.teamId) };
 }
 
 export async function ensureOrgSettings(organizationId: string) {
@@ -49,7 +49,7 @@ export async function filterAccessibleSurveys(
       where: { userId },
       select: { teamId: true },
     })
-  ).map((t) => t.teamId);
+  ).map((t: any) => t.teamId);
 
   if (!teamIds.length) return [];
 

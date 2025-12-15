@@ -68,7 +68,7 @@ export default async function ManagerPeoplePage() {
           <h2 className="text-lg font-semibold text-slate-900">Мои цели</h2>
         </div>
         <div className="mt-3 space-y-3">
-          {goals.activeGoals.map((g) => (
+          {goals.activeGoals.map((g: any) => (
             <div key={g.id} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
               <p className="text-sm font-semibold text-slate-900">{g.title}</p>
               <p className="text-xs text-slate-500">Прогресс: {(g.progress * 100).toFixed(0)}%</p>
@@ -84,7 +84,7 @@ export default async function ManagerPeoplePage() {
           <div>
             <p className="text-sm font-semibold text-slate-800">Полученный фидбэк</p>
             <div className="mt-2 space-y-2">
-              {feedback.feedbackAboutMe.map((f) => (
+              {feedback.feedbackAboutMe.map((f: any) => (
                 <div key={f.id} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-800">
                   {f.comments ?? "Без комментария"} {f.rating ? `(${f.rating}/5)` : ""}
                 </div>
@@ -95,7 +95,7 @@ export default async function ManagerPeoplePage() {
           <div>
             <p className="text-sm font-semibold text-slate-800">Признание в команде</p>
             <div className="mt-2 space-y-2">
-              {feedback.recognitionsReceived.map((r) => (
+              {feedback.recognitionsReceived.map((r: any) => (
                 <div key={r.id} className="rounded-xl border border-slate-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
                   {r.message}
                 </div>

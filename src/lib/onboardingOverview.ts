@@ -10,7 +10,7 @@ export async function getOnboardingOverviewForUser(params: { orgId: string; user
     orderBy: { actualEndDate: "desc" },
   });
   const overallProgress = activeJourneys.length
-    ? activeJourneys.reduce((acc, j) => acc + (j.progress ?? 0), 0) / activeJourneys.length
+    ? activeJourneys.reduce((acc: any, j: any) => acc + (j.progress ?? 0), 0) / activeJourneys.length
     : 0;
   const nextSteps = await prisma.onboardingStep.findMany({
     where: {
@@ -21,7 +21,7 @@ export async function getOnboardingOverviewForUser(params: { orgId: string; user
     take: 5,
   });
   return {
-    activeJourneys: activeJourneys.map((j) => ({ journey: j, steps: j.steps })),
+    activeJourneys: activeJourneys.map((j: any) => ({ journey: j, steps: j.steps })),
     completedJourneys,
     overallProgress,
     nextSteps,
@@ -33,27 +33,29 @@ export async function getOnboardingOverviewForManager(params: { orgId: string; m
     where: { organizationId: params.orgId, managerId: params.managerId, status: "active" },
     include: { user: true, steps: true },
   });
-  const teamJourneys = journeys.map((j) => {
-    const completed = j.steps.filter((s) => s.status === "completed").length;
+  const teamJourneys = journeys.map((j: any) => {
+    const completed = j.steps.filter((s: any) => s.status === "completed").length;
     const progress = j.steps.length ? completed / j.steps.length : 0;
     return { user: j.user, journey: j, progress };
   });
-  const atRiskJourneys = teamJourneys.filter((j) => {
-    const overdue = j.journey.steps.some(
-      (s) => s.status !== "completed" && s.dueDate && s.dueDate < new Date()
-    );
-    return overdue || (j.progress < 0.3 && daysSince(journeyStart(j.journey)) > 20);
-  }).map((j) => ({ user: j.user, journey: j.journey, reason: "Progress behind schedule" }));
+  const atRiskJourneys = teamJourneys
+    .filter((j: any) => {
+      const overdue = j.journey.steps.some(
+        (s: any) => s.status !== "completed" && s.dueDate && s.dueDate < new Date()
+      );
+      return overdue || (j.progress < 0.3 && daysSince(journeyStart(j.journey)) > 20);
+    })
+    .map((j: any) => ({ user: j.user, journey: j.journey, reason: "Progress behind schedule" }));
 
   const stats = {
     totalJourneys: teamJourneys.length,
     avgProgress: teamJourneys.length
-      ? teamJourneys.reduce((acc, j) => acc + j.progress, 0) / teamJourneys.length
+      ? teamJourneys.reduce((acc: any, j: any) => acc + j.progress, 0) / teamJourneys.length
       : 0,
     overdueStepsCount: journeys.reduce(
-      (acc, j) =>
+      (acc: any, j: any) =>
         acc +
-        j.steps.filter((s) => s.status !== "completed" && s.dueDate && s.dueDate < new Date()).length,
+        j.steps.filter((s: any) => s.status !== "completed" && s.dueDate && s.dueDate < new Date()).length,
       0
     ),
   };

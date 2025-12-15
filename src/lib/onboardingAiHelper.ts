@@ -27,8 +27,8 @@ export async function generateOnboardingSummaryForManager(params: { orgId: strin
     include: { user: true, steps: true },
   });
   const atRiskPeople = journeys
-    .filter((j) => j.steps.some((s) => s.status !== "completed" && s.dueDate && s.dueDate < new Date()))
-    .map((j) => j.user.name);
+    .filter((j: any) => j.steps.some((s: any) => s.status !== "completed" && s.dueDate && s.dueDate < new Date()))
+    .map((j: any) => j.user.name);
   const summary =
     journeys.length === 0
       ? "Нет активных онбордингов в команде."

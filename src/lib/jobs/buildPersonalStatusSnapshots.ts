@@ -34,14 +34,14 @@ export async function buildPersonalStatusSnapshots() {
       where: { userId: user.id, status: { in: ["in_progress", "completed"] } },
     });
 
-    const enrollmentCompleted = academyEnroll.filter((e) => e.status === "completed").length;
+    const enrollmentCompleted = academyEnroll.filter((e: any) => e.status === "completed").length;
     const academyProgress = academyEnroll.length ? enrollmentCompleted / academyEnroll.length : null;
 
     const habitCompletionRate = habitCheckins.length
-      ? habitCheckins.filter((c) => c.status === "done").length / habitCheckins.length
+      ? habitCheckins.filter((c: any) => c.status === "done").length / habitCheckins.length
       : null;
 
-    const moodAverage = moodSamples.length ? avg(moodSamples.map((m) => (m.scaleValue ?? 0) * 2)) : null; // normalize to 0-10
+    const moodAverage = moodSamples.length ? avg(moodSamples.map((m: any) => (m.scaleValue ?? 0) * 2)) : null; // normalize to 0-10
 
     const prev = await prisma.personalStatusSnapshot.findFirst({
       where: { organizationId: orgId, userId: user.id },

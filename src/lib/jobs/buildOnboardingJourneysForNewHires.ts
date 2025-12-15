@@ -13,7 +13,7 @@ export async function buildOnboardingJourneysForNewHires() {
   const now = new Date();
   for (const user of users) {
     // simplistic heuristic: pick first template that matches jobFamily
-    const template = templates.find((t) => !t.jobFamily || t.jobFamily === user.department);
+    const template = templates.find((t: any) => !t.jobFamily || t.jobFamily === user.department);
     if (!template) continue;
     const existing = await prisma.onboardingJourney.findFirst({
       where: { organizationId: user.organizationId, userId: user.id, templateId: template.id, status: "active" },
@@ -33,7 +33,7 @@ export async function buildOnboardingJourneysForNewHires() {
         status: "active",
       },
     });
-    const stepsData = template.steps.map((s) => ({
+    const stepsData = template.steps.map((s: any) => ({
       organizationId: user.organizationId,
       journeyId: journey.id,
       templateStepId: s.id,

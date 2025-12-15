@@ -23,7 +23,7 @@ export async function getBrandingForOrganization(organizationId: string) {
     },
   });
   if (!org) return null;
-  const primaryBrand = org.organizationBrands.find((b) => b.isPrimary)?.brandProfile;
+  const primaryBrand = org.organizationBrands.find((b: any) => b.isPrimary)?.brandProfile;
   return {
     primaryColor: primaryBrand?.primaryColor ?? org.brandingPrimaryColor ?? "#5b6bff",
     secondaryColor: primaryBrand?.secondaryColor ?? org.brandingSecondaryColor ?? "#3dd5a7",

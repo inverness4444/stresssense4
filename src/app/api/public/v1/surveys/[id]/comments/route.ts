@@ -24,16 +24,16 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     return errorResponse("FORBIDDEN", "Not enough responses to show comments", 403);
   }
 
-  const textQuestionIds = survey.questions.filter((q) => q.type === "TEXT").map((q) => q.id);
+  const textQuestionIds = survey.questions.filter((q: any) => q.type === "TEXT").map((q: any) => q.id);
   const comments = survey.responses
-    .flatMap((r) =>
+    .flatMap((r: any) =>
       r.answers
-        .filter((a) => textQuestionIds.includes(a.questionId) && a.textValue)
-        .map((a) => ({ text: a.textValue, submittedAt: r.submittedAt }))
+        .filter((a: any) => textQuestionIds.includes(a.questionId) && a.textValue)
+        .map((a: any) => ({ text: a.textValue, submittedAt: r.submittedAt }))
     )
-    .filter((c) => c.text);
+    .filter((c: any) => c.text);
 
   return NextResponse.json({
-    data: comments.map((c) => ({ text: c.text, submittedAt: c.submittedAt })),
+    data: comments.map((c: any) => ({ text: c.text, submittedAt: c.submittedAt })),
   });
 }

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { StressSenseAiWidget } from "../../components/StressSenseAiWidget";
+import { StressSenseAiWidget } from "../../../components/StressSenseAiWidget";
 import { createDemoOrganization } from "@/lib/orgData";
 
 function isValidEmail(email: string) {
@@ -18,10 +18,10 @@ export default function GetStartedPage() {
   const [plan] = useState("StressSense — оценка стресса команд");
   const isReady = isValidEmail(email) && agree;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isReady) return;
-    const { org } = createDemoOrganization(orgName || "Новая компания", email);
+    const { org } = await createDemoOrganization(orgName || "Новая компания", email);
     document.cookie = `ss_user_id=demo:${org.slug}:manager; path=/`;
     router.push("/app/overview");
   };

@@ -56,7 +56,7 @@ export default async function NotificationsPage() {
       </div>
 
       <div className="space-y-3">
-        {notifications.map((n) => (
+        {notifications.map((n: any) => (
           <form
             key={n.id}
             action={async () => {

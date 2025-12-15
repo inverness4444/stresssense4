@@ -38,7 +38,7 @@ export default async function SurveysPage({ searchParams }: Props) {
     user.role === "ADMIN",
     settings.allowManagerAccessToAllSurveys
   );
-  const surveys = allSurveys.filter((s) => (q ? s.name.toLowerCase().includes(q.toLowerCase()) : true));
+  const surveys = allSurveys.filter((s: any) => (q ? s.name.toLowerCase().includes(q.toLowerCase()) : true));
 
   return (
     <div className="space-y-6">
@@ -84,7 +84,7 @@ export default async function SurveysPage({ searchParams }: Props) {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {surveys.map((survey) => {
+            {surveys.map((survey: any) => {
               const stats = computeSurveyStats(survey.responses.length, survey.inviteTokens.length, [], []);
               const lastActivity = survey.endsAt ?? survey.createdAt;
               const participation = stats.participation;

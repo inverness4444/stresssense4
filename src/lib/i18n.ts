@@ -62,3 +62,7 @@ export const dict: Record<Locale, Record<string, string>> = {
 export function t(locale: Locale, key: string) {
   return dict[locale]?.[key] ?? dict.en[key] ?? key;
 }
+
+export function getLocale(): Locale {
+  return "en";
+}

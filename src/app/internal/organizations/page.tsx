@@ -17,13 +17,13 @@ export default async function OrganizationsList() {
         <p className="text-sm text-slate-600">Internal view of all workspaces.</p>
       </div>
       <div className="divide-y divide-slate-100 rounded-2xl border border-slate-200 bg-white">
-        {orgs.map((org) => (
+        {orgs.map((org: any) => (
           <div key={org.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-sm">
             <div>
               <p className="font-semibold text-slate-900">{org.name}</p>
               <p className="text-xs text-slate-500">
                 Plan: {org.subscription?.plan?.name ?? "Free"} · Surveys: {org.surveys.length} · Responses:{" "}
-                {org.surveys.reduce((acc, s) => acc + s.responses.length, 0)}
+                {org.surveys.reduce((acc: any, s: any) => acc + s.responses.length, 0)}
               </p>
             </div>
             <div className="flex items-center gap-2 text-xs text-slate-600">

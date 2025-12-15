@@ -17,8 +17,8 @@ export async function GET(req: NextRequest) {
             where: { organizationId: user.organizationId },
             select: { id: true },
           })
-        ).map((t) => t.id)
-      : user.teams.map((t) => t.teamId);
+        ).map((t: any) => t.id)
+      : user.teams.map((t: any) => t.teamId);
 
   const latestSurveys = await prisma.survey.findMany({
     where: { organizationId: user.organizationId, targets: { some: { teamId: { in: teamIds } } } },
@@ -37,20 +37,20 @@ export async function GET(req: NextRequest) {
     { name: string; participation: number; stressIndex: number; lastSurveyId: string; lastSurveyName: string }
   > = {};
 
-  latestSurveys.forEach((survey) => {
+  latestSurveys.forEach((survey: any) => {
     survey.targets
-      .filter((t) => teamIds.includes(t.teamId))
-      .forEach((t) => {
-        const responses = survey.responses.filter((r) => r.inviteToken.user.teams.some((ut) => ut.teamId === t.teamId));
-        const invites = survey.inviteTokens.filter((i) => i.user.teams.some((ut) => ut.teamId === t.teamId)).length;
+      .filter((t: any) => teamIds.includes(t.teamId))
+      .forEach((t: any) => {
+        const responses = survey.responses.filter((r: any) => r.inviteToken.user.teams.some((ut: any) => ut.teamId === t.teamId));
+        const invites = survey.inviteTokens.filter((i: any) => i.user.teams.some((ut: any) => ut.teamId === t.teamId)).length;
         const part = invites ? Math.round((responses.length / invites) * 100) : 0;
         let sum = 0;
         let count = 0;
         survey.questions
-          .filter((q) => q.type === "SCALE")
-          .forEach((q) => {
-            responses.forEach((r) => {
-              const ans = r.answers.find((a) => a.questionId === q.id);
+          .filter((q: any) => q.type === "SCALE")
+          .forEach((q: any) => {
+            responses.forEach((r: any) => {
+              const ans = r.answers.find((a: any) => a.questionId === q.id);
               if (ans?.scaleValue != null) {
                 sum += ans.scaleValue;
                 count += 1;

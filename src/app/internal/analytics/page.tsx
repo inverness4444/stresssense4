@@ -54,7 +54,7 @@ export default async function InternalAnalytics({ searchParams }: { searchParams
           </form>
         </div>
         <div className="mt-3 space-y-2">
-          {events.map((e) => (
+          {events.map((e: any) => (
             <div key={e.eventName} className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-sm">
               <span className="font-semibold text-slate-900">{e.eventName}</span>
               <span className="text-slate-600">{e._count._all}</span>
@@ -66,11 +66,11 @@ export default async function InternalAnalytics({ searchParams }: { searchParams
       <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-semibold text-slate-900">Experiments</h2>
         <div className="mt-3 space-y-3">
-          {experiments.map((exp) => {
-            const byVariant = exp.assignments.reduce<Record<string, number>>((acc, a) => {
+          {experiments.map((exp: any) => {
+            const byVariant = exp.assignments.reduce((acc: Record<string, number>, a: any) => {
               acc[a.variantKey] = (acc[a.variantKey] ?? 0) + 1;
               return acc;
-            }, {});
+            }, {} as Record<string, number>);
             return (
               <div key={exp.id} className="rounded-xl border border-slate-100 bg-slate-50 p-3">
                 <div className="flex items-center justify-between">
@@ -81,9 +81,9 @@ export default async function InternalAnalytics({ searchParams }: { searchParams
                   <span className="text-xs font-semibold text-slate-700">{exp.scope}</span>
                 </div>
                 <div className="mt-2 flex flex-wrap gap-2 text-xs text-slate-700">
-                  {Object.entries(byVariant).map(([k, v]) => (
+                  {Object.entries(byVariant).map(([k, v]: any[]) => (
                     <span key={k} className="rounded-full bg-white px-2 py-1 ring-1 ring-slate-200">
-                      {k}: {v} exposures
+                      {k}: {String(v)} exposures
                     </span>
                   ))}
                   {exp.assignments.length === 0 && <span className="text-slate-500">No assignments yet.</span>}
@@ -97,13 +97,13 @@ export default async function InternalAnalytics({ searchParams }: { searchParams
       <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-semibold text-slate-900">Top active workspaces</h2>
         <div className="mt-3 divide-y divide-slate-100 rounded-xl border border-slate-200">
-          {topOrgs.map((org) => (
+          {topOrgs.map((org: any) => (
             <div key={org.id} className="flex items-center justify-between px-4 py-3 text-sm">
               <div>
                 <p className="font-semibold text-slate-900">{org.name}</p>
                 <p className="text-xs text-slate-500">
                   Plan: {org.subscription?.plan?.name ?? "Free"} · Surveys: {org.surveys.length} · Responses:{" "}
-                  {org.surveys.reduce((acc, s) => acc + s.responses.length, 0)}
+                  {org.surveys.reduce((acc: any, s: any) => acc + s.responses.length, 0)}
                 </p>
               </div>
               <a href={`/internal/organizations/${org.id}`} className="text-primary hover:underline">

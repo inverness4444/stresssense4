@@ -1,53 +1,43 @@
-import { cookies } from "next/headers";
+import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
-import { prisma } from "./prisma";
-import { getOrganizationBySlug, getTeamsByOrg } from "./orgData";
-
-const SESSION_COOKIE = "ss_user_id";
+import { authOptions } from "@/lib/authOptions";
+import { prisma } from "@/lib/prisma";
 
 export async function getCurrentUser() {
-  const sessionId = (await cookies()).get(SESSION_COOKIE)?.value;
-  if (!sessionId) return null;
+  const session = await getServerSession(authOptions);
+  const userId = (session?.user as any)?.id as string | undefined;
+  const email = session?.user?.email ?? undefined;
+  if (!userId && !email) return null;
 
-  if (sessionId.startsWith("demo")) {
-    const parts = sessionId.split(":");
-    const slug = parts[1] || "nova-bank";
-    const roleToken = parts[2] || "manager";
-    const org = getOrganizationBySlug(slug) ?? getOrganizationBySlug("nova-bank");
-    if (!org) return null;
-    const teams = getTeamsByOrg(org.id);
-    return {
-      id: sessionId,
-      email: roleToken === "manager" ? "demo.manager@stresssense.app" : "demo.hr@stresssense.app",
-      name: roleToken === "manager" ? "Demo Manager" : "Demo HR",
-      role: roleToken === "manager" ? "MANAGER" : "ADMIN",
-      organizationId: org.id,
-      organization: org,
-      teams: teams.map((team) => ({ team })),
-    } as any;
+  let user = null;
+  if (userId) {
+    user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: { organization: true },
+    });
   }
-
-  return prisma.user.findUnique({
-    where: { id: sessionId },
-    include: {
-      organization: true,
-      teams: {
-        include: {
-          team: true,
-        },
-      },
-    },
+  if (!user && email) {
+    user = await prisma.user.findUnique({
+      where: { email },
+      include: { organization: true },
+    });
+  }
+  if (!user) return null;
+  const member = await prisma.member.findFirst({
+    where: { userId: user.id },
+    include: { team: true, organization: true },
   });
+  return { ...user, member };
 }
 
 export async function requireUser() {
   const user = await getCurrentUser();
   if (!user) {
-    redirect("/");
+    redirect("/login");
   }
   return user;
 }
 
 export function isAdmin(user: { role: string }) {
-  return user.role === "ADMIN";
+  return user.role === "HR";
 }

@@ -79,7 +79,7 @@ export default async function HrCompensationPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {overview.participants.map(({ participant, recommendation }) => (
+                {overview.participants.map(({ participant, recommendation }: any) => (
                   <tr key={participant.id} className="hover:bg-slate-50/60">
                     <td className="px-4 py-2 font-medium text-slate-900">{participant.user.name}</td>
                     <td className="px-4 py-2 text-slate-700">{participant.manager?.name ?? "—"}</td>

@@ -86,7 +86,7 @@ export default async function BillingPage() {
           </form>
           {data.referralCodes.length > 0 && (
             <ul className="mt-2 space-y-1 text-sm text-slate-700">
-              {data.referralCodes.map((r) => (
+              {data.referralCodes.map((r: any) => (
                 <li key={r.id} className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2">
                   <span>{r.code}</span>
                   <button
@@ -107,7 +107,7 @@ export default async function BillingPage() {
       <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
         <h3 className="text-lg font-semibold text-slate-900">Инвойсы</h3>
         <div className="mt-3 divide-y divide-slate-100">
-          {data.invoices.map((inv) => (
+          {data.invoices.map((inv: any) => (
             <div key={inv.id} className="flex items-center justify-between py-2 text-sm text-slate-800">
               <div>
                 <p className="font-semibold">Счет {inv.id.slice(0, 6)}</p>

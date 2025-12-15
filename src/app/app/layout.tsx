@@ -7,7 +7,8 @@ import { recentNotifications, unreadCount } from "@/lib/notifications";
 import { cookies } from "next/headers";
 import { getLocale } from "@/lib/i18n-server";
 import { ensureOrgSettings } from "@/lib/access";
-import { AIAssistant } from "@/components/app/AIAssistant";
+import { actionBadge } from "@/lib/nudgesStore";
+import { StressSenseAiFloating } from "@/components/StressSenseAiFloating";
 
 export const metadata: Metadata = {
   title: "StressSense | App",
@@ -17,7 +18,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const user = await getCurrentUser();
 
   if (!user) {
-    redirect("/signin");
+    redirect("/login");
   }
 
   const [notifications, unread] = await Promise.all([
@@ -27,16 +28,15 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const demoMode = (await cookies()).get("ss_demo_mode")?.value === "1";
   const locale = await getLocale();
   const settings = await ensureOrgSettings(user.organizationId);
+  const actionsCount = await actionBadge(user.organizationId);
 
   return (
     <div className="flex min-h-screen bg-slate-50">
-      <AppSidebar user={user} locale={locale} settings={settings} />
+      <AppSidebar user={user} locale={locale} settings={settings} actionCount={actionsCount} />
       <div className="flex min-h-screen flex-1 flex-col">
         <AppTopbar user={user} notifications={notifications} unreadCount={unread} demoMode={demoMode} locale={locale} />
-        <main className="flex-1 px-4 py-6 sm:px-6 lg:px-10">
-          {children}
-          <AIAssistant />
-        </main>
+        <main className="flex-1 px-4 py-6 sm:px-6 lg:px-10">{children}</main>
+        <StressSenseAiFloating mode={user.role === "Employee" ? "employee" : "manager"} />
       </div>
     </div>
   );

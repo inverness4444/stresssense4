@@ -26,14 +26,14 @@ export async function triggerPlaybooksForSurvey(surveyId: string) {
       const scaleMin = survey.organization.settings?.stressScaleMin ?? 1;
       const scaleMax = survey.organization.settings?.stressScaleMax ?? 5;
       for (const target of survey.targets) {
-        const teamResponses = survey.responses.filter((r) => r.inviteToken.user.teams.some((ut) => ut.teamId === target.teamId));
+        const teamResponses = survey.responses.filter((r: any) => r.inviteToken.user.teams.some((ut: any) => ut.teamId === target.teamId));
         let sum = 0;
         let count = 0;
         survey.questions
-          .filter((q) => q.type === "SCALE")
-          .forEach((q) => {
-            teamResponses.forEach((r) => {
-              const ans = r.answers.find((a) => a.questionId === q.id);
+          .filter((q: any) => q.type === "SCALE")
+          .forEach((q: any) => {
+            teamResponses.forEach((r: any) => {
+              const ans = r.answers.find((a: any) => a.questionId === q.id);
               if (ans?.scaleValue != null) {
                 sum += ans.scaleValue;
                 count += 1;
@@ -55,7 +55,7 @@ async function createActionItemsFromPlaybook(playbookId: string, surveyId: strin
   const survey = await prisma.survey.findUnique({ where: { id: surveyId } });
   if (!pb || !survey) return;
   await Promise.all(
-    pb.steps.map((step) =>
+    pb.steps.map((step: any) =>
       prisma.actionItem.create({
         data: {
           organizationId: survey.organizationId,

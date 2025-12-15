@@ -56,7 +56,7 @@ export default async function BillingPage({ searchParams }: { searchParams?: { s
 
       <SectionHeader title="Choose your plan" subtitle="Тарифы для разных размеров команд." />
       <div className="grid gap-4 md:grid-cols-3">
-        {plans.map((plan) => (
+        {plans.map((plan: any) => (
           <form
             key={plan.id}
             action={async () => {
@@ -138,7 +138,7 @@ async function InvoicesList({ organizationId }: { organizationId: string }) {
   if (!invoices.length) return <p className="text-sm text-slate-600">No invoices yet.</p>;
   return (
     <div className="mt-3 divide-y divide-slate-100 rounded-xl border border-slate-200">
-      {invoices.map((inv) => (
+      {invoices.map((inv: any) => (
         <div key={inv.id} className="flex items-center justify-between px-4 py-3 text-sm">
           <div>
             <p className="font-semibold text-slate-900">{inv.number ?? inv.stripeInvoiceId ?? inv.id}</p>

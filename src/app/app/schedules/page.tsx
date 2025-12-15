@@ -74,7 +74,7 @@ export default async function SchedulesPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {schedules.map((schedule) => {
+            {schedules.map((schedule: any) => {
               const lastSurvey = schedule.surveys[0];
               const nextRun = nextRunDate(
                 { frequency: schedule.frequency, dayOfWeek: schedule.dayOfWeek, dayOfMonth: schedule.dayOfMonth, startsOn: schedule.startsOn },

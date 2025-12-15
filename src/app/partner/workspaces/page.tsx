@@ -27,7 +27,7 @@ export default async function PartnerWorkspacesPage() {
         <p className="text-sm text-slate-600">Organizations linked to your partner account.</p>
       </div>
       <div className="divide-y divide-slate-100 rounded-2xl border border-slate-200 bg-white">
-        {orgs.map((o) => (
+        {orgs.map((o: any) => (
           <div key={o.id} className="flex items-center justify-between px-4 py-3">
             <div>
               <p className="font-semibold text-slate-900">{o.organization.name}</p>

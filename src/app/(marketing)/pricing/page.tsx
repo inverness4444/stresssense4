@@ -15,7 +15,7 @@ export default async function PricingPage() {
         </div>
 
         <div className="mt-10 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {plans.map((plan) => (
+          {plans.map((plan: any) => (
             <div
               key={plan.id}
               className="rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-sm backdrop-blur transition hover:-translate-y-1 hover:shadow-md"
@@ -35,7 +35,7 @@ export default async function PricingPage() {
                 <p className="text-sm text-slate-600">Включено {plan.baseSeats} мест · +{(plan.pricePerSeatCents ?? 0) / 100}$/seat</p>
               )}
               <div className="mt-4 space-y-2 text-sm text-slate-700">
-                {plan.featureKeys.slice(0, 6).map((f) => (
+                {plan.featureKeys.slice(0, 6).map((f: any) => (
                   <div key={f} className="flex items-center gap-2">
                     <span className="h-1.5 w-1.5 rounded-full bg-primary" />
                     <span>{f}</span>

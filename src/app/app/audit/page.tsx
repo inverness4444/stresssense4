@@ -42,7 +42,7 @@ export default async function AuditPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {logs.map((log) => (
+            {logs.map((log: any) => (
               <tr key={log.id} className="hover:bg-slate-50/70">
                 <td className="px-4 py-3 text-slate-700">{new Date(log.createdAt).toLocaleString()}</td>
                 <td className="px-4 py-3 text-slate-800">{log.user?.name ?? "System"}</td>

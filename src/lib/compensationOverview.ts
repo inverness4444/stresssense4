@@ -5,7 +5,7 @@ export async function getCompensationBands(params: { orgId: string }) {
     where: { organizationId: params.orgId, isActive: true },
     orderBy: [{ jobFamily: "asc" }, { level: "asc" }, { key: "asc" }],
   });
-  const jobFamilies = Array.from(new Set(bands.map((b) => b.jobFamily).filter(Boolean))) as string[];
+  const jobFamilies = Array.from(new Set(bands.map((b: any) => b.jobFamily).filter(Boolean))) as string[];
   return { bands, jobFamilies };
 }
 
@@ -26,7 +26,7 @@ export async function getCompensationCycleOverviewForHr(params: { orgId: string;
   let avgIncreasePct = 0;
   let outOfRangeCount = 0;
   let counted = 0;
-  participants.forEach((p) => {
+  participants.forEach((p: any) => {
     const rec = p.recommendations[0];
     if (p.currentBase && rec?.proposedBase) {
       const delta = rec.proposedBase - p.currentBase;
@@ -44,7 +44,7 @@ export async function getCompensationCycleOverviewForHr(params: { orgId: string;
   };
   return {
     cycle,
-    participants: participants.map((p) => ({ participant: p, recommendation: p.recommendations[0] })),
+    participants: participants.map((p: any) => ({ participant: p, recommendation: p.recommendations[0] })),
     aggregates,
   };
 }
@@ -61,7 +61,7 @@ export async function getCompensationOverviewForManager(params: { orgId: string;
       recommendations: { include: { proposedBand: true }, orderBy: { updatedAt: "desc" }, take: 1 },
     },
   });
-  const mapped = myParticipants.map((p) => {
+  const mapped = myParticipants.map((p: any) => {
     const rec = p.recommendations[0];
     let pctOfBand: number | null = null;
     let label: string | null = null;
@@ -75,7 +75,7 @@ export async function getCompensationOverviewForManager(params: { orgId: string;
   let totalCurrentBase = 0;
   let totalProposedBase = 0;
   let counted = 0;
-  mapped.forEach((p) => {
+  mapped.forEach((p: any) => {
     if (p.participant.currentBase) totalCurrentBase += p.participant.currentBase;
     if (p.recommendation?.proposedBase) {
       totalProposedBase += p.recommendation.proposedBase;
@@ -107,6 +107,6 @@ export async function getCompensationHistoryForUser(params: { orgId: string; use
   });
   return {
     assignments,
-    previousCycles: previousCycles.map((p) => ({ cycle: p.cycle, participant: p, recommendation: p.recommendations[0] })),
+    previousCycles: previousCycles.map((p: any) => ({ cycle: p.cycle, participant: p, recommendation: p.recommendations[0] })),
   };
 }

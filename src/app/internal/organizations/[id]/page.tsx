@@ -21,7 +21,7 @@ export default async function OrgDetail({ params }: { params: { id: string } }) 
       <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
         <h2 className="text-lg font-semibold text-slate-900">Usage</h2>
         <p className="text-sm text-slate-600">
-          Surveys: {org.surveys.length} · Responses: {org.surveys.reduce((a, s) => a + s.responses.length, 0)}
+          Surveys: {org.surveys.length} · Responses: {org.surveys.reduce((a: any, s: any) => a + s.responses.length, 0)}
         </p>
         <div className="mt-2 flex items-center gap-2 text-xs">
           {org.slackIntegration && <span className="rounded-full bg-emerald-50 px-2 py-1 text-emerald-700">Slack</span>}
@@ -31,7 +31,7 @@ export default async function OrgDetail({ params }: { params: { id: string } }) 
       <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
         <h2 className="text-lg font-semibold text-slate-900">Recent users</h2>
         <ul className="mt-2 space-y-1 text-sm text-slate-700">
-          {org.users.map((u) => (
+          {org.users.map((u: any) => (
             <li key={u.id}>
               {u.name} ({u.email}) — {u.role}
             </li>

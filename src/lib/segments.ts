@@ -14,7 +14,7 @@ export async function filterResponsesBySegments(surveyId: string, orgId: string,
     include: { user: { include: { attributes: { include: { attribute: true } } } } },
   });
   const allowedUserIds = inviteTokens
-    .filter((token) => {
+    .filter((token: any) => {
       const u = token.user;
       if (filter.departments?.length && (!u.department || !filter.departments.includes(u.department))) return false;
       if (filter.locations?.length && (!u.location || !filter.locations.includes(u.location))) return false;
@@ -22,13 +22,13 @@ export async function filterResponsesBySegments(surveyId: string, orgId: string,
       if (filter.attributes) {
         const kv = Object.entries(filter.attributes);
         for (const [k, values] of kv) {
-          const match = u.attributes.find((a) => a.attribute.key === k);
+          const match = u.attributes.find((a: any) => a.attribute.key === k);
           if (!match || !values.includes(match.value)) return false;
         }
       }
       return true;
     })
-    .map((t) => t.userId);
+    .map((t: any) => t.userId);
 
   const responses = await prisma.surveyResponse.findMany({
     where: { surveyId, inviteToken: { userId: { in: allowedUserIds } } },

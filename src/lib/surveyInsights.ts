@@ -80,15 +80,15 @@ export async function generateSurveyInsight(surveyId: string, options?: Generate
   const responsesCount = survey.responses.length;
   const participation = inviteCount ? Math.round((responsesCount / inviteCount) * 100) : 0;
 
-  const scaleQuestions = survey.questions.filter((q) => q.type === "SCALE");
-  const questionStats = survey.questions.map((q) => ({
+  const scaleQuestions = survey.questions.filter((q: any) => q.type === "SCALE");
+  const questionStats = survey.questions.map((q: any) => ({
     text: q.text,
     stats: q.type === "SCALE" ? buildScaleStats(q, survey.responses) : undefined,
   }));
 
   const comments: string[] = [];
-  survey.responses.forEach((r) => {
-    r.answers.forEach((a) => {
+  survey.responses.forEach((r: any) => {
+    r.answers.forEach((a: any) => {
       if (a.textValue) comments.push(a.textValue);
     });
   });

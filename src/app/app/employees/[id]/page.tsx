@@ -47,7 +47,7 @@ export default async function EmployeeDetailPage({ params }: Props) {
           <Info label="Location" value={employee.location ?? "—"} />
           <Info label="Employee ID" value={employee.employeeId ?? "—"} />
           <Info label="Manager" value={employee.manager?.name ?? "—"} />
-          <Info label="Teams" value={employee.teams.map((t) => t.team.name).join(", ") || "—"} />
+          <Info label="Teams" value={employee.teams.map((t: any) => t.team.name).join(", ") || "—"} />
         </dl>
       </div>
 
@@ -55,7 +55,7 @@ export default async function EmployeeDetailPage({ params }: Props) {
         <h3 className="text-lg font-semibold text-slate-900">Custom attributes</h3>
         <div className="mt-3 space-y-2 text-sm text-slate-700">
           {employee.attributes.length === 0 && <p className="text-sm text-slate-600">No custom attributes.</p>}
-          {employee.attributes.map((a) => (
+          {employee.attributes.map((a: any) => (
             <div key={a.id} className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50 px-3 py-2">
               <span className="font-semibold text-slate-800">{a.attribute.label}</span>
               <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-700 ring-1 ring-slate-200">

@@ -40,7 +40,7 @@ export default async function TeamDetailPage({ params }: Props) {
   });
 
   const isAdmin = currentUser.role === "ADMIN";
-  const members = team.users.map((u) => u.user);
+  const members = team.users.map((u: any) => u.user);
 
   return (
     <div className="space-y-6">
@@ -68,7 +68,7 @@ export default async function TeamDetailPage({ params }: Props) {
               teamId={team.id}
               initialName={team.name}
               initialDescription={team.description}
-              members={members.map((m) => ({ id: m.id }))}
+              members={members.map((m: any) => ({ id: m.id }))}
               users={allUsers}
             />
             <button
@@ -106,7 +106,7 @@ export default async function TeamDetailPage({ params }: Props) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {members.map((member) => (
+                {members.map((member: any) => (
                   <tr key={member.id} className="transition hover:bg-slate-50/80">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">

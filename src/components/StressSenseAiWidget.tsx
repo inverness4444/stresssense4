@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { InsightTag } from "@/lib/statusLogic";
 import { EngagementTrendCard, TrendPoint } from "@/components/EngagementTrendCard";
 
-type Mode = "landing" | "employee";
+type Mode = "landing" | "employee" | "manager";
+type Variant = "inline" | "floating";
 type TabKey = "home" | "messages" | "help";
 type MessageKind = "text" | "report" | "bullets";
 type Message = { id: string; role: "ai" | "user"; text: string; kind?: MessageKind; bullets?: string[]; reportData?: { stress: number; engagement: number; insights?: string[] } };
@@ -15,6 +16,11 @@ type EmployeeMetrics = {
   mood?: number;
   habitsCompletion?: number;
   tags?: InsightTag[];
+};
+
+type ManagerFacts = {
+  teams: Array<{ id: string; name: string; level: string; stress?: number; participation?: number; tags?: string[]; nudges?: number }>;
+  topNudges: Array<{ title: string; teamId: string; status: string }>;
 };
 
 type FlowQuestion = { id: string; text: string; options: Array<{ label: string; value: string; tag?: InsightTag }> };
@@ -130,25 +136,37 @@ function ReportMiniCard() {
   );
 }
 
-export function StressSenseAiWidget({ mode = "landing", employeeMetrics }: { mode?: Mode; employeeMetrics?: EmployeeMetrics }) {
+export function StressSenseAiWidget({
+  mode = "landing",
+  employeeMetrics,
+  variant = "inline",
+  onClose,
+}: {
+  mode?: Mode;
+  employeeMetrics?: EmployeeMetrics;
+  variant?: Variant;
+  onClose?: () => void;
+}) {
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<TabKey>("home");
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<Message[]>([
     mode === "landing"
       ? { id: "hi", role: "ai", text: "Привет! Я StressSense AI. Спроси про отчёты по стрессу, опросы или цены." }
-      : {
-          id: "hi-emp",
-          role: "ai",
-          text:
-            "Привет, я твой StressSense коуч. Помогу разобраться со стрессом на работе, приоритетами и разговором с менеджером.",
-        },
+      : mode === "manager"
+        ? { id: "hi-mgr", role: "ai", text: "Я помогу понять, на чём сфокусироваться менеджеру: какие команды в риске и какие действия сделать первыми." }
+        : {
+            id: "hi-emp",
+            role: "ai",
+            text: "Привет, я твой StressSense коуч. Помогу разобраться со стрессом на работе, приоритетами и разговором с менеджером.",
+          },
   ]);
 
   const [currentFlow, setCurrentFlow] = useState<FlowConfig | null>(null);
   const [flowStep, setFlowStep] = useState(0);
   const [flowAnswers, setFlowAnswers] = useState<Record<string, string>>({});
   const [flowTags, setFlowTags] = useState<InsightTag[]>([]);
+  const [managerFacts, setManagerFacts] = useState<ManagerFacts | null>(null);
 
   const employeeState = useMemo(() => {
     const stress = employeeMetrics?.stress ?? employeeMetrics?.wellbeing ?? 6.2;
@@ -171,6 +189,44 @@ export function StressSenseAiWidget({ mode = "landing", employeeMetrics }: { mod
       mainTag,
     };
   }, [employeeMetrics]);
+
+  useEffect(() => {
+    if (mode !== "manager") return;
+    const load = async () => {
+      try {
+        const res = await fetch("/app/api/nudges/manager");
+        const json = await res.json();
+        if (res.ok) {
+          const teams =
+            json.teams?.map((t: any) => {
+              const teamNudges = (json.nudges ?? []).filter((n: any) => n.teamId === t.id && n.status === "todo");
+              const levels = teamNudges.map((n: any) => n.level ?? n.template?.triggerLevel);
+              const level = levels.includes("AtRisk") ? "AtRisk" : levels.includes("UnderPressure") ? "UnderPressure" : "Watch";
+              return {
+                id: t.id,
+                name: t.name,
+                level,
+                stress: level === "AtRisk" ? 8 : level === "UnderPressure" ? 7 : 5,
+                participation: 0.7,
+                tags: [],
+                nudges: teamNudges.length,
+              };
+            }) ?? [];
+          setManagerFacts({
+            teams,
+            topNudges: (json.nudges ?? []).slice(0, 3).map((n: any) => ({
+              title: n.template?.title ?? n.title,
+              teamId: n.teamId,
+              status: n.status,
+            })),
+          });
+        }
+      } catch (e) {
+        setManagerFacts(null);
+      }
+    };
+    void load();
+  }, [mode]);
 
   const landingFlows: FlowConfig[] = [
     {
@@ -198,6 +254,7 @@ export function StressSenseAiWidget({ mode = "landing", employeeMetrics }: { mod
             id: "simulate-actions",
             role: "ai",
             kind: "bullets",
+            text: "",
             bullets: [
               tags.includes("meetings") ? "Сократить количество митингов и добавить фокус-блоки" : "Пересмотреть приоритеты и объем спринта",
               "Запустить короткий pulse-опрос о нагрузке",
@@ -276,6 +333,37 @@ export function StressSenseAiWidget({ mode = "landing", employeeMetrics }: { mod
   const currentFlowConfig = currentFlow;
 
   const handleQuickAction = (id: string) => {
+    if (mode === "manager") {
+      if (id === "focus-week") {
+        const actions = managerFacts?.topNudges?.map((n) => `• ${n.title}`) ?? ["• Провести ревизию митингов", "• Назначить 1:1 с перегруженными", "• Уточнить приоритеты спринта"];
+        pushMessage({
+          id: "mgr-focus",
+          role: "ai",
+          kind: "bullets",
+          text: "",
+          bullets: [...actions, "Открыть в Action center → /app/actions"],
+        });
+        return;
+      }
+      if (id === "risk-teams") {
+        const risky = managerFacts?.teams?.filter((t) => t.level === "UnderPressure" || t.level === "AtRisk") ?? [];
+        const bullets =
+          risky.length === 0
+            ? ["Нет At risk команд сейчас. Следите за participation и нагрузкой."]
+            : risky.map((t) => `Команда ${t.name}: уровень ${t.level}, nudges: ${t.nudges ?? 0}`);
+        pushMessage({ id: "mgr-risks", role: "ai", kind: "bullets", text: "", bullets });
+        return;
+      }
+      if (id === "explain-pulse") {
+        pushMessage({
+          id: "mgr-explain",
+          role: "ai",
+          text:
+            "Пример сообщения: «Мы измеряем рабочий стресс, чтобы вовремя убирать перегруз и делать приоритеты прозрачнее. Опрос анонимный, смотрим только агрегаты по команде. По результатам дадим конкретные действия в Action center.»",
+        });
+        return;
+      }
+    }
     if (id === "report") {
       pushMessage({ id: "report-preview", role: "ai", kind: "report", text: "Вот как выглядит отчёт по стрессу в StressSense", reportData: { stress: 7, engagement: 8.3, insights: landingReportInsights } });
       return;
@@ -335,7 +423,9 @@ export function StressSenseAiWidget({ mode = "landing", employeeMetrics }: { mod
       keywordAnswers.find((k) => k.keywords.some((kw) => input.toLowerCase().includes(kw)))?.text ||
       (mode === "employee"
         ? "Это похоже на вопрос про рабочий стресс. Я помогу с фокусом, привычками и разговором с менеджером, но не даю медицинских советов."
-        : "StressSense измеряет стресс и вовлечённость, даёт AI-подсказки и работает только с агрегированными данными.");
+        : mode === "manager"
+          ? "Сфокусируйтесь на командах с высоким стрессом и низким participation. Откройте Action center, чтобы закрыть nudges."
+          : "StressSense измеряет стресс и вовлечённость, даёт AI-подсказки и работает только с агрегированными данными.");
     setMessages((prev) => [...prev, { id: crypto.randomUUID(), role: "ai", text: answer }]);
     setInput("");
     setTab("messages");
@@ -346,6 +436,12 @@ export function StressSenseAiWidget({ mode = "landing", employeeMetrics }: { mod
     { id: "simulate", label: "Смоделировать стресс в команде" },
     { id: "privacy", label: "Как мы работаем с данными" },
     { id: "plan", label: "Подобрать план и цену" },
+  ];
+
+  const managerQuickActions = [
+    { id: "focus-week", label: "What should I focus on this week?" },
+    { id: "risk-teams", label: "Which teams are at risk?" },
+    { id: "explain-pulse", label: "Как объяснить командe, зачем мы измеряем стресс?" },
   ];
 
   const employeeQuestionsList = ["Почему у меня высокий стресс?", "Что делать, если дедлайны горят?", "Как не думать о работе вечером?"];
@@ -447,7 +543,7 @@ export function StressSenseAiWidget({ mode = "landing", employeeMetrics }: { mod
         {employeeQuickActions.map((qa) => (
           <button
             key={qa.id}
-            onClick={() => pushMessage({ id: qa.id, role: "ai", kind: "bullets", bullets: qa.response })}
+            onClick={() => pushMessage({ id: qa.id, role: "ai", kind: "bullets", text: "", bullets: qa.response })}
             className="rounded-2xl bg-white p-4 text-left text-sm font-semibold text-slate-800 ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:shadow-md"
           >
             {qa.label}
@@ -469,6 +565,59 @@ export function StressSenseAiWidget({ mode = "landing", employeeMetrics }: { mod
               {q}
             </button>
           ))}
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderHomeManager = () => (
+    <div className="space-y-4">
+      <div className="rounded-2xl bg-gradient-to-br from-primary/10 via-white to-indigo-50 p-4 shadow-sm ring-1 ring-primary/10">
+        <p className="text-sm font-semibold text-slate-900">Фокус для менеджера</p>
+        <p className="text-slate-700">
+          Получите верхние nudges и команды в риске. Никаких медицинских советов — только действия по организации работы.
+        </p>
+      </div>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {managerQuickActions.map((qa) => (
+          <button
+            key={qa.id}
+            onClick={() => handleQuickAction(qa.id)}
+            className="rounded-2xl bg-white p-4 text-left text-sm font-semibold text-slate-800 ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:shadow-md"
+          >
+            {qa.label}
+          </button>
+        ))}
+      </div>
+      <div className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Топ действий</p>
+        <div className="space-y-2">
+          {(managerFacts?.topNudges ?? []).map((n) => (
+            <div key={n.title} className="rounded-xl bg-white p-3 text-sm shadow-sm ring-1 ring-slate-200">
+              <p className="font-semibold text-slate-900">{n.title}</p>
+              <p className="text-xs text-primary">Открыть в Action center → /app/actions</p>
+            </div>
+          ))}
+          {(managerFacts?.topNudges ?? []).length === 0 && <p className="text-sm text-slate-600">Нет активных nudges — запустите pulse.</p>}
+        </div>
+      </div>
+      <div className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Команды в риске</p>
+        <div className="space-y-2">
+          {(managerFacts?.teams ?? []).map((t) => (
+            <div key={t.id} className="flex items-center justify-between rounded-xl bg-white p-3 text-sm shadow-sm ring-1 ring-slate-200">
+              <div>
+                <p className="font-semibold text-slate-900">{t.name}</p>
+                <p className="text-xs text-slate-600">
+                  Stress {t.stress ?? 0}/10 · participation {(t.participation ?? 0) * 100}%
+                </p>
+              </div>
+              <span className="rounded-full bg-orange-100 px-2 py-0.5 text-[11px] font-semibold text-orange-700">
+                {t.nudges ?? 0} nudges
+              </span>
+            </div>
+          ))}
+          {(managerFacts?.teams ?? []).length === 0 && <p className="text-sm text-slate-600">Нет данных. Проведите pulse-опрос.</p>}
         </div>
       </div>
     </div>
@@ -501,86 +650,112 @@ export function StressSenseAiWidget({ mode = "landing", employeeMetrics }: { mod
     </div>
   );
 
-  return (
-    <>
-      <button
-        onClick={() => setOpen((v) => !v)}
-        className="fixed bottom-5 right-5 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-primary to-indigo-600 text-white shadow-2xl transition hover:scale-105"
-        aria-label="StressSense AI"
-      >
-        AI
-      </button>
-      <div
-        className={`fixed bottom-24 right-5 z-40 w-full max-w-md transform transition-all duration-300 ${
-          open ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-4 opacity-0"
-        }`}
-      >
-        <div className="overflow-hidden rounded-3xl bg-white shadow-2xl ring-1 ring-slate-200">
-          <div className="bg-gradient-to-r from-primary to-indigo-600 px-4 py-4 text-white">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-semibold">StressSense AI (beta)</p>
-                <p className="text-xs text-white/80">
-                  Только про рабочий стресс и вовлечённость. Без медицинских рекомендаций.
-                </p>
-              </div>
-              <button onClick={() => setOpen(false)} className="rounded-full bg-white/20 px-3 py-1 text-xs font-semibold hover:bg-white/30">
-                Закрыть
-              </button>
-            </div>
-            {mode === "employee" && (
-              <p className="mt-2 text-xs text-white/80">
-                {employeeState.summary || "Отслеживаем только рабочие сигналы. Индивидуальные ответы не видны менеджеру."}
-              </p>
-            )}
+  const renderPanel = (showClose = false) => (
+    <div className="overflow-hidden rounded-3xl bg-white shadow-2xl ring-1 ring-slate-200">
+      <div className="bg-gradient-to-r from-primary to-indigo-600 px-4 py-4 text-white">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-semibold">StressSense AI (beta)</p>
+            <p className="text-xs text-white/80">Только про рабочий стресс и вовлечённость. Без медицинских рекомендаций.</p>
           </div>
+          {showClose && (
+            <button onClick={() => setOpen(false)} className="rounded-full bg-white/20 px-3 py-1 text-xs font-semibold hover:bg-white/30">
+              Закрыть
+            </button>
+          )}
+        </div>
+        {mode === "employee" && (
+          <p className="mt-2 text-xs text-white/80">
+            {employeeState.summary || "Отслеживаем только рабочие сигналы. Индивидуальные ответы не видны менеджеру."}
+          </p>
+        )}
+        {mode === "manager" && (
+          <p className="mt-2 text-xs text-white/80">
+            {managerFacts ? "Я вижу команды и nudges. Давай решим, что сделать на этой неделе." : "Подтяну команды и действия из Action center."}
+          </p>
+        )}
+      </div>
 
-          <div className="flex items-center justify-between border-b border-slate-100 bg-white px-4 py-2 text-sm font-semibold text-slate-700">
-            <div className="flex items-center gap-2">
-              {(["home", "messages", "help"] as TabKey[]).map((t) => (
-                <button
-                  key={t}
-                  onClick={() => setTab(t)}
-                  className={`rounded-full px-3 py-2 text-sm transition ${
-                    tab === t ? "bg-slate-100 text-slate-900 shadow-sm" : "text-slate-500 hover:bg-slate-50"
-                  }`}
-                >
-                  {t === "home" ? "Home" : t === "messages" ? "Messages" : "Help"}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="max-h-[420px] overflow-y-auto bg-slate-50 px-4 py-4">
-            {tab === "home" && (mode === "landing" ? renderHomeLanding() : renderHomeEmployee())}
-            {tab === "messages" && <div className="space-y-3">{renderMessages()}</div>}
-            {tab === "help" && renderHelp()}
-          </div>
-
-          <div className="border-t border-slate-100 bg-white px-4 py-3">
-            <div className="flex items-center gap-2">
-              <input
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                placeholder={
-                  mode === "landing"
-                    ? "Спросите: как StressSense измеряет стресс?"
-                    : "Спросите: как снизить стресс в работе?"
-                }
-                className="flex-1 rounded-2xl border border-slate-200 px-3 py-2 text-sm text-slate-800 shadow-inner focus:border-primary focus:outline-none"
-              />
-              <button
-                onClick={handleSend}
-                className="rounded-2xl bg-primary px-4 py-2 text-sm font-semibold text-white shadow hover:translate-y-[-1px]"
-              >
-                Send
-              </button>
-            </div>
-          </div>
+      <div className="flex items-center justify-between border-b border-slate-100 bg-white px-4 py-2 text-sm font-semibold text-slate-700">
+        <div className="flex items-center gap-2">
+          {(["home", "messages", "help"] as TabKey[]).map((t) => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className={`rounded-full px-3 py-2 text-sm transition ${
+                tab === t ? "bg-slate-100 text-slate-900 shadow-sm" : "text-slate-500 hover:bg-slate-50"
+              }`}
+            >
+              {t === "home" ? "Home" : t === "messages" ? "Messages" : "Help"}
+            </button>
+          ))}
         </div>
       </div>
-    </>
+
+      <div className="max-h-[420px] overflow-y-auto bg-slate-50 px-4 py-4">
+        {tab === "home" && (mode === "landing" ? renderHomeLanding() : mode === "manager" ? renderHomeManager() : renderHomeEmployee())}
+        {tab === "messages" && <div className="space-y-3">{renderMessages()}</div>}
+        {tab === "help" && renderHelp()}
+      </div>
+
+      <div className="border-t border-slate-100 bg-white px-4 py-3">
+        <div className="flex items-center gap-2">
+          <input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder={mode === "landing" ? "Спросите: как StressSense измеряет стресс?" : "Спросите: как снизить стресс в работе?"}
+            className="flex-1 rounded-2xl border border-slate-200 px-3 py-2 text-sm text-slate-800 shadow-inner focus:border-primary focus:outline-none"
+          />
+          <button onClick={handleSend} className="rounded-2xl bg-primary px-4 py-2 text-sm font-semibold text-white shadow hover:translate-y-[-1px]">
+            Send
+          </button>
+        </div>
+      </div>
+    </div>
   );
+
+  if (variant === "floating") {
+    return (
+      <>
+        <button
+          onClick={() => setOpen((v) => !v)}
+          className="fixed bottom-5 right-5 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-primary to-indigo-600 text-white shadow-2xl transition hover:scale-105"
+          aria-label="StressSense AI"
+        >
+          AI
+        </button>
+        <div
+          className={`fixed bottom-24 right-5 z-40 w-full max-w-md transform transition-all duration-300 ${
+            open ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-4 opacity-0"
+          }`}
+        >
+          {renderPanel(true)}
+        </div>
+      </>
+    );
+  }
+
+  return (
+    <div className="rounded-3xl border border-slate-200 bg-white shadow-sm">
+        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">StressSense AI</p>
+            <p className="text-sm text-slate-600">Подсказки про рабочий стресс и nudges без плавающего окна.</p>
+          </div>
+          <button
+            onClick={() => {
+              setOpen((v) => !v);
+              if (open && onClose) onClose();
+            }}
+            className="rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+          >
+            {open ? "Свернуть" : "Показать"}
+          </button>
+        </div>
+      {open && <div className="p-2">{renderPanel(false)}</div>}
+    </div>
+  );
+
 }
 
 function tagLabel(tag: InsightTag) {

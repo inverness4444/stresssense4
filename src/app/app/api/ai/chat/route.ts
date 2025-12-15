@@ -26,7 +26,7 @@ export async function POST(req: Request) {
             where: { userId: user.id },
             select: { teamId: true },
           })
-        ).map((t) => t.teamId)
+        ).map((t: any) => t.teamId)
       : [];
 
   const surveys = await prisma.survey.findMany({
@@ -45,13 +45,13 @@ export async function POST(req: Request) {
   });
 
   const surveyContext = surveys
-    .map((s) => {
+    .map((s: any) => {
       const inviteCount = s.responses.length ? s.responses.length : s.inviteTokens?.length ?? 0;
       const avg =
-        s.responses.reduce((acc, r) => {
-          const vals = r.answers.filter((a) => a.scaleValue != null).map((a) => a.scaleValue ?? 0);
+        s.responses.reduce((acc: number, r: any) => {
+          const vals = r.answers.filter((a: any) => a.scaleValue != null).map((a: any) => a.scaleValue ?? 0);
           if (!vals.length) return acc;
-          return acc + vals.reduce((a, b) => a + b, 0) / vals.length;
+          return acc + vals.reduce((a: number, b: number) => a + b, 0) / vals.length;
         }, 0) / (s.responses.length || 1);
       return `Survey "${s.name}" status ${s.status}, responses ${s.responses.length}/${inviteCount}, approx avg scale ${avg.toFixed(
         2

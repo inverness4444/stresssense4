@@ -44,7 +44,7 @@ export default async function ResourcesPage({ searchParams }: Props) {
       </form>
 
       <div className="grid gap-4 md:grid-cols-2">
-        {articles.map((a) => (
+        {articles.map((a: any) => (
           <Link
             key={a.id}
             href={`/resources/${a.slug}`}

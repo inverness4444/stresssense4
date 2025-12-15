@@ -36,10 +36,10 @@ export async function POST(req: Request) {
   let avg = 0;
   let count = 0;
   survey?.questions
-    .filter((q) => q.type === "SCALE")
-    .forEach((q) => {
-      survey.responses.forEach((r) => {
-        const ans = r.answers.find((a) => a.questionId === q.id);
+    .filter((q: any) => q.type === "SCALE")
+    .forEach((q: any) => {
+      survey.responses.forEach((r: any) => {
+        const ans = r.answers.find((a: any) => a.questionId === q.id);
         if (ans?.scaleValue != null) {
           avg += ans.scaleValue;
           count += 1;

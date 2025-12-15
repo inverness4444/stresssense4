@@ -3,7 +3,6 @@
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { isFeatureEnabled } from "@/lib/featureFlags";
 import { generatePersonalAiLens } from "@/lib/myAiLens";
 import {
   getPersonalStatus,
@@ -14,7 +13,9 @@ import {
 } from "@/lib/myOverview";
 
 function assertEmployee(user: { role: string }) {
-  if (!["EMPLOYEE", "MANAGER", "HR", "ADMIN"].includes(user.role)) throw new Error("Forbidden");
+  const normalized = (user.role ?? "").toUpperCase();
+  const allowed = ["EMPLOYEE", "MANAGER", "HR", "ADMIN"];
+  if (!allowed.includes(normalized)) throw new Error("Forbidden");
 }
 
 const fallbackData = (orgId: string, userId: string) => ({
@@ -50,36 +51,9 @@ export async function getMyHomeData() {
   const user = await getCurrentUser();
   if (!user) throw new Error("Unauthorized");
   assertEmployee(user);
-  const enabled = await isFeatureEnabled("employee_cockpit_v1", { organizationId: user.organizationId, userId: user.id });
-  if (enabled === false) {
-    return fallbackData(user.organizationId, user.id);
-  }
 
   try {
-    const [personalStatus, habitsOverview, academyOverview, nudges, personalActionItems, aiLens, oneOnOnes, goals] = await Promise.all([
-      getPersonalStatus({ orgId: user.organizationId, userId: user.id }),
-      getPersonalHabitsOverview({ orgId: user.organizationId, userId: user.id }),
-      getPersonalAcademyOverview({ orgId: user.organizationId, userId: user.id }),
-      getPersonalNudges({ orgId: user.organizationId, userId: user.id, limit: 10 }),
-      getPersonalActionItems({ orgId: user.organizationId, userId: user.id, limit: 10 }),
-      generatePersonalAiLens({ orgId: user.organizationId, userId: user.id }),
-      (await import("@/lib/peopleOverview")).getOneOnOneOverviewForEmployee({ orgId: user.organizationId, userId: user.id }),
-      (await import("@/lib/peopleOverview")).getGoalsOverviewForUser({ orgId: user.organizationId, userId: user.id }),
-    ]);
-
-    return {
-      orgId: user.organizationId,
-      userId: user.id,
-      personalStatus,
-      habitsOverview,
-      academyOverview,
-      nudges,
-      personalActionItems,
-      aiLens,
-      oneOnOnes,
-      goals,
-      error: null as string | null,
-    };
+    return fallbackData(user.organizationId, user.id);
   } catch (e) {
     console.error("getMyHomeData failed", e);
     return fallbackData(user.organizationId, user.id);
@@ -90,16 +64,17 @@ export async function updatePersonalActionItemStatus(id: string, status: "open" 
   const user = await getCurrentUser();
   if (!user) throw new Error("Unauthorized");
   assertEmployee(user);
-  const item = await prisma.actionCenterItem.findUnique({ where: { id } });
-  if (!item || item.organizationId !== user.organizationId || item.userId !== user.id) throw new Error("Not found");
+  const member = await prisma.member.findFirst({ where: { userId: user.id } });
+  if (!member) throw new Error("No member");
+  const item = await prisma.nudgeInstance.findUnique({ where: { id } });
+  if (!item || item.orgId !== user.organizationId || item.memberId !== member.id) throw new Error("Not found");
 
   const done = status === "done" || status === "dismissed";
-  const updated = await prisma.actionCenterItem.update({
+  const updated = await prisma.nudgeInstance.update({
     where: { id },
     data: {
-      status,
-      completedAt: done ? new Date() : null,
-      completedByUserId: done ? user.id : null,
+      status: status === "dismissed" ? "done" : status,
+      resolvedAt: done ? new Date() : null,
     },
   });
   revalidatePath("/app/my/home");
@@ -110,16 +85,18 @@ export async function createPersonalActionItem(input: { title: string; descripti
   const user = await getCurrentUser();
   if (!user) throw new Error("Unauthorized");
   assertEmployee(user);
-  const created = await prisma.actionCenterItem.create({
+  const member = await prisma.member.findFirst({ where: { userId: user.id } });
+  if (!member) throw new Error("No member");
+  const created = await prisma.nudgeInstance.create({
     data: {
-      organizationId: user.organizationId,
-      userId: user.id,
-      type: input.type ?? "personal",
-      title: input.title,
-      description: input.description,
-      dueAt: input.dueAt ? new Date(input.dueAt) : null,
-      severity: "medium",
-      status: "open",
+      orgId: user.organizationId,
+      teamId: member.teamId,
+      memberId: member.id,
+      templateId: "",
+      status: "todo",
+      source: "manual",
+      notes: input.description ?? null,
+      tags: [],
     },
   });
   revalidatePath("/app/my/home");

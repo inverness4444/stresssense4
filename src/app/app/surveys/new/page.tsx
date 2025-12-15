@@ -20,7 +20,7 @@ export default async function NewSurveyPage() {
     prisma.organizationSettings.findUnique({ where: { organizationId: user.organizationId } }),
   ]);
 
-  const defaultCount = teams.reduce((acc, t) => acc + t.users.length, 0);
+  const defaultCount = teams.reduce((acc: number, t: any) => acc + (t.users?.length ?? 0), 0);
 
   return (
     <div className="space-y-6">
@@ -29,7 +29,7 @@ export default async function NewSurveyPage() {
         <p className="text-sm text-slate-600">Create a quick Stress Pulse and target the right teams.</p>
       </div>
       <NewSurveyForm
-        teams={teams.map((t) => ({ id: t.id, name: t.name, members: t.users.length }))}
+        teams={teams.map((t: any) => ({ id: t.id, name: t.name, members: t.users.length }))}
         defaultTemplate={template}
         totalMembers={defaultCount}
         defaultMinResponses={settings?.minResponsesForBreakdown ?? 4}
@@ -70,8 +70,8 @@ function NewSurveyForm({
           endsAt,
           minResponsesForBreakdown: minResponses,
         });
-        if (result?.surveyId) {
-          redirect(`/app/surveys/${result.surveyId}`);
+        if (result?.success) {
+          redirect(`/app/surveys`);
         }
       }}
       className="space-y-6"

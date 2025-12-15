@@ -37,8 +37,8 @@ export async function GET(req: Request) {
   const participation = invites ? Math.round((responses / invites) * 100) : 0;
   let sum = 0;
   let count = 0;
-  latestSurvey.responses.forEach((r) => {
-    r.answers.forEach((a) => {
+  latestSurvey.responses.forEach((r: any) => {
+    r.answers.forEach((a: any) => {
       if (a.scaleValue != null) {
         sum += a.scaleValue;
         count += 1;
@@ -49,16 +49,16 @@ export async function GET(req: Request) {
   const averageStressIndex = normalize(avg, settings.stressScaleMin, settings.stressScaleMax);
 
   const minBreakdown = latestSurvey.minResponsesForBreakdown ?? settings.minResponsesForBreakdown ?? 4;
-  const teamStats = latestSurvey.targets.map((t) => {
-    const teamResponses = latestSurvey.responses.filter((r) => r.inviteToken.user.teams.some((ut) => ut.teamId === t.teamId));
-    const inviteCount = latestSurvey.inviteTokens.filter((i) => i.user.teams.some((ut) => ut.teamId === t.teamId)).length;
+  const teamStats = latestSurvey.targets.map((t: any) => {
+    const teamResponses = latestSurvey.responses.filter((r: any) => r.inviteToken.user.teams.some((ut: any) => ut.teamId === t.teamId));
+    const inviteCount = latestSurvey.inviteTokens.filter((i: any) => i.user.teams.some((ut: any) => ut.teamId === t.teamId)).length;
     if (teamResponses.length < minBreakdown) {
       return { teamName: t.team.name, hidden: true };
     }
     let sumTeam = 0;
     let countTeam = 0;
-    teamResponses.forEach((r) =>
-      r.answers.forEach((a) => {
+    teamResponses.forEach((r: any) =>
+      r.answers.forEach((a: any) => {
         if (a.scaleValue != null) {
           sumTeam += a.scaleValue;
           countTeam += 1;
@@ -76,8 +76,8 @@ export async function GET(req: Request) {
   });
 
   const topTeamsByStress = teamStats
-    .filter((t) => !t.hidden)
-    .sort((a, b) => (b.stressIndex ?? 0) - (a.stressIndex ?? 0))
+    .filter((t: any) => !t.hidden)
+    .sort((a: any, b: any) => (b.stressIndex ?? 0) - (a.stressIndex ?? 0))
     .slice(0, 5);
 
   return NextResponse.json({

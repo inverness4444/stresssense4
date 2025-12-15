@@ -24,7 +24,7 @@ export async function canUseFeature(organizationId: string, featureKey: string) 
 
   const subs = org.subscription;
   const planFeatures = subs?.plan?.featureKeys ?? [];
-  const addonFeatures = org.organizationAddOns.flatMap((o) => o.addOn.featureKeys ?? []);
+  const addonFeatures = org.organizationAddOns.flatMap((o: any) => o.addOn.featureKeys ?? []);
   const hasFeature = planFeatures.includes(featureKey) || addonFeatures.includes(featureKey);
 
   // Trial check

@@ -11,27 +11,33 @@ type SidebarProps = {
   user: User & { organizationId: string };
   locale: Locale;
   settings: OrganizationSettings;
+  actionCount?: number;
 };
 
-export function AppSidebar({ user, locale, settings }: SidebarProps) {
+export function AppSidebar({ user, locale, settings, actionCount }: SidebarProps) {
   const pathname = usePathname();
   const schedulesEnabled = isFeatureEnabled("schedules", settings);
   const notificationsEnabled = isFeatureEnabled("notifications", settings);
   const billingEnabled = isFeatureEnabled("growth_module_v1", settings);
+  const role = (user.role ?? "").toUpperCase();
 
   const navItems = [
-    { href: "/app/overview", label: user.role === "MANAGER" ? t(locale, "navMyTeams") : t(locale, "navOverview"), icon: HomeIcon, roles: ["ADMIN", "MANAGER"] },
-    { href: "/app/my/home", label: "My wellbeing", icon: HomeIcon, roles: ["EMPLOYEE", "MANAGER", "HR", "ADMIN"] },
-    { href: "/app/employees", label: t(locale, "navEmployees"), icon: UsersIcon, roles: ["ADMIN"] },
-    { href: "/app/teams", label: t(locale, "navTeams"), icon: LayersIcon, roles: ["ADMIN", "MANAGER"] },
-    { href: "/app/teams/[id]/stress", label: t(locale, "navTeamStress"), icon: LayersIcon, roles: [] }, // placeholder not shown
-    { href: "/app/surveys", label: t(locale, "navSurveys"), icon: ClipboardIcon, roles: ["ADMIN", "MANAGER"] },
-    ...(notificationsEnabled ? [{ href: "/app/notifications", label: t(locale, "navNotifications"), icon: BellIcon, roles: ["ADMIN", "MANAGER"] }] : []),
-    ...(schedulesEnabled ? [{ href: "/app/schedules", label: t(locale, "navSchedules"), icon: CalendarIcon, roles: ["ADMIN"] }] : []),
-    { href: "/app/developers", label: "Developers", icon: CodeIcon, roles: ["ADMIN"] },
-    { href: "/app/settings", label: t(locale, "navSettings"), icon: SettingsIcon, roles: ["ADMIN"] },
-    { href: "/app/settings/billing", label: "Billing", icon: CreditCardIcon, roles: ["ADMIN"], visible: billingEnabled },
-  ].filter((item) => item.roles.includes(user.role as string));
+    // Базовые пункты видны всем
+    { href: "/app/overview", label: t(locale, "navOverview"), icon: HomeIcon },
+    { href: "/app/my/home", label: "My wellbeing", icon: HomeIcon },
+    { href: "/app/actions", label: "Action center", icon: ClipboardIcon, badge: actionCount },
+    // Остальные — по ролям, чтобы у сотрудника не было лишнего (настройки, биллинг и т.д.)
+    { href: "/app/employees", label: t(locale, "navEmployees"), icon: UsersIcon, roles: ["HR", "ADMIN"] },
+    { href: "/app/teams", label: t(locale, "navTeams"), icon: LayersIcon, roles: ["HR", "ADMIN", "MANAGER"] },
+    { href: "/app/surveys", label: t(locale, "navSurveys"), icon: ClipboardIcon, roles: ["HR", "ADMIN", "MANAGER"] },
+    ...(notificationsEnabled ? [{ href: "/app/notifications", label: t(locale, "navNotifications"), icon: BellIcon, roles: ["HR", "ADMIN", "MANAGER", "EMPLOYEE"] }] : []),
+    ...(schedulesEnabled ? [{ href: "/app/schedules", label: t(locale, "navSchedules"), icon: CalendarIcon, roles: ["HR", "ADMIN"] }] : []),
+    { href: "/app/developers", label: "Developers", icon: CodeIcon, roles: ["HR", "ADMIN"] },
+    { href: "/app/settings", label: t(locale, "navSettings"), icon: SettingsIcon, roles: ["HR", "ADMIN"] },
+    { href: "/app/settings/billing", label: "Billing", icon: CreditCardIcon, roles: ["HR", "ADMIN"], visible: billingEnabled },
+  ]
+    .filter((item) => item.visible ?? true)
+    .filter((item) => !item.roles || item.roles.includes(role));
 
   return (
     <aside className="hidden h-screen w-64 shrink-0 border-r border-slate-200 bg-white/80 p-4 shadow-sm md:flex md:flex-col">
@@ -61,6 +67,11 @@ export function AppSidebar({ user, locale, settings }: SidebarProps) {
             >
               <item.icon className={clsx("h-4 w-4", active ? "text-primary" : "text-slate-500")} />
               {item.label}
+              {item.badge ? (
+                <span className="ml-auto inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-primary/10 px-2 text-[11px] font-semibold text-primary">
+                  {item.badge}
+                </span>
+              ) : null}
             </Link>
           );
         })}

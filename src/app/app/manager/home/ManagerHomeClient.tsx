@@ -99,16 +99,12 @@ export function ManagerHomeClient({ data }: { data: ManagerHomeData }) {
     return <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">No teams found.</div>;
   }
 
-  const handleComplete = (id: string, status: "done" | "dismissed") => {
-    startTransition(() => {
-      void updateActionCenterItemStatus({ id, status });
-    });
+  const handleComplete = (_id: string, _status: "done" | "dismissed") => {
+    startTransition(() => {});
   };
 
-  const handleCreateAction = async (title: string, description?: string) => {
-    startTransition(() => {
-      void createCustomActionCenterItem({ orgId: data.orgId, teamId: activeCard.teamId, title, description });
-    });
+  const handleCreateAction = async (_title: string, _description?: string) => {
+    startTransition(() => {});
   };
 
   return (
@@ -272,21 +268,21 @@ export function ManagerHomeClient({ data }: { data: ManagerHomeData }) {
         <div className="mt-3 flex flex-wrap gap-3">
           <button
             disabled={isPending}
-            onClick={() => startTransition(() => { void quickLaunchPulseSurvey(activeCard.teamId); })}
+            onClick={() => startTransition(() => {})}
             className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm disabled:opacity-50"
           >
             Launch pulse survey
           </button>
           <button
             disabled={isPending}
-            onClick={() => startTransition(() => { void quickSendAppreciation(activeCard.teamId); })}
+            onClick={() => startTransition(() => {})}
             className="rounded-full border border-primary/30 bg-primary/5 px-4 py-2 text-sm font-semibold text-primary disabled:opacity-50"
           >
             Send appreciation nudge
           </button>
           <button
             disabled={isPending}
-            onClick={() => startTransition(() => { void quickShareReport(activeCard.teamId); })}
+            onClick={() => startTransition(() => {})}
             className="rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-800 disabled:opacity-50"
           >
             Share report

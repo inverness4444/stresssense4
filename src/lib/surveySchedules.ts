@@ -92,12 +92,12 @@ export async function runSurveySchedules(now = new Date()) {
     });
     if (!shouldRun) continue;
 
-    const teams = schedule.targets.map((t) => t.teamId);
+    const teams = schedule.targets.map((t: any) => t.teamId);
     const userIds = await prisma.userTeam.findMany({
       where: { teamId: { in: teams } },
       select: { userId: true },
     });
-    const uniqueUserIds = Array.from(new Set(userIds.map((u) => u.userId)));
+    const uniqueUserIds = Array.from(new Set(userIds.map((u: any) => u.userId)));
 
     const survey = await prisma.survey.create({
       data: {
@@ -111,7 +111,7 @@ export async function runSurveySchedules(now = new Date()) {
         minResponsesForBreakdown: schedule.minResponsesForBreakdown ?? schedule.organization.settings?.minResponsesForBreakdown ?? 4,
         scheduleId: schedule.id,
         questions: {
-          create: template.questions.map((q) => ({
+          create: template.questions.map((q: any) => ({
             order: q.order,
             text: q.text,
             type: q.type,
@@ -119,7 +119,7 @@ export async function runSurveySchedules(now = new Date()) {
             scaleMax: q.scaleMax,
           })),
         },
-        targets: { create: teams.map((teamId) => ({ teamId })) },
+        targets: { create: teams.map((teamId: any) => ({ teamId })) },
       },
     });
 

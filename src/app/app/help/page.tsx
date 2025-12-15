@@ -5,8 +5,8 @@ export default async function HelpPage() {
     where: { isHelpCenter: true },
     orderBy: { publishedAt: "desc" },
   });
-  const gettingStarted = articles.filter((a) => a.category === "Getting started");
-  const advanced = articles.filter((a) => a.category !== "Getting started");
+  const gettingStarted = articles.filter((a: any) => a.category === "Getting started");
+  const advanced = articles.filter((a: any) => a.category !== "Getting started");
   return (
     <div className="space-y-6">
       <div>

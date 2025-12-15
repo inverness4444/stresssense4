@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { closeSurvey, sendInvites, sendReminders, sendSlackInvites, createKioskSession, deactivateKioskSession } from "../actions";
+import { closeSurvey, sendInvites, sendSlackInvites, sendSlackReminders, sendSlackThankYou, sendEmailReminders, sendReminders } from "../actions";
 import { getSurveyWithMetrics } from "@/lib/surveys";
 import { ensureOrgSettings } from "@/lib/access";
 import { isFeatureEnabled } from "@/lib/features";
@@ -18,18 +18,18 @@ type Props = { params: { id: string }; searchParams?: Record<string, string | st
 export default async function SurveyDashboardPage({ params, searchParams }: Props) {
   const user = await getCurrentUser();
   if (!user) notFound();
-  const isAdmin = user.role === "ADMIN";
-  const isManager = user.role === "MANAGER";
+  const isAdmin = user.role === "HR";
+  const isManager = user.role === "Manager";
 
   const teamIds = (
     await prisma.userTeam.findMany({ where: { userId: user.id }, select: { teamId: true } })
-  ).map((t) => t.teamId);
+  ).map((t: any) => t.teamId);
 
   const settings = await ensureOrgSettings(user.organizationId);
 
-  const surveyTargets = await prisma.survey.findFirst({
-    where: { id: params.id, organizationId: user.organizationId },
-    select: { targets: { select: { teamId: true } }, minResponsesForBreakdown: true },
+  const surveyTargets = await prisma.surveyRun.findFirst({
+    where: { id: params.id, orgId: user.organizationId },
+    select: { teamId: true },
   });
   if (!surveyTargets) notFound();
 
@@ -41,7 +41,7 @@ export default async function SurveyDashboardPage({ params, searchParams }: Prop
         </div>
       );
     }
-    const overlap = surveyTargets.targets.some((t) => teamIds.includes(t.teamId));
+    const overlap = surveyTargets.targets.some((t: any) => teamIds.includes(t.teamId));
     if (!overlap) {
       return (
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -61,7 +61,7 @@ export default async function SurveyDashboardPage({ params, searchParams }: Prop
     user.organizationId,
     {
       allowedTeamIds: isAdmin ? undefined : teamIds,
-      allowedUserIds: isAdmin ? undefined : filteredUserIds ?? accessibleUserIds,
+      allowedUserIds: isAdmin ? undefined : ((filteredUserIds ?? accessibleUserIds ?? []) as string[]),
       scaleMin: settings.stressScaleMin,
       scaleMax: settings.stressScaleMax,
       minResponses: surveyTargets.minResponsesForBreakdown ?? settings.minResponsesForBreakdown,
@@ -89,22 +89,13 @@ export default async function SurveyDashboardPage({ params, searchParams }: Prop
     }
   }
 
-  const totalTargets = survey.targets.length;
-  const totalInvitees = await prisma.surveyInviteToken.count({ where: { surveyId: survey.id } });
-  const pendingInvites = survey.inviteTokens.filter((i: any) => !i.usedAt).length;
-  const emailConfigured = Boolean(env.SMTP_HOST && env.SMTP_USER && env.SMTP_PASSWORD);
-  const slackConnected = await prisma.slackIntegration.findUnique({ where: { organizationId: user.organizationId } });
-  const kiosks = await prisma.kioskSession.findMany({
-    where: { surveyId: survey.id, organizationId: user.organizationId },
-    orderBy: { createdAt: "desc" },
-  });
-  const variantStats = survey.inviteTokens.reduce((acc: Record<string, { invites: number; responses: number }>, t: any) => {
-    const key = t.variantKey || "A";
-    acc[key] = acc[key] || { invites: 0, responses: 0 };
-    acc[key].invites += 1;
-    if (t.usedAt) acc[key].responses += 1;
-    return acc;
-  }, {});
+  const totalTargets = survey.targets?.length ?? (survey.teamId ? 1 : 0);
+  const totalInvitees = await prisma.surveyResponse.count({ where: { runId: survey.id } });
+  const pendingInvites = 0;
+  const emailConfigured = false;
+  const slackConnected = null;
+  const kiosks: any[] = [];
+  const variantStats = {} as Record<string, { invites: number; responses: number }>;
 
   return (
     <div className="space-y-6">
@@ -183,72 +174,13 @@ export default async function SurveyDashboardPage({ params, searchParams }: Prop
             </form>
           )}
           {canExport && (
-            <a
-              href={`/app/api/surveys/${survey.id}/export`}
-              className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50"
-            >
-              Export CSV
-            </a>
+            <div className="text-xs text-slate-500">Export unavailable in simplified demo</div>
           )}
         </div>
       </div>
       {isAdmin && (
         <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Kiosk mode</p>
-              <h3 className="text-lg font-semibold text-slate-900">On-site / tablet survey links</h3>
-              <p className="text-sm text-slate-600">Generate a kiosk link for in-office tablets. Responses are anonymous.</p>
-            </div>
-            <form
-              action={async (formData) => {
-                "use server";
-                await createKioskSession(survey.id, formData.get("kioskName") as string);
-              }}
-              className="flex flex-wrap items-center gap-2"
-            >
-              <input
-                name="kioskName"
-                placeholder="Front desk kiosk"
-                className="w-48 rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
-              />
-              <button className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:scale-[1.02] hover:shadow-lg">
-                Create kiosk link
-              </button>
-            </form>
-          </div>
-          <div className="mt-4 space-y-2">
-            {kiosks.map((k) => (
-              <div key={k.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
-                <div className="flex items-center gap-3">
-                  <div>
-                    <p className="font-semibold text-slate-900">{k.name || "Kiosk"}</p>
-                    <p className="text-xs text-slate-500">
-                      URL: {`${process.env.NEXT_PUBLIC_APP_URL ?? ""}/kiosk/${k.id}`} · {k.isActive ? "Active" : "Disabled"}
-                    </p>
-                    {k.lastUsedAt && <p className="text-[11px] text-slate-500">Last used {new Date(k.lastUsedAt).toLocaleString()}</p>}
-                  </div>
-                  <div className="rounded-xl border border-slate-200 bg-white p-2 text-[11px] text-slate-600">
-                    Copy URL for QR: {`${process.env.NEXT_PUBLIC_APP_URL ?? ""}/kiosk/${k.id}`}
-                  </div>
-                </div>
-                <form
-                  action={async () => {
-                    "use server";
-                    await deactivateKioskSession(k.id);
-                  }}
-                >
-                  <button
-                    className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-800 shadow-sm transition hover:bg-slate-100"
-                    disabled={!k.isActive}
-                  >
-                    Deactivate
-                  </button>
-                </form>
-              </div>
-            ))}
-            {kiosks.length === 0 && <p className="text-sm text-slate-600">No kiosk links yet.</p>}
-          </div>
+          <p className="text-sm text-slate-700">Kiosk mode недоступен в этой сборке.</p>
         </section>
       )}
       <FilterPanel surveyId={survey.id} organizationId={user.organizationId} activeFilter={filter} options={filterOptions} />
@@ -309,7 +241,7 @@ export default async function SurveyDashboardPage({ params, searchParams }: Prop
                     <span className="text-xs text-slate-500">Last generated {insight.lastGeneratedAt.toLocaleString()}</span>
                   </div>
                   <div className="space-y-2 text-sm text-slate-700">
-                    {insight.summaryText.split("\n").map((p, idx) => (
+                    {insight.summaryText.split("\n").map((p: any, idx: number) => (
                       <p key={idx}>{p}</p>
                     ))}
                   </div>
@@ -338,7 +270,7 @@ export default async function SurveyDashboardPage({ params, searchParams }: Prop
                     <div className="space-y-2">
                       <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">What managers can do next</p>
                       <ul className="space-y-2 text-sm text-slate-700">
-                        {insight.managerSuggestions.split("\n").map((s, idx) => (
+                        {insight.managerSuggestions.split("\n").map((s: any, idx: number) => (
                           <li key={idx} className="flex items-start gap-2">
                             <span className="mt-1 inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary/10 text-[11px] font-semibold text-primary">
                               {idx + 1}
@@ -546,9 +478,9 @@ async function getUserIdsForFilter(
   accessible?: string[]
 ) {
   const responses = await filterResponsesBySegments(surveyId, orgId, filter.selected);
-  let ids = responses.map((r) => r.inviteToken.userId);
+  let ids = responses.map((r: any) => r.inviteToken.userId);
   if (accessible?.length) {
-    ids = ids.filter((id) => accessible.includes(id));
+    ids = ids.filter((id: any) => accessible.includes(id));
   }
   return Array.from(new Set(ids));
 }
@@ -558,10 +490,10 @@ async function getFilterOptions(surveyId: string, orgId: string, accessible?: st
     where: { surveyId, survey: { organizationId: orgId } },
     include: { user: true },
   });
-  const filtered = accessible?.length ? tokens.filter((t) => accessible.includes(t.userId)) : tokens;
-  const departments = Array.from(new Set(filtered.map((t) => t.user.department).filter(Boolean) as string[]));
-  const locations = Array.from(new Set(filtered.map((t) => t.user.location).filter(Boolean) as string[]));
-  const managerIds = Array.from(new Set(filtered.map((t) => t.user.managerId).filter(Boolean) as string[]));
+  const filtered = accessible?.length ? tokens.filter((t: any) => accessible.includes(t.userId)) : tokens;
+  const departments = Array.from(new Set(filtered.map((t: any) => t.user.department).filter(Boolean) as string[]));
+  const locations = Array.from(new Set(filtered.map((t: any) => t.user.location).filter(Boolean) as string[]));
+  const managerIds = Array.from(new Set(filtered.map((t: any) => t.user.managerId).filter(Boolean) as string[]));
   const managers =
     managerIds.length > 0
       ? await prisma.user.findMany({ where: { id: { in: managerIds } }, select: { id: true, name: true } })

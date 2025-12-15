@@ -42,7 +42,7 @@ export async function summarizeCompCycleForExec(params: { orgId: string; cycleId
   });
   const count = recs.length;
   let avgDelta = 0;
-  recs.forEach((r) => {
+  recs.forEach((r: any) => {
     if (r.participant.currentBase && r.proposedBase) {
       avgDelta += (r.proposedBase - r.participant.currentBase) / r.participant.currentBase;
     }

@@ -139,7 +139,7 @@ export default async function EmployeesPage({ searchParams }: Props) {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {users.map((user) => (
+            {users.map((user: any) => (
               <tr
                 key={user.id}
                 className="transition hover:bg-slate-50/80"
@@ -164,7 +164,7 @@ export default async function EmployeesPage({ searchParams }: Props) {
                     {user.teams.length === 0 && (
                       <span className="text-xs text-slate-500">—</span>
                     )}
-                    {user.teams.map(({ team }) => (
+                    {user.teams.map(({ team }: any) => (
                       <span
                         key={team.id}
                         className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700"

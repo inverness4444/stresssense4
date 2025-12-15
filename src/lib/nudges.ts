@@ -30,10 +30,10 @@ export async function scheduleNudgesForSurveyClose(surveyId: string) {
 
   const managerIds = await prisma.userTeam
     .findMany({
-      where: { teamId: { in: survey.targets.map((t) => t.teamId) } },
+      where: { teamId: { in: survey.targets.map((t: any) => t.teamId) } },
       select: { userId: true },
     })
-    .then((rows) => rows.map((r) => r.userId));
+    .then((rows: any[]) => rows.map((r: any) => r.userId));
 
   const recipients = await prisma.user.findMany({
     where: {

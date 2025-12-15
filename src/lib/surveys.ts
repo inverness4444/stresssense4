@@ -55,21 +55,21 @@ export async function getSurveyWithMetrics(
     options?.allowedUserIds && options.allowedUserIds.length ? options.allowedUserIds.includes(userId) : true;
 
   const filteredResponses = survey.responses.filter(
-    (r) => filterByTeam(r.inviteToken.user.teams) && filterByUser(r.inviteToken.userId)
+    (r: any) => filterByTeam(r.inviteToken.user.teams) && filterByUser(r.inviteToken.userId)
   );
 
-  const filteredInvites = survey.inviteTokens.filter((i) => filterByTeam(i.user.teams) && filterByUser(i.userId));
+  const filteredInvites = survey.inviteTokens.filter((i: any) => filterByTeam(i.user.teams) && filterByUser(i.userId));
 
   const stats = computeSurveyStats(filteredResponses.length, filteredInvites.length, survey.questions, filteredResponses, scaleMin, scaleMax);
 
-  const questionBreakdown = survey.questions.map((q) => {
+  const questionBreakdown = survey.questions.map((q: any) => {
     if (q.type === "SCALE") {
       const counts: Record<number, number> = {};
       const scaleMin = q.scaleMin ?? 1;
       const scaleMax = q.scaleMax ?? 5;
       for (let i = scaleMin; i <= scaleMax; i++) counts[i] = 0;
-      filteredResponses.forEach((r) => {
-        const answer = r.answers.find((a) => a.questionId === q.id);
+      filteredResponses.forEach((r: any) => {
+        const answer = r.answers.find((a: any) => a.questionId === q.id);
         if (answer?.scaleValue != null) {
           counts[answer.scaleValue] = (counts[answer.scaleValue] ?? 0) + 1;
         }
@@ -83,22 +83,22 @@ export async function getSurveyWithMetrics(
       return { question: q, counts, average: avg, stressIndex };
     }
     const comments = filteredResponses
-      .map((r) => ({
+      .map((r: any) => ({
         submittedAt: r.submittedAt,
-        text: r.answers.find((a) => a.questionId === q.id)?.textValue,
+        text: r.answers.find((a: any) => a.questionId === q.id)?.textValue,
       }))
-      .filter((c) => c.text) as { submittedAt: Date; text: string }[];
-    comments.sort((a, b) => b.submittedAt.getTime() - a.submittedAt.getTime());
+      .filter((c: any) => c.text) as { submittedAt: Date; text: string }[];
+    comments.sort((a: any, b: any) => b.submittedAt.getTime() - a.submittedAt.getTime());
     return { question: q, comments };
   });
 
-  const allowedTeams = options?.allowedTeamIds?.length ? options.allowedTeamIds : survey.targets.map((t) => t.teamId);
+  const allowedTeams = options?.allowedTeamIds?.length ? options.allowedTeamIds : survey.targets.map((t: any) => t.teamId);
 
   const teamBreakdown = survey.targets
-    .filter((t) => allowedTeams.includes(t.teamId))
-    .map((t) => {
-      const responses = filteredResponses.filter((r) => r.inviteToken.user.teams.some((ut) => ut.teamId === t.teamId));
-      const inviteCount = filteredInvites.filter((it) => it.user.teams.some((ut) => ut.teamId === t.teamId)).length;
+    .filter((t: any) => allowedTeams.includes(t.teamId))
+    .map((t: any) => {
+      const responses = filteredResponses.filter((r: any) => r.inviteToken.user.teams.some((ut: any) => ut.teamId === t.teamId));
+      const inviteCount = filteredInvites.filter((it: any) => it.user.teams.some((ut: any) => ut.teamId === t.teamId)).length;
       const avg = computeAverageStressForResponses(responses, survey.questions);
       const stressIndex = normalizeScale(avg, scaleMin, scaleMax);
       const participation = inviteCount ? Math.round((responses.length / inviteCount) * 100) : 0;

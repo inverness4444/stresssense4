@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
       email: user.email,
       role: user.role,
       organizationId: user.organizationId,
-      teams: user.teams.map((t) => t.teamId),
+      teams: user.teams.map((t: any) => t.teamId),
     },
   });
 }

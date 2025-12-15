@@ -1,4 +1,5 @@
 import LiveDemoExperience from "./_components/LiveDemoExperience";
+import { nudgeTemplates } from "@/data/nudges";
 
 export const metadata = {
   title: "Live demo | StressSense",
@@ -6,6 +7,7 @@ export const metadata = {
 };
 
 export default function DemoPage() {
+  const demoNudges = nudgeTemplates.filter((t) => ["meeting-audit", "sprint-priorities", "open-conversation", "boost-participation"].includes(t.slug)).slice(0, 4);
   return (
     <main className="bg-gradient-to-b from-indigo-50/30 via-white to-white pb-24">
       <section className="relative overflow-hidden pb-12 pt-20 sm:pt-24">
@@ -71,6 +73,32 @@ export default function DemoPage() {
       </section>
 
       <LiveDemoExperience />
+
+      <section className="mx-auto mt-12 max-w-5xl px-4 sm:px-6">
+        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">Что StressSense предлагает сделать дальше</p>
+          <p className="mt-1 text-sm text-slate-600">Мы генерируем действия сразу после демо-опроса. Примеры ниже.</p>
+          <div className="mt-4 grid gap-3 md:grid-cols-2">
+            {demoNudges.map((n) => (
+              <div key={n.id} className="rounded-2xl border border-slate-100 bg-slate-50 p-4 shadow-inner">
+                <div className="flex items-center gap-2">
+                  <span className="rounded-full bg-primary/10 px-3 py-1 text-[11px] font-semibold text-primary">{n.triggerLevel}</span>
+                  <span className="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-semibold text-slate-700">impact: {n.estimatedImpact}</span>
+                </div>
+                <p className="mt-2 text-sm font-semibold text-slate-900">{n.title}</p>
+                <p className="text-xs text-slate-600">{n.description}</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {n.triggerTags.map((t) => (
+                    <span key={t} className="rounded-full bg-primary/5 px-2 py-1 text-[11px] font-semibold text-primary">
+                      {t}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
     </main>
   );
 }

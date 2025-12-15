@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { signInAction } from "@/app/signin/actions";
+import { signIn } from "next-auth/react";
 import clsx from "clsx";
 import { t, type Locale } from "@/lib/i18n";
 
@@ -16,15 +16,17 @@ export function SignInForm({ locale = "en" }: { locale?: Locale }) {
   const submit = () => {
     setMessage(null);
     startTransition(async () => {
-      const formData = new FormData();
-      formData.append("email", email);
-      formData.append("password", password);
-      const result = await signInAction(formData);
+      const result = await signIn("credentials", {
+        redirect: false,
+        email,
+        password,
+        callbackUrl: "/app/overview",
+      });
       if (result?.error) {
         setMessage(result.error);
         return;
       }
-      router.push("/app/overview");
+      router.push(result?.url ?? "/app/overview");
       router.refresh();
     });
   };

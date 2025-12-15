@@ -47,7 +47,7 @@ export default async function DevelopersPage() {
           <ApiKeyCreator availableScopes={scopes} />
         </div>
         <div className="mt-4 divide-y divide-slate-100 rounded-xl border border-slate-200">
-          {apiKeys.map((key) => (
+          {apiKeys.map((key: any) => (
             <div key={key.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
               <div>
                 <p className="text-sm font-semibold text-slate-900">{key.name}</p>
@@ -79,7 +79,7 @@ export default async function DevelopersPage() {
           <WebhookCreator />
         </div>
         <div className="mt-4 divide-y divide-slate-100 rounded-xl border border-slate-200">
-          {webhooks.map((wh) => (
+          {webhooks.map((wh: any) => (
             <div key={wh.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
               <div>
                 <p className="text-sm font-semibold text-slate-900">{wh.url}</p>

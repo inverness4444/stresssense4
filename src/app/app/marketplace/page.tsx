@@ -27,7 +27,7 @@ export default async function MarketplacePage() {
         </div>
       </div>
       <div className="grid gap-3 md:grid-cols-3">
-        {apps.map((app) => (
+        {apps.map((app: any) => (
           <Link
             key={app.id}
             href={`/app/marketplace/${app.slug}`}

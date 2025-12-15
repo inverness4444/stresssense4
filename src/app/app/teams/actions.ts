@@ -55,7 +55,7 @@ export async function createTeam(input: CreateTeamInput) {
     });
     if (users.length) {
       await prisma.userTeam.createMany({
-        data: users.map((u) => ({ userId: u.id, teamId: team.id })),
+        data: users.map((u: any) => ({ userId: u.id, teamId: team.id })),
       });
     }
   }
