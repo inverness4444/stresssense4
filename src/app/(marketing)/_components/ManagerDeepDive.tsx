@@ -1,22 +1,27 @@
+import { useMemo } from "react";
+
 export default function ManagerDeepDive() {
+  const isRu = useMemo(() => (typeof document !== "undefined" ? (document.documentElement.lang || "").toLowerCase().startsWith("ru") : false), []);
   return (
     <section id="manager" className="bg-slate-50 py-16 lg:py-20">
       <div className="mx-auto flex max-w-6xl flex-col gap-10 px-4 lg:flex-row lg:items-center">
         <div className="flex-1 space-y-4">
           <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">Manager cockpit</p>
-          <h2 className="text-3xl font-semibold text-slate-900 sm:text-4xl">Все риски, действия и люди — в одном месте</h2>
+          <h2 className="text-3xl font-semibold text-slate-900 sm:text-4xl">
+            {isRu ? "Все риски, действия и люди — в одном месте" : "All risks, actions, and people in one place"}
+          </h2>
           <ul className="mt-4 space-y-3 text-sm text-slate-600">
             <li className="flex items-start gap-2">
               <span className="mt-1 h-2 w-2 rounded-full bg-primary" />
-              «See team stress & engagement in one place» — метрики, тренды и AI-summary.
+              {isRu ? "Метрики, тренды и AI-summary — вся команда в одном экране." : "Metrics, trends, and AI summary — your team in one view."}
             </li>
             <li className="flex items-start gap-2">
               <span className="mt-1 h-2 w-2 rounded-full bg-primary" />
-              Action center с AI-подсказками: онбординг, цели, 1:1, фидбэк, компенсации.
+              {isRu ? "Action center с AI-подсказками: онбординг, цели, 1:1, фидбэк, компенсации." : "Action center with AI tips: onboarding, goals, 1:1s, feedback, compensation."}
             </li>
             <li className="flex items-start gap-2">
               <span className="mt-1 h-2 w-2 rounded-full bg-primary" />
-              Нуджи и автоматизация: Slack/Teams, календарь, вебхуки и API.
+              {isRu ? "Нуджи и автоматизация: Slack/Teams, календарь, вебхуки и API." : "Nudges and automation: Slack/Teams, calendar, webhooks, and API."}
             </li>
           </ul>
         </div>
@@ -29,7 +34,7 @@ export default function ManagerDeepDive() {
               <div className="rounded-2xl border border-slate-100 bg-gradient-to-br from-indigo-50 via-white to-emerald-50 p-4">
                 <p className="text-sm font-semibold text-slate-900">Team health</p>
                 <p className="mt-2 text-3xl font-bold text-primary">8.1</p>
-                <p className="text-xs text-slate-500">+0.5 pt vs прошлый месяц</p>
+                <p className="text-xs text-slate-500">{isRu ? "+0.5 pt vs прошлый месяц" : "+0.5 pt vs last month"}</p>
                 <div className="mt-3 h-16 rounded-xl bg-white/70 ring-1 ring-slate-100">
                   <div className="flex h-full items-end gap-1 px-3 pb-2">
                     {[30, 40, 50, 70, 90].map((h, i) => (

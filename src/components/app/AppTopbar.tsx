@@ -21,7 +21,6 @@ export function AppTopbar({ user, notifications, unreadCount, demoMode, locale }
     if (pathname.startsWith("/app/teams") && pathname.includes("/stress")) return t(locale, "navTeamStress");
     if (pathname.startsWith("/app/teams")) return t(locale, "navTeams");
     if (pathname.startsWith("/app/surveys")) return t(locale, "navSurveys");
-    if (pathname.startsWith("/app/schedules")) return t(locale, "navSchedules");
     if (pathname.startsWith("/app/notifications")) return t(locale, "navNotifications");
     if (pathname.startsWith("/app/settings")) return t(locale, "navSettings");
     return user.role === "MANAGER" ? t(locale, "navMyTeams") : t(locale, "navOverview");

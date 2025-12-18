@@ -1,0 +1,244 @@
+export type StressQuestion = {
+  id: string;
+  text: string;
+  textEn?: string;
+  textRu?: string;
+  dimension: "load" | "clarity" | "manager_support" | "meetings_focus" | "safety" | "balance" | "control" | "recognition" | "processes" | "long_term";
+  source?: "static" | "ai";
+  aiHint?: string;
+};
+
+export type StressQuestionDay = {
+  id: string;
+  label: string;
+  labelEn?: string;
+  labelRu?: string;
+  questions: StressQuestion[];
+};
+
+export const STRESS_QUESTION_DAYS: StressQuestionDay[] = [
+  {
+    id: "day-1",
+    label: "Нагрузка и общий стресс",
+    labelEn: "Workload and overall stress",
+    labelRu: "Нагрузка и общий стресс",
+    questions: [
+      { id: "d1-q1", text: "Я чувствую, что в целом справляюсь с текущей рабочей нагрузкой.", textEn: "I feel I can handle my current workload overall.", textRu: "Я чувствую, что в целом справляюсь с текущей рабочей нагрузкой.", dimension: "load", source: "static" },
+      { id: "d1-q2", text: "В последние дни я часто думаю о работе даже после окончания рабочего дня.", textEn: "Lately I often think about work even after the workday ends.", textRu: "В последние дни я часто думаю о работе даже после окончания рабочего дня.", dimension: "load", source: "static" },
+      { id: "d1-q3", text: "Я чувствую напряжение из-за количества задач, которое на мне сейчас.", textEn: "I feel tension because of the number of tasks on me right now.", textRu: "Я чувствую напряжение из-за количества задач, которое на мне сейчас.", dimension: "load", source: "static" },
+      { id: "d1-q4", text: "У меня остаётся хотя бы немного энергии после работы.", textEn: "I still have at least some energy left after work.", textRu: "У меня остаётся хотя бы немного энергии после работы.", dimension: "load", source: "static" },
+      { id: "d1-q5", text: "В последние дни я часто чувствую усталость именно из-за работы.", textEn: "Recently I often feel tired specifically because of work.", textRu: "В последние дни я часто чувствую усталость именно из-за работы.", dimension: "load", source: "static" },
+      { id: "d1-q6", text: "У меня достаточно ресурса, чтобы быть внимательным и аккуратным в задачах.", textEn: "I have enough energy to stay attentive and careful in tasks.", textRu: "У меня достаточно ресурса, чтобы быть внимательным и аккуратным в задачах.", dimension: "load", source: "static" },
+      { id: "d1-q7", text: "Я не ощущаю, что «горю» и работаю на пределе возможностей.", textEn: "I don't feel like I'm burning out or working at my absolute limit.", textRu: "Я не ощущаю, что «горю» и работаю на пределе возможностей.", dimension: "load", source: "static" },
+      { id: "d1-q8", text: "Я чувствую, что могу спокойно сделать паузу, если мне нужно.", textEn: "I feel I can take a pause calmly if I need to.", textRu: "Я чувствую, что могу спокойно сделать паузу, если мне нужно.", dimension: "load", source: "static" },
+      { id: "d1-q9", text: "Рабочие дедлайны не кажутся мне постоянной гонкой.", textEn: "Deadlines don't feel like a constant race.", textRu: "Рабочие дедлайны не кажутся мне постоянной гонкой.", dimension: "load", source: "static" },
+      { id: "d1-q10", text: "Я редко ловлю себя на мысли: «Я не вывожу этот темп работы».", textEn: "I rarely think “I can't keep up with this pace of work.”", textRu: "Я редко ловлю себя на мысли: «Я не вывожу этот темп работы».", dimension: "load", source: "static" },
+      { id: "d1-q11", text: "В целом уровень стресса от работы для меня сейчас приемлемый.", textEn: "Overall my current work stress level is acceptable.", textRu: "В целом уровень стресса от работы для меня сейчас приемлемый.", dimension: "load", source: "static" },
+    ],
+  },
+  {
+    id: "day-2",
+    label: "Ясность задач и приоритетов",
+    labelEn: "Task clarity and priorities",
+    labelRu: "Ясность задач и приоритетов",
+    questions: [
+      { id: "d2-q1", text: "Я чётко понимаю, какие задачи для меня сейчас в приоритете.", textEn: "I clearly understand which tasks are my priority right now.", textRu: "Я чётко понимаю, какие задачи для меня сейчас в приоритете.", dimension: "clarity", source: "static" },
+      { id: "d2-q2", text: "Мне понятно, как моя работа связана с целями команды/компании.", textEn: "I understand how my work ties to team/company goals.", textRu: "Мне понятно, как моя работа связана с целями команды/компании.", dimension: "clarity", source: "static" },
+      { id: "d2-q3", text: "У задач есть ясные критерии «готово», и я знаю, когда работа действительно завершена.", textEn: "Tasks have clear “done” criteria, and I know when work is truly finished.", textRu: "У задач есть ясные критерии «готово», и я знаю, когда работа действительно завершена.", dimension: "clarity", source: "static" },
+      { id: "d2-q4", text: "Я редко сталкиваюсь с противоречивыми задачами от разных людей.", textEn: "I rarely face conflicting tasks from different people.", textRu: "Я редко сталкиваюсь с противоречивыми задачами от разных людей.", dimension: "clarity", source: "static" },
+      { id: "d2-q5", text: "Если приоритеты меняются, мне это своевременно объясняют.", textEn: "When priorities change, it’s explained to me in time.", textRu: "Если приоритеты меняются, мне это своевременно объясняют.", dimension: "clarity", source: "static" },
+      { id: "d2-q6", text: "Я понимаю, что можно отложить, если становится слишком много задач.", textEn: "I know what can be postponed when there are too many tasks.", textRu: "Я понимаю, что можно отложить, если становится слишком много задач.", dimension: "clarity", source: "static" },
+      { id: "d2-q7", text: "Я не чувствую стресса от того, что «всё важно и срочно одновременно».", textEn: "I’m not stressed by feeling that everything is urgent at once.", textRu: "Я не чувствую стресса от того, что «всё важно и срочно одновременно».", dimension: "clarity", source: "static" },
+      { id: "d2-q8", text: "Когда я не уверен в задаче, я знаю, к кому обратиться за прояснением.", textEn: "When unsure about a task, I know whom to ask for clarity.", textRu: "Когда я не уверен в задаче, я знаю, к кому обратиться за прояснением.", dimension: "clarity", source: "static" },
+      { id: "d2-q9", text: "У меня не возникает ощущения хаоса в задачах на этой неделе.", textEn: "I don’t feel chaos in my tasks this week.", textRu: "У меня не возникает ощущения хаоса в задачах на этой неделе.", dimension: "clarity", source: "static" },
+      { id: "d2-q10", text: "Я получаю достаточную информацию по задачам, чтобы не «додумывать».", textEn: "I get enough info on tasks so I don't have to guess.", textRu: "Я получаю достаточную информацию по задачам, чтобы не «додумывать».", dimension: "clarity", source: "static" },
+      { id: "d2-q11", text: "Неясность задач редко становится для меня источником стресса.", textEn: "Unclear tasks rarely become a source of stress for me.", textRu: "Неясность задач редко становится для меня источником стресса.", dimension: "clarity", source: "static" },
+    ],
+  },
+  {
+    id: "day-3",
+    label: "Поддержка менеджера",
+    labelEn: "Manager support",
+    labelRu: "Поддержка менеджера",
+    questions: [
+      { id: "d3-q1", text: "Я чувствую, что могу честно сказать менеджеру о нагрузке и усталости.", textEn: "I feel I can honestly tell my manager about load and fatigue.", textRu: "Я чувствую, что могу честно сказать менеджеру о нагрузке и усталости.", dimension: "manager_support", source: "static" },
+      { id: "d3-q2", text: "Менеджер готов обсудить со мной способы снизить рабочий стресс.", textEn: "My manager is ready to discuss ways to reduce my work stress.", textRu: "Менеджер готов обсудить со мной способы снизить рабочий стресс.", dimension: "manager_support", source: "static" },
+      { id: "d3-q3", text: "Я знаю, что просьба о помощи не будет воспринята как слабость.", textEn: "I know asking for help won't be seen as weakness.", textRu: "Я знаю, что просьба о помощи не будет воспринята как слабость.", dimension: "manager_support", source: "static" },
+      { id: "d3-q4", text: "Менеджер помогает расставлять приоритеты, когда задач слишком много.", textEn: "My manager helps prioritize when there are too many tasks.", textRu: "Менеджер помогает расставлять приоритеты, когда задач слишком много.", dimension: "manager_support", source: "static" },
+      { id: "d3-q5", text: "Менеджер интересуется моим состоянием, а не только результатами.", textEn: "My manager cares about my state, not just results.", textRu: "Менеджер интересуется моим состоянием, а не только результатами.", dimension: "manager_support", source: "static" },
+      { id: "d3-q6", text: "Я чувствую, что меня слушают, когда я говорю о рабочих трудностях.", textEn: "I feel heard when I talk about work difficulties.", textRu: "Я чувствую, что меня слушают, когда я говорю о рабочих трудностях.", dimension: "manager_support", source: "static" },
+      { id: "d3-q7", text: "Менеджер даёт понятную обратную связь, не усиливая стресс.", textEn: "My manager gives clear feedback without adding stress.", textRu: "Менеджер даёт понятную обратную связь, не усиливая стресс.", dimension: "manager_support", source: "static" },
+      { id: "d3-q8", text: "В сложные периоды я могу рассчитывать на поддержку менеджера.", textEn: "In tough periods I can count on my manager’s support.", textRu: "В сложные периоды я могу рассчитывать на поддержку менеджера.", dimension: "manager_support", source: "static" },
+      { id: "d3-q9", text: "Я не боюсь говорить «я не успеваю» или «мне тяжело» в общении с менеджером.", textEn: "I'm not afraid to say “I'm not keeping up” or “this is hard” to my manager.", textRu: "Я не боюсь говорить «я не успеваю» или «мне тяжело» в общении с менеджером.", dimension: "manager_support", source: "static" },
+      { id: "d3-q10", text: "Менеджер помогает создавать рабочие условия, в которых мне легче справляться со стрессом.", textEn: "My manager helps set work conditions that ease my stress.", textRu: "Менеджер помогает создавать рабочие условия, в которых мне легче справляться со стрессом.", dimension: "manager_support", source: "static" },
+      { id: "d3-q11", text: "Отношения с менеджером снижают, а не повышают мой рабочий стресс.", textEn: "My relationship with my manager reduces rather than increases my work stress.", textRu: "Отношения с менеджером снижают, а не повышают мой рабочий стресс.", dimension: "manager_support", source: "static" },
+    ],
+  },
+  {
+    id: "day-4",
+    label: "Встречи и фокус",
+    labelEn: "Meetings and focus",
+    labelRu: "Встречи и фокус",
+    questions: [
+      { id: "d4-q1", text: "Количество встреч в моём календаре кажется разумным.", textEn: "The number of meetings on my calendar feels reasonable.", textRu: "Количество встреч в моём календаре кажется разумным.", dimension: "meetings_focus", source: "static" },
+      { id: "d4-q2", text: "Встречи помогают продвигать работу, а не отнимают время без результата.", textEn: "Meetings help move work forward, not waste time.", textRu: "Встречи помогают продвигать работу, а не отнимают время без результата.", dimension: "meetings_focus", source: "static" },
+      { id: "d4-q3", text: "У меня остаётся достаточно непрерывного времени для фокусной работы.", textEn: "I have enough uninterrupted time for focus work.", textRu: "У меня остаётся достаточно непрерывного времени для фокусной работы.", dimension: "meetings_focus", source: "static" },
+      { id: "d4-q4", text: "Я редко переключаюсь между задачами каждые 5–10 минут.", textEn: "I rarely switch tasks every 5–10 minutes.", textRu: "Я редко переключаюсь между задачами каждые 5–10 минут.", dimension: "meetings_focus", source: "static" },
+      { id: "d4-q5", text: "Важное обсуждается на встречах, а не в случайных переписках в последний момент.", textEn: "Important topics are discussed in meetings, not random last-minute chats.", textRu: "Важное обсуждается на встречах, а не в случайных переписках в последний момент.", dimension: "meetings_focus", source: "static" },
+      { id: "d4-q6", text: "У встреч есть понятная цель и повестка.", textEn: "Meetings have a clear goal and agenda.", textRu: "У встреч есть понятная цель и повестка.", dimension: "meetings_focus", source: "static" },
+      { id: "d4-q7", text: "Я могу отказаться от участия во встрече, если она не критична для моей роли.", textEn: "I can decline a meeting if it’s not critical for my role.", textRu: "Я могу отказаться от участия во встрече, если она не критична для моей роли.", dimension: "meetings_focus", source: "static" },
+      { id: "d4-q8", text: "Встречи не являются главным источником моего рабочего стресса.", textEn: "Meetings are not the main source of my work stress.", textRu: "Встречи не являются главным источником моего рабочего стресса.", dimension: "meetings_focus", source: "static" },
+      { id: "d4-q9", text: "После встреч мне не нужно «догонять» работу по вечерам.", textEn: "I don’t have to catch up on work in the evenings because of meetings.", textRu: "После встреч мне не нужно «догонять» работу по вечерам.", dimension: "meetings_focus", source: "static" },
+      { id: "d4-q10", text: "Я не ощущаю, что «живу в зумах/митингах» вместо реальной работы.", textEn: "I don’t feel like I live in Zoom/meetings instead of real work.", textRu: "Я не ощущаю, что «живу в зумах/митингах» вместо реальной работы.", dimension: "meetings_focus", source: "static" },
+      { id: "d4-q11", text: "Формат наших встреч помогает, а не мешает снижать рабочий стресс.", textEn: "Our meeting format helps rather than hinders reducing work stress.", textRu: "Формат наших встреч помогает, а не мешает снижать рабочий стресс.", dimension: "meetings_focus", source: "static" },
+    ],
+  },
+  {
+    id: "day-5",
+    label: "Атмосфера и психологическая безопасность",
+    labelEn: "Atmosphere and psychological safety",
+    labelRu: "Атмосфера и психологическая безопасность",
+    questions: [
+      { id: "d5-q1", text: "Я могу открыто говорить о рабочих проблемах без страха осуждения.", textEn: "I can openly talk about work problems without fear of judgment.", textRu: "Я могу открыто говорить о рабочих проблемах без страха осуждения.", dimension: "safety", source: "static" },
+      { id: "d5-q2", text: "В команде принято уважительно относиться к ошибкам и разбору уроков.", textEn: "The team treats mistakes and lessons learned respectfully.", textRu: "В команде принято уважительно относиться к ошибкам и разбору уроков.", dimension: "safety", source: "static" },
+      { id: "d5-q3", text: "Я не боюсь признаться, что чего-то не знаю или не умею.", textEn: "I’m not afraid to admit I don’t know or can’t do something.", textRu: "Я не боюсь признаться, что чего-то не знаю или не умею.", dimension: "safety", source: "static" },
+      { id: "d5-q4", text: "Коллеги относятся друг к другу корректно, без пассивной агрессии.", textEn: "Colleagues treat each other respectfully, without passive aggression.", textRu: "Коллеги относятся друг к другу корректно, без пассивной агрессии.", dimension: "safety", source: "static" },
+      { id: "d5-q5", text: "Я не сталкиваюсь с личными нападками или унижениями на работе.", textEn: "I don’t face personal attacks or humiliation at work.", textRu: "Я не сталкиваюсь с личными нападками или унижениями на работе.", dimension: "safety", source: "static" },
+      { id: "d5-q6", text: "В команде можно обсуждать перегрузку и усталость без шуток и обесценивания.", textEn: "We can discuss overload and fatigue without jokes or belittling.", textRu: "В команде можно обсуждать перегрузку и усталость без шуток и обесценивания.", dimension: "safety", source: "static" },
+      { id: "d5-q7", text: "У меня нет ощущения, что любое слово может быть использовано против меня.", textEn: "I don’t feel any word I say could be used against me.", textRu: "У меня нет ощущения, что любое слово может быть использовано против меня.", dimension: "safety", source: "static" },
+      { id: "d5-q8", text: "Конфликты, если возникают, решаются конструктивно.", textEn: "Conflicts, if they arise, are resolved constructively.", textRu: "Конфликты, если возникают, решаются конструктивно.", dimension: "safety", source: "static" },
+      { id: "d5-q9", text: "Рабочая атмосфера скорее снижает, чем усиливает мой стресс.", textEn: "The work atmosphere lowers rather than increases my stress.", textRu: "Рабочая атмосфера скорее снижает, чем усиливает мой стресс.", dimension: "safety", source: "static" },
+      { id: "d5-q10", text: "Я чувствую себя частью команды, а не один на один со своими задачами.", textEn: "I feel part of the team, not alone with my tasks.", textRu: "Я чувствую себя частью команды, а не один на один со своими задачами.", dimension: "safety", source: "static" },
+      { id: "d5-q11", text: "Мне безопасно делиться своими идеями и сомнениями.", textEn: "I feel safe sharing my ideas and doubts.", textRu: "Мне безопасно делиться своими идеями и сомнениями.", dimension: "safety", source: "static" },
+    ],
+  },
+  {
+    id: "day-6",
+    label: "Баланс работа/жизнь и перерывы",
+    labelEn: "Work-life balance and breaks",
+    labelRu: "Баланс работа/жизнь и перерывы",
+    questions: [
+      { id: "d6-q1", text: "У меня есть время на жизнь вне работы (семья, отдых, хобби).", textEn: "I have time for life outside work (family, rest, hobbies).", textRu: "У меня есть время на жизнь вне работы (семья, отдых, хобби).", dimension: "balance", source: "static" },
+      { id: "d6-q2", text: "Я не чувствую постоянного давления быть «на связи» после рабочего дня.", textEn: "I don’t feel constant pressure to stay “online” after work.", textRu: "Я не чувствую постоянного давления быть «на связи» после рабочего дня.", dimension: "balance", source: "static" },
+      { id: "d6-q3", text: "Я могу позволить себе обед без ощущения вины.", textEn: "I can take lunch without feeling guilty.", textRu: "Я могу позволить себе обед без ощущения вины.", dimension: "balance", source: "static" },
+      { id: "d6-q4", text: "Я могу сделать короткий перерыв, если чувствую усталость или перегрузку.", textEn: "I can take a short break when I feel tired or overloaded.", textRu: "Я могу сделать короткий перерыв, если чувствую усталость или перегрузку.", dimension: "balance", source: "static" },
+      { id: "d6-q5", text: "Рабочие чаты не требуют мгновенных ответов в нерабочее время.", textEn: "Work chats don’t demand instant replies after hours.", textRu: "Рабочие чаты не требуют мгновенных ответов в нерабочее время.", dimension: "balance", source: "static" },
+      { id: "d6-q6", text: "Я редко задерживаюсь на работе из-за заведомо нереалистичных сроков.", textEn: "I rarely stay late because of unrealistic deadlines.", textRu: "Я редко задерживаюсь на работе из-за заведомо нереалистичных сроков.", dimension: "balance", source: "static" },
+      { id: "d6-q7", text: "Я успеваю восстанавливаться между рабочими днями.", textEn: "I have time to recover between workdays.", textRu: "Я успеваю восстанавливаться между рабочими днями.", dimension: "balance", source: "static" },
+      { id: "d6-q8", text: "Отпуск/выходной действительно помогает мне перезагрузиться от работы.", textEn: "Vacations/days off really help me reset from work.", textRu: "Отпуск/выходной действительно помогает мне перезагрузиться от работы.", dimension: "balance", source: "static" },
+      { id: "d6-q9", text: "У меня нет ощущения, что работа «съедает» всю мою жизнь.", textEn: "I don’t feel that work consumes my whole life.", textRu: "У меня нет ощущения, что работа «съедает» всю мою жизнь.", dimension: "balance", source: "static" },
+      { id: "d6-q10", text: "Я могу договориться о временной разгрузке, если ситуация становится слишком тяжёлой.", textEn: "I can negotiate temporary relief if things get too heavy.", textRu: "Я могу договориться о временной разгрузке, если ситуация становится слишком тяжёлой.", dimension: "balance", source: "static" },
+      { id: "d6-q11", text: "Баланс между работой и личной жизнью сейчас не является источником сильного стресса.", textEn: "Work-life balance isn’t a major source of stress for me now.", textRu: "Баланс между работой и личной жизнью сейчас не является источником сильного стресса.", dimension: "balance", source: "static" },
+    ],
+  },
+  {
+    id: "day-7",
+    label: "Контроль и автономия",
+    labelEn: "Control and autonomy",
+    labelRu: "Контроль и автономия",
+    questions: [
+      { id: "d7-q1", text: "Я чувствую достаточный контроль над своим рабочим днём.", textEn: "I feel enough control over my workday.", textRu: "Я чувствую достаточный контроль над своим рабочим днём.", dimension: "control", source: "static" },
+      { id: "d7-q2", text: "Я могу сам выбирать, с каких задач начать и как их организовать.", textEn: "I can choose which tasks to start with and how to organize them.", textRu: "Я могу сам выбирать, с каких задач начать и как их организовать.", dimension: "control", source: "static" },
+      { id: "d7-q3", text: "Мне не приходится выполнять много задач, смысл которых мне непонятен.", textEn: "I don't have to do many tasks whose purpose I don't understand.", textRu: "Мне не приходится выполнять много задач, смысл которых мне непонятен.", dimension: "control", source: "static" },
+      { id: "d7-q4", text: "Я могу предложить другой способ сделать задачу, если он эффективнее.", textEn: "I can propose another way to do a task if it's more effective.", textRu: "Я могу предложить другой способ сделать задачу, если он эффективнее.", dimension: "control", source: "static" },
+      { id: "d7-q5", text: "Меня не микроменеджерят на уровне мелких шагов.", textEn: "I’m not micromanaged at the level of tiny steps.", textRu: "Меня не микроменеджерят на уровне мелких шагов.", dimension: "control", source: "static" },
+      { id: "d7-q6", text: "Я не чувствую себя «винтиком», который просто исполняет указания.", textEn: "I don’t feel like a cog just executing orders.", textRu: "Я не чувствую себя «винтиком», который просто исполняет указания.", dimension: "control", source: "static" },
+      { id: "d7-q7", text: "Я могу сказать «нет» или предложить альтернативу, если задача перегружает.", textEn: "I can say “no” or suggest alternatives if a task overloads me.", textRu: "Я могу сказать «нет» или предложить альтернативу, если задача перегружает.", dimension: "control", source: "static" },
+      { id: "d7-q8", text: "Стиль управления в команде даёт мне достаточно автономии.", textEn: "The management style gives me enough autonomy.", textRu: "Стиль управления в команде даёт мне достаточно автономии.", dimension: "control", source: "static" },
+      { id: "d7-q9", text: "Нехватка контроля над своей работой не является для меня ключевым источником стресса.", textEn: "Lack of control over my work isn’t a major stressor for me.", textRu: "Нехватка контроля над своей работой не является для меня ключевым источником стресса.", dimension: "control", source: "static" },
+      { id: "d7-q10", text: "Я вовлечён в обсуждение решений, которые сильно влияют на мою работу.", textEn: "I’m involved in decisions that strongly affect my work.", textRu: "Я вовлечён в обсуждение решений, которые сильно влияют на мою работу.", dimension: "control", source: "static" },
+      { id: "d7-q11", text: "В целом я чувствую, что на работе ко мне относятся как к профессионалу, а не просто исполнителю.", textEn: "Overall I feel treated as a professional, not just an executor.", textRu: "В целом я чувствую, что на работе ко мне относятся как к профессионалу, а не просто исполнителю.", dimension: "control", source: "static" },
+    ],
+  },
+  {
+    id: "day-8",
+    label: "Признание и справедливость",
+    labelEn: "Recognition and fairness",
+    labelRu: "Признание и справедливость",
+    questions: [
+      { id: "d8-q1", text: "Я чувствую, что мой вклад в работу замечают.", textEn: "I feel my contribution is noticed.", textRu: "Я чувствую, что мой вклад в работу замечают.", dimension: "recognition", source: "static" },
+      { id: "d8-q2", text: "Обратная связь чаще помогает, чем демотивирует.", textEn: "Feedback helps more often than it demotivates.", textRu: "Обратная связь чаще помогает, чем демотивирует.", dimension: "recognition", source: "static" },
+      { id: "d8-q3", text: "Я не ощущаю, что вкладываюсь больше других и это остаётся незамеченным.", textEn: "I don’t feel I contribute more than others and go unnoticed.", textRu: "Я не ощущаю, что вкладываюсь больше других и это остаётся незамеченным.", dimension: "recognition", source: "static" },
+      { id: "d8-q4", text: "Нагрузка в команде распределена относительно честно.", textEn: "Workload is distributed fairly in the team.", textRu: "Нагрузка в команде распределена относительно честно.", dimension: "recognition", source: "static" },
+      { id: "d8-q5", text: "Я понимаю, за что меня ценят в команде.", textEn: "I understand what I’m valued for in the team.", textRu: "Я понимаю, за что меня ценят в команде.", dimension: "recognition", source: "static" },
+      { id: "d8-q6", text: "Успехи обсуждаются и отмечаются, а не проходят «мимо».", textEn: "Successes are discussed and recognized, not ignored.", textRu: "Успехи обсуждаются и отмечаются, а не проходят «мимо».", dimension: "recognition", source: "static" },
+      { id: "d8-q7", text: "Я не чувствую несправедливости в ожиданиях ко мне по сравнению с другими.", textEn: "I don’t feel unfair expectations toward me versus others.", textRu: "Я не чувствую несправедливости в ожиданиях ко мне по сравнению с другими.", dimension: "recognition", source: "static" },
+      { id: "d8-q8", text: "Критика в мой адрес чаще конструктивна, чем токсична.", textEn: "Criticism toward me is more often constructive than toxic.", textRu: "Критика в мой адрес чаще конструктивна, чем токсична.", dimension: "recognition", source: "static" },
+      { id: "d8-q9", text: "Я не чувствую, что должен постоянно «доказывать право» на своё место.", textEn: "I don’t feel I must constantly “prove my right” to be here.", textRu: "Я не чувствую, что должен постоянно «доказывать право» на своё место.", dimension: "recognition", source: "static" },
+      { id: "d8-q10", text: "Отсутствие признания не является для меня постоянным источником стресса.", textEn: "Lack of recognition isn’t a constant stress source for me.", textRu: "Отсутствие признания не является для меня постоянным источником стресса.", dimension: "recognition", source: "static" },
+      { id: "d8-q11", text: "В целом я чувствую себя уважаемым и ценным сотрудником.", textEn: "Overall I feel like a respected and valued employee.", textRu: "В целом я чувствую себя уважаемым и ценным сотрудником.", dimension: "recognition", source: "static" },
+    ],
+  },
+  {
+    id: "day-9",
+    label: "Процессы, инструменты, хаос",
+    labelEn: "Processes, tools, chaos",
+    labelRu: "Процессы, инструменты, хаос",
+    questions: [
+      { id: "d9-q1", text: "У нас есть понятные процессы, а не каждый раз «с нуля и в пожаре».", textEn: "We have clear processes, not starting from scratch in fire drills every time.", textRu: "У нас есть понятные процессы, а не каждый раз «с нуля и в пожаре».", dimension: "processes", source: "static" },
+      { id: "d9-q2", text: "Я редко трачу много времени на поиск информации, доступов и нужных людей.", textEn: "I rarely spend much time finding info, access, or the right people.", textRu: "Я редко трачу много времени на поиск информации, доступов и нужных людей.", dimension: "processes", source: "static" },
+      { id: "d9-q3", text: "Инструменты, которыми я пользуюсь, помогают, а не мешают работать.", textEn: "The tools I use help rather than hinder my work.", textRu: "Инструменты, которыми я пользуюсь, помогают, а не мешают работать.", dimension: "processes", source: "static" },
+      { id: "d9-q4", text: "У нас нет постоянного ощущения хаоса и «бей — беги» в задачах.", textEn: "We don’t have a constant sense of chaos and “firefights” in tasks.", textRu: "У нас нет постоянного ощущения хаоса и «бей — беги» в задачах.", dimension: "processes", source: "static" },
+      { id: "d9-q5", text: "Я понимаю, где хранится актуальная информация по проектам.", textEn: "I know where up-to-date project information is stored.", textRu: "Я понимаю, где хранится актуальная информация по проектам.", dimension: "processes", source: "static" },
+      { id: "d9-q6", text: "Технические или организационные проблемы не являются постоянным источником стресса.", textEn: "Technical or organizational issues aren’t a constant stressor.", textRu: "Технические или организационные проблемы не являются постоянным источником стресса.", dimension: "processes", source: "static" },
+      { id: "d9-q7", text: "Я не делаю одно и то же по три раза из-за несогласованности процессов.", textEn: "I don’t redo the same work multiple times because of process misalignment.", textRu: "Я не делаю одно и то же по три раза из-за несогласованности процессов.", dimension: "processes", source: "static" },
+      { id: "d9-q8", text: "У нас есть минимум понятных правил, а не только «так исторически сложилось».", textEn: "We have at least minimal clear rules, not just “historically so.”", textRu: "У нас есть минимум понятных правил, а не только «так исторически сложилось».", dimension: "processes", source: "static" },
+      { id: "d9-q9", text: "Меня не ставят регулярно в ситуацию «сделать вчера».", textEn: "I’m not regularly put in a “do it yesterday” situation.", textRu: "Меня не ставят регулярно в ситуацию «сделать вчера».", dimension: "processes", source: "static" },
+      { id: "d9-q10", text: "Я чувствую, что процессы скорее поддерживают меня, чем ломают.", textEn: "I feel processes support me rather than break me.", textRu: "Я чувствую, что процессы скорее поддерживают меня, чем ломают.", dimension: "processes", source: "static" },
+      { id: "d9-q11", text: "Текущий уровень бардака в процессах для меня терпимый.", textEn: "The current level of process chaos is tolerable for me.", textRu: "Текущий уровень бардака в процессах для меня терпимый.", dimension: "processes", source: "static" },
+    ],
+  },
+  {
+    id: "day-10",
+    label: "Долгосрочный стресс и перспектива",
+    labelEn: "Long-term stress and outlook",
+    labelRu: "Долгосрочный стресс и перспектива",
+    questions: [
+      { id: "d10-q1", text: "Я понимаю, чему учусь и как развиваюсь на текущей работе.", textEn: "I understand what I learn and how I grow in my current job.", textRu: "Я понимаю, чему учусь и как развиваюсь на текущей работе.", dimension: "long_term", source: "static" },
+      { id: "d10-q2", text: "То, что происходит сейчас, кажется мне устойчивым, а не бесконечным пожаром.", textEn: "What’s happening now feels sustainable, not an endless fire drill.", textRu: "То, что происходит сейчас, кажется мне устойчивым, а не бесконечным пожаром.", dimension: "long_term", source: "static" },
+      { id: "d10-q3", text: "Я не чувствую, что долго нахожусь в режиме «выживания» на работе.", textEn: "I don’t feel I’ve been in survival mode at work for a long time.", textRu: "Я не чувствую, что долго нахожусь в режиме «выживания» на работе.", dimension: "long_term", source: "static" },
+      { id: "d10-q4", text: "У меня есть представление, как может выглядеть мой следующий шаг в компании.", textEn: "I have an idea of what my next step in the company could look like.", textRu: "У меня есть представление, как может выглядеть мой следующий шаг в компании.", dimension: "long_term", source: "static" },
+      { id: "d10-q5", text: "Я верю, что мой рабочий стресс можно уменьшить, а не просто «терпеть».", textEn: "I believe my work stress can be reduced, not just endured.", textRu: "Я верю, что мой рабочий стресс можно уменьшить, а не просто «терпеть».", dimension: "long_term", source: "static" },
+      { id: "d10-q6", text: "Я могу обсудить с менеджером свои долгосрочные ожидания и тревоги.", textEn: "I can discuss my long-term expectations and concerns with my manager.", textRu: "Я могу обсудить с менеджером свои долгосрочные ожидания и тревоги.", dimension: "long_term", source: "static" },
+      { id: "d10-q7", text: "Мне не кажется, что «так будет всегда, и выхода нет».", textEn: "I don’t feel “it will always be like this with no way out.”", textRu: "Мне не кажется, что «так будет всегда, и выхода нет».", dimension: "long_term", source: "static" },
+      { id: "d10-q8", text: "Я вижу смысл в том, что делаю, даже когда период сложный.", textEn: "I see meaning in what I do even when times are tough.", textRu: "Я вижу смысл в том, что делаю, даже когда период сложный.", dimension: "long_term", source: "static" },
+      { id: "d10-q9", text: "Я не чувствую, что работа постепенно «выжигает» меня изнутри.", textEn: "I don’t feel that work is slowly burning me out inside.", textRu: "Я не чувствую, что работа постепенно «выжигает» меня изнутри.", dimension: "long_term", source: "static" },
+      { id: "d10-q10", text: "Я ощущаю, что в компании есть готовность менять процессы, если людям тяжело.", textEn: "I feel the company is ready to change processes if people struggle.", textRu: "Я ощущаю, что в компании есть готовность менять процессы, если людям тяжело.", dimension: "long_term", source: "static" },
+      { id: "d10-q11", text: "В целом я верю, что мои рабочие условия могут со временем стать менее стрессовыми.", textEn: "Overall I believe my work conditions can become less stressful over time.", textRu: "В целом я верю, что мои рабочие условия могут со временем стать менее стрессовыми.", dimension: "long_term", source: "static" },
+    ],
+  },
+];
+
+export function getTodayQuestionSetForUser(
+  userId: string,
+  date: Date,
+  staticDays: StressQuestionDay[] = STRESS_QUESTION_DAYS,
+  aiQuestionDays: StressQuestionDay[] = [],
+  locale: "en" | "ru" = "ru"
+): StressQuestionDay {
+  const dayNumber = Math.floor(date.getTime() / 86400000);
+  const baseIndex = ((dayNumber % staticDays.length) + staticDays.length) % staticDays.length;
+  const baseDay = staticDays[baseIndex];
+  const extras = aiQuestionDays.length ? aiQuestionDays : [];
+  // TODO: future personalization — merge AI questions based on user history and dimensions
+  if (extras.length) {
+    const merged = {
+      ...baseDay,
+      questions: [...baseDay.questions, ...extras.flatMap((d) => d.questions)],
+    };
+    return localizeDay(merged, locale);
+  }
+  return localizeDay(baseDay, locale);
+}
+
+function localizeDay(day: StressQuestionDay, locale: "en" | "ru"): StressQuestionDay {
+  const label = locale === "ru" ? day.labelRu ?? day.label : day.labelEn ?? day.label;
+  return {
+    ...day,
+    label,
+    questions: day.questions.map((q) => ({
+      ...q,
+      text: locale === "ru" ? q.textRu ?? q.text : q.textEn ?? q.text,
+    })),
+  };
+}

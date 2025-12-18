@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { InsightTag } from "@/lib/statusLogic";
 import { EngagementTrendCard, TrendPoint } from "@/components/EngagementTrendCard";
+import { t, type Locale } from "@/lib/i18n";
 
 type Mode = "landing" | "employee" | "manager";
 type Variant = "inline" | "floating";
@@ -31,63 +32,47 @@ type FlowConfig = {
   onComplete: (answers: Record<string, string>, tags: InsightTag[]) => Message[];
 };
 
-const landingReportInsights = ["Стресс растёт из-за дедлайнов", "У вовлечённых команд индекс стресса ниже", "Командам важно видеть прозрачные приоритеты"];
+const landingReportInsights = (locale: Locale) =>
+  locale === "ru"
+    ? ["Стресс растёт из-за дедлайнов", "У вовлечённых команд индекс стресса ниже", "Командам важно видеть прозрачные приоритеты"]
+    : [t(locale, "widgetLandingInsight1"), t(locale, "widgetLandingInsight2"), t(locale, "widgetLandingInsight3")];
 
-const landingHelpCategories = [
+const landingHelpCategories = (locale: Locale) => [
   {
-    title: "Как работает индекс стресса",
+    title: t(locale, "widgetLandingHelpTitle1"),
     articles: [
-      { title: "Какие сигналы мы собираем", summary: "Индекс строится на pulse-опросах, AI-сигналах и динамике участия. Всегда агрегировано." },
-      { title: "Как часто мерить стресс", summary: "Рекомендуем короткий pulse раз в 2 недели или перед важными спринтами." },
+      { title: t(locale, "widgetLandingHelpArticle11"), summary: t(locale, "widgetLandingHelpArticle12") },
+      { title: t(locale, "widgetLandingHelpArticle13"), summary: t(locale, "widgetLandingHelpArticle14") },
     ],
   },
   {
-    title: "Роль HR и менеджеров",
+    title: t(locale, "widgetLandingHelpTitle2"),
     articles: [
-      { title: "Что видит HR", summary: "HR видит агрегаты по командам, зоны риска и рекомендации без персональных данных." },
-      { title: "Что видит менеджер", summary: "Менеджер видит только свою команду, действия и подсказки по снижению стресса." },
+      { title: t(locale, "widgetLandingHelpArticle21"), summary: t(locale, "widgetLandingHelpArticle22") },
+      { title: t(locale, "widgetLandingHelpArticle23"), summary: t(locale, "widgetLandingHelpArticle24") },
     ],
   },
   {
-    title: "Коммуникация для сотрудников",
+    title: t(locale, "widgetLandingHelpTitle3"),
     articles: [
-      { title: "Как объяснять опросы", summary: "Просто: мы измеряем рабочий стресс, чтобы убрать перегруз и сделать фокус." },
-      { title: "Прозрачность и приватность", summary: "Ответы анонимны, выводятся только в агрегатах, без слежки за личной жизнью." },
+      { title: t(locale, "widgetLandingHelpArticle31"), summary: t(locale, "widgetLandingHelpArticle32") },
+      { title: t(locale, "widgetLandingHelpArticle33"), summary: t(locale, "widgetLandingHelpArticle34") },
     ],
   },
   {
-    title: "Настройка частоты опросов",
+    title: t(locale, "widgetLandingHelpTitle4"),
     articles: [
-      { title: "Когда запускать pulse", summary: "Перед релизами, крупными изменениями и раз в 2 недели — короткие 5–7 вопросов." },
+      { title: t(locale, "widgetLandingHelpArticle41"), summary: t(locale, "widgetLandingHelpArticle42") },
     ],
   },
 ];
 
-const keywordAnswers: { keywords: string[]; text: string }[] = [
-  { keywords: ["index", "индекс", "stress"], text: "Индекс стресса — 0–10, собирается из pulse-опросов и пассивных сигналов. Показываем только агрегаты по командам." },
-  { keywords: ["hr", "роль"], text: "HR видит весь workspace в агрегате: стресс, вовлечённость, зоны риска и рекомендации. Менеджер — только свою команду." },
-  { keywords: ["manager", "менедж"], text: "Менеджеры получают кокпит: метрики команды, action center, AI-подсказки и онбординг/цели в одном месте." },
-  { keywords: ["survey", "опрос"], text: "В StressSense есть готовые pulse-шаблоны 5–7 вопросов. Запуск за 5 минут, результаты — только агрегаты." },
-  { keywords: ["privacy", "данные"], text: "Без слежки и медицинских советов: только рабочий стресс, анонимные агрегаты, опция регионов хранения, экспорт без PII." },
-];
-
-const employeeHelpCategories = [
-  {
-    title: "Что видит менеджер, а что вижу я",
-    articles: [
-      { title: "Прозрачность", summary: "Менеджер видит только агрегаты по команде. Индивидуальные ответы остаются приватными." },
-    ],
-  },
-  {
-    title: "Как часто будут опросы",
-    articles: [{ title: "Pulse-частота", summary: "Обычно раз в 2 недели короткий pulse. Это нужно, чтобы вовремя заметить перегруз." }],
-  },
-  {
-    title: "Как AI использует мои ответы",
-    articles: [
-      { title: "Только работа", summary: "AI использует ответы, чтобы подсказать про приоритеты и фокус. Никаких медицинских рекомендаций." },
-    ],
-  },
+const keywordAnswers = (locale: Locale): { keywords: string[]; text: string }[] => [
+  { keywords: ["index", "индекс", "stress"], text: t(locale, "widgetKeywordIndex") },
+  { keywords: ["hr", "роль"], text: t(locale, "widgetKeywordHr") },
+  { keywords: ["manager", "менедж"], text: t(locale, "widgetKeywordManager") },
+  { keywords: ["survey", "опрос"], text: t(locale, "widgetKeywordSurvey") },
+  { keywords: ["privacy", "данные"], text: t(locale, "widgetKeywordPrivacy") },
 ];
 
 function topTag(tags: InsightTag[] = []): InsightTag | undefined {
@@ -96,6 +81,25 @@ function topTag(tags: InsightTag[] = []): InsightTag | undefined {
   tags.forEach((t) => (counts[t] = (counts[t] || 0) + 1));
   return Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0] as InsightTag;
 }
+
+const employeeHelpCategories = (locale: Locale) => [
+  {
+    title: locale === "ru" ? "Что видит менеджер, а что вижу я" : "What managers see vs. what I see",
+    articles: [
+      { title: locale === "ru" ? "Прозрачность" : "Transparency", summary: locale === "ru" ? "Менеджер видит только агрегаты по команде. Индивидуальные ответы остаются приватными." : "Managers see only team aggregates. Individual answers stay private." },
+    ],
+  },
+  {
+    title: locale === "ru" ? "Как часто будут опросы" : "How often are surveys",
+    articles: [{ title: locale === "ru" ? "Pulse-частота" : "Pulse frequency", summary: locale === "ru" ? "Обычно раз в 2 недели короткий pulse. Это нужно, чтобы вовремя заметить перегруз." : "Typically a short pulse every 2 weeks — to catch overload early." }],
+  },
+  {
+    title: locale === "ru" ? "Как AI использует мои ответы" : "How AI uses my answers",
+    articles: [
+      { title: locale === "ru" ? "Только работа" : "Work only", summary: locale === "ru" ? "AI использует ответы, чтобы подсказать про приоритеты и фокус. Никаких медицинских рекомендаций." : "AI uses answers to suggest priorities and focus. No medical advice." },
+    ],
+  },
+];
 
 function toneClasses(tone: "blue" | "green" | "amber" | "red" | "slate" = "blue") {
   const map: Record<typeof tone, string> = {
@@ -108,24 +112,32 @@ function toneClasses(tone: "blue" | "green" | "amber" | "red" | "slate" = "blue"
   return map[tone];
 }
 
-function ReportMiniCard() {
+function ReportMiniCard({ locale }: { locale: Locale }) {
   const data: TrendPoint[] = [
     { label: "W1", value: 6.4 },
     { label: "W2", value: 6.7 },
     { label: "W3", value: 7.1 },
     { label: "W4", value: 7.4 },
   ];
+  const trendLabel = locale === "ru" ? "последние 4 недели" : "last 4 weeks";
   return (
     <div className="mt-3 rounded-2xl bg-white/80 p-3 shadow-inner ring-1 ring-slate-200">
       <div className="flex items-center justify-between text-xs font-semibold text-slate-600">
-        <span>Stress index</span>
+        <span>{locale === "ru" ? "Индекс стресса" : "Stress index"}</span>
         <span className="text-emerald-600">7.0 / 10</span>
       </div>
       <div className="mt-3">
-        <EngagementTrendCard scope="team" title="Mini survey report" score={7} delta={0.4} trendLabel="последние 4 недели" participation={76} data={data} />
+        <EngagementTrendCard scope="team" title={locale === "ru" ? "Мини-отчёт" : "Mini survey report"} score={7} delta={0.4} trendLabel={trendLabel} participation={76} data={data} locale={locale} />
       </div>
       <ul className="mt-3 space-y-1 text-xs text-slate-700">
-        {landingReportInsights.map((ins) => (
+        {(locale === "ru"
+          ? landingReportInsights
+          : [
+              t(locale, "widgetLandingInsight1"),
+              t(locale, "widgetLandingInsight2"),
+              t(locale, "widgetLandingInsight3"),
+            ]
+        ).map((ins) => (
           <li key={ins} className="flex items-start gap-2">
             <span className="mt-0.5 h-1.5 w-1.5 rounded-full bg-primary" />
             {ins}
@@ -141,24 +153,26 @@ export function StressSenseAiWidget({
   employeeMetrics,
   variant = "inline",
   onClose,
+  locale = "en",
 }: {
   mode?: Mode;
   employeeMetrics?: EmployeeMetrics;
   variant?: Variant;
   onClose?: () => void;
+  locale?: Locale;
 }) {
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<TabKey>("home");
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<Message[]>([
     mode === "landing"
-      ? { id: "hi", role: "ai", text: "Привет! Я StressSense AI. Спроси про отчёты по стрессу, опросы или цены." }
+      ? { id: "hi", role: "ai", text: t(locale, "widgetHiLanding") }
       : mode === "manager"
-        ? { id: "hi-mgr", role: "ai", text: "Я помогу понять, на чём сфокусироваться менеджеру: какие команды в риске и какие действия сделать первыми." }
+        ? { id: "hi-mgr", role: "ai", text: t(locale, "widgetHiManager") }
         : {
             id: "hi-emp",
             role: "ai",
-            text: "Привет, я твой StressSense коуч. Помогу разобраться со стрессом на работе, приоритетами и разговором с менеджером.",
+            text: t(locale, "widgetHiEmployee"),
           },
   ]);
 
@@ -174,18 +188,21 @@ export function StressSenseAiWidget({
     const mood = employeeMetrics?.mood ?? 4;
     const habits = employeeMetrics?.habitsCompletion ?? 60;
     const tags = employeeMetrics?.tags ?? [];
-    const stressZone = stress < 3 ? "низкий" : stress < 7 ? "средний" : "высокий";
+    const stressZone = stress < 3 ? (locale === "ru" ? "низкий" : "low") : stress < 7 ? (locale === "ru" ? "средний" : "moderate") : locale === "ru" ? "высокий" : "high";
     const mainTag = topTag(tags);
-    const moodText = mood >= 4 ? "спокойный" : mood === 3 ? "нейтральный" : "напряжённый";
+    const moodText = mood >= 4 ? (locale === "ru" ? "спокойный" : "calm") : mood === 3 ? (locale === "ru" ? "нейтральный" : "neutral") : locale === "ru" ? "напряжённый" : "tense";
     return {
       stress,
       wellbeing,
       mood,
       habits,
       tags,
-      summary: `Сейчас: ${stressZone} стресс (${stress.toFixed(1)}/10). Настроение ${moodText}. ${
-        mainTag ? `Главный триггер: ${tagLabel(mainTag)}.` : ""
-      }`,
+      summary:
+        locale === "ru"
+          ? `Сейчас: ${stressZone} стресс (${stress.toFixed(1)}/10). Настроение ${moodText}. ${mainTag ? `Главный триггер: ${tagLabel(mainTag)}.` : ""}`
+          : `Now: ${stressZone === "низкий" ? "low" : stressZone === "средний" ? "moderate" : "high"} stress (${stress.toFixed(1)}/10). Mood ${moodText}. ${
+              mainTag ? `Top trigger: ${tagLabel(mainTag)}.` : ""
+            }`,
       mainTag,
     };
   }, [employeeMetrics]);
@@ -231,12 +248,28 @@ export function StressSenseAiWidget({
   const landingFlows: FlowConfig[] = [
     {
       id: "simulate",
-      title: "Смоделировать стресс в команде",
+      title: t(locale, "widgetLandingHelpTitle1"),
       questions: [
-        { id: "size", text: "Какой размер команды?", options: [{ label: "До 10", value: "small" }, { label: "10-30", value: "mid" }, { label: "30+", value: "large" }] },
-        { id: "deadlines", text: "Как часто горят дедлайны?", options: [{ label: "Редко", value: "rare" }, { label: "Иногда", value: "sometimes" }, { label: "Часто", value: "often", tag: "workload" }] },
-        { id: "meetings", text: "Сколько митингов в день?", options: [{ label: "1-2", value: "few" }, { label: "3-4", value: "mid" }, { label: "5+", value: "many", tag: "meetings" }] },
-        { id: "overtime", text: "Бывает ли переработка?", options: [{ label: "Нет", value: "no" }, { label: "Иногда", value: "sometimes", tag: "workload" }, { label: "Часто", value: "often", tag: "workload" }] },
+        {
+          id: "size",
+          text: locale === "ru" ? "Какой размер команды?" : "What’s your team size?",
+          options: [{ label: locale === "ru" ? "До 10" : "Up to 10", value: "small" }, { label: locale === "ru" ? "10-30" : "10-30", value: "mid" }, { label: locale === "ru" ? "30+" : "30+", value: "large" }],
+        },
+        {
+          id: "deadlines",
+          text: locale === "ru" ? "Как часто горят дедлайны?" : "How often do deadlines slip?",
+          options: [{ label: locale === "ru" ? "Редко" : "Rarely", value: "rare" }, { label: locale === "ru" ? "Иногда" : "Sometimes", value: "sometimes" }, { label: locale === "ru" ? "Часто" : "Often", value: "often", tag: "workload" }],
+        },
+        {
+          id: "meetings",
+          text: locale === "ru" ? "Сколько митингов в день?" : "How many meetings per day?",
+          options: [{ label: "1-2", value: "few" }, { label: "3-4", value: "mid" }, { label: "5+", value: "many", tag: "meetings" }],
+        },
+        {
+          id: "overtime",
+          text: locale === "ru" ? "Бывает ли переработка?" : "Is there overtime?",
+          options: [{ label: locale === "ru" ? "Нет" : "No", value: "no" }, { label: locale === "ru" ? "Иногда" : "Sometimes", value: "sometimes", tag: "workload" }, { label: locale === "ru" ? "Часто" : "Often", value: "often", tag: "workload" }],
+        },
       ],
       onComplete: (answers, tags) => {
         const stress = tags.includes("workload") || tags.includes("meetings") ? 7.2 : 5.6;
@@ -246,9 +279,14 @@ export function StressSenseAiWidget({
             id: "simulate-result",
             role: "ai",
             kind: "text",
-            text: `По ответам это похоже на сценарий: ${stress >= 7 ? "умеренно высокий стресс" : "умеренный стресс"} с риском из-за ${
-              tags.includes("meetings") ? "митингов" : "дедлайнов"
-            }. В StressSense вы бы увидели индекс стресса ≈ ${stress.toFixed(1)}/10, вовлечённость около ${eng.toFixed(1)}/10.`,
+            text:
+              locale === "ru"
+                ? `По ответам это похоже на сценарий: ${stress >= 7 ? "умеренно высокий стресс" : "умеренный стресс"} с риском из-за ${
+                    tags.includes("meetings") ? "митингов" : "дедлайнов"
+                  }. В StressSense вы бы увидели индекс стресса ≈ ${stress.toFixed(1)}/10, вовлечённость около ${eng.toFixed(1)}/10.`
+                : `Based on your answers, this looks like ${stress >= 7 ? "moderately high stress" : "moderate stress"} with risk from ${
+                    tags.includes("meetings") ? "meetings" : "deadlines"
+                  }. In StressSense you’d see stress index ≈ ${stress.toFixed(1)}/10 and engagement around ${eng.toFixed(1)}/10.`,
           },
           {
             id: "simulate-actions",
@@ -256,9 +294,15 @@ export function StressSenseAiWidget({
             kind: "bullets",
             text: "",
             bullets: [
-              tags.includes("meetings") ? "Сократить количество митингов и добавить фокус-блоки" : "Пересмотреть приоритеты и объем спринта",
-              "Запустить короткий pulse-опрос о нагрузке",
-              "Показать менеджерам action center с подсказками",
+              tags.includes("meetings")
+                ? locale === "ru"
+                  ? "Сократить количество митингов и добавить фокус-блоки"
+                  : "Cut meeting load and add focus blocks"
+                : locale === "ru"
+                  ? "Пересмотреть приоритеты и объем спринта"
+                  : "Revisit priorities and sprint scope",
+              locale === "ru" ? "Запустить короткий pulse-опрос о нагрузке" : "Launch a short pulse on workload",
+              locale === "ru" ? "Показать менеджерам action center с подсказками" : "Show managers the action center with tips",
             ],
           },
         ];
@@ -266,29 +310,48 @@ export function StressSenseAiWidget({
     },
     {
       id: "plan",
-      title: "Подобрать план",
+      title: locale === "ru" ? "Подобрать план" : "Pick a plan",
       questions: [
-        { id: "headcount", text: "Сколько человек в компании?", options: [{ label: "До 50", value: "50" }, { label: "50-200", value: "200" }, { label: "200+", value: "500" }] },
-        { id: "modules", text: "Что нужно?", options: [{ label: "Опросы стресса", value: "pulse" }, { label: "Опросы + отчёты менеджерам", value: "cockpit" }, { label: "Все модули + AI", value: "full" }] },
+        {
+          id: "headcount",
+          text: locale === "ru" ? "Сколько человек в компании?" : "How many people are in the company?",
+          options: [
+            { label: locale === "ru" ? "До 50" : "Up to 50", value: "50" },
+            { label: locale === "ru" ? "50-200" : "50-200", value: "200" },
+            { label: locale === "ru" ? "200+" : "200+", value: "500" },
+          ],
+        },
+        {
+          id: "modules",
+          text: locale === "ru" ? "Что нужно?" : "What do you need?",
+          options: [
+            { label: locale === "ru" ? "Опросы стресса" : "Stress surveys", value: "pulse" },
+            { label: locale === "ru" ? "Опросы + отчёты менеджерам" : "Surveys + manager reports", value: "cockpit" },
+            { label: locale === "ru" ? "Все модули + AI" : "All modules + AI", value: "full" },
+          ],
+        },
       ],
       onComplete: (answers) => {
         const headcount = answers.headcount;
         const modules = answers.modules;
         let plan = "Starter";
-        let price = "99$/мес";
+        let price = locale === "ru" ? "99$/мес" : "$99/mo";
         if (headcount === "200" || modules === "cockpit") {
           plan = "Growth";
-          price = "299$/мес";
+          price = locale === "ru" ? "299$/мес" : "$299/mo";
         }
         if (headcount === "500" || modules === "full") {
           plan = "Scale";
-          price = "899$/мес";
+          price = locale === "ru" ? "899$/мес" : "$899/mo";
         }
         return [
           {
             id: "plan-res",
             role: "ai",
-            text: `Рекомендованный план: ${plan}. Он включает нужные модули и подходит на ваш размер. Примерная цена — ${price}. Можно показать, как это будет выглядеть на ваших данных.`,
+            text:
+              locale === "ru"
+                ? `Рекомендованный план: ${plan}. Он включает нужные модули и подходит на ваш размер. Примерная цена — ${price}. Можно показать, как это будет выглядеть на ваших данных.`
+                : `Recommended plan: ${plan}. It includes the needed modules and fits your size. Approx price — ${price}. We can show how it looks on your data.`,
           },
         ];
       },
@@ -298,35 +361,44 @@ export function StressSenseAiWidget({
   const employeeQuickActions = [
     {
       id: "relief",
-      label: "Что сделать прямо сейчас?",
+      label: locale === "ru" ? "Что сделать прямо сейчас?" : "What to do right now?",
       response: [
-        "Сделайте 5-минутный перерыв без экрана.",
-        "Запишите 3 главные задачи и выберите одну на ближайшие 30 минут.",
-        "Выключите уведомления на 45 минут, чтобы завершить главное.",
+        locale === "ru" ? "Сделайте 5-минутный перерыв без экрана." : "Take a 5-minute break off screen.",
+        locale === "ru" ? "Запишите 3 главные задачи и выберите одну на ближайшие 30 минут." : "List 3 key tasks and pick one for the next 30 minutes.",
+        locale === "ru" ? "Выключите уведомления на 45 минут, чтобы завершить главное." : "Turn off notifications for 45 minutes to finish the main thing.",
       ],
     },
     {
       id: "manager",
-      label: "Как обсудить стресс с менеджером?",
+      label: locale === "ru" ? "Как обсудить стресс с менеджером?" : "How to discuss stress with your manager?",
       response: [
-        "«Я замечаю, что дедлайны часто сдвигаются, и это добавляет стресса. Давайте выберем 3 приоритета на неделю.»",
-        "Предложение: сократить часть митингов или сделать один фокус-день без встреч.",
+        locale === "ru"
+          ? "«Я замечаю, что дедлайны часто сдвигаются, и это добавляет стресса. Давайте выберем 3 приоритета на неделю.»"
+          : "“Deadlines keep shifting and it adds stress. Can we pick 3 priorities for the week?”",
+        locale === "ru" ? "Предложение: сократить часть митингов или сделать один фокус-день без встреч." : "Suggest cutting some meetings or having one focus day without calls.",
       ],
     },
     {
       id: "not-on-time",
-      label: "Что делать, если не успеваю?",
+      label: locale === "ru" ? "Что делать, если не успеваю?" : "What if I’m not keeping up?",
       response: [
         employeeState.mainTag === "workload"
-          ? "Принесите на 1:1 список задач и вместе выберите, что можно снять или перенести."
-          : "Согласуйте чёткие ожидания: что является успехом недели и что можно отложить.",
-        "Выделите один 90-минутный фокус-блок сегодня без митингов.",
+          ? locale === "ru"
+            ? "Принесите на 1:1 список задач и вместе выберите, что можно снять или перенести."
+            : "Bring a task list to your 1:1 and pick what to drop or move."
+          : locale === "ru"
+            ? "Согласуйте чёткие ожидания: что является успехом недели и что можно отложить."
+            : "Align clear expectations: what success is this week and what can be postponed.",
+        locale === "ru" ? "Выделите один 90-минутный фокус-блок сегодня без митингов." : "Block a 90‑minute no‑meeting focus slot today.",
       ],
     },
     {
       id: "resilience",
-      label: "Хочу прокачать устойчивость",
-      response: ["Попробуйте привычку: 10-мин прогулка или нет почты после 20:00.", "Выберите одну привычку и отметьте её сегодня — это даёт ощущение контроля."],
+      label: locale === "ru" ? "Хочу прокачать устойчивость" : "I want to build resilience",
+      response: [
+        locale === "ru" ? "Попробуйте привычку: 10-мин прогулка или нет почты после 20:00." : "Try a habit: 10‑minute walk or no email after 8pm.",
+        locale === "ru" ? "Выберите одну привычку и отметьте её сегодня — это даёт ощущение контроля." : "Pick one habit and do it today — it gives a sense of control.",
+      ],
     },
   ];
 
@@ -335,7 +407,11 @@ export function StressSenseAiWidget({
   const handleQuickAction = (id: string) => {
     if (mode === "manager") {
       if (id === "focus-week") {
-        const actions = managerFacts?.topNudges?.map((n) => `• ${n.title}`) ?? ["• Провести ревизию митингов", "• Назначить 1:1 с перегруженными", "• Уточнить приоритеты спринта"];
+        const actions =
+          managerFacts?.topNudges?.map((n) => `• ${n.title}`) ??
+          (locale === "ru"
+            ? ["• Провести ревизию митингов", "• Назначить 1:1 с перегруженными", "• Уточнить приоритеты спринта"]
+            : ["• Run a meeting audit", "• Schedule 1:1s with overloaded people", "• Clarify sprint priorities"]);
         pushMessage({
           id: "mgr-focus",
           role: "ai",
@@ -349,8 +425,12 @@ export function StressSenseAiWidget({
         const risky = managerFacts?.teams?.filter((t) => t.level === "UnderPressure" || t.level === "AtRisk") ?? [];
         const bullets =
           risky.length === 0
-            ? ["Нет At risk команд сейчас. Следите за participation и нагрузкой."]
-            : risky.map((t) => `Команда ${t.name}: уровень ${t.level}, nudges: ${t.nudges ?? 0}`);
+            ? [locale === "ru" ? "Нет At risk команд сейчас. Следите за participation и нагрузкой." : "No at-risk teams now. Track participation and workload."]
+            : risky.map((t) =>
+                locale === "ru"
+                  ? `Команда ${t.name}: уровень ${t.level}, nudges: ${t.nudges ?? 0}`
+                  : `Team ${t.name}: level ${t.level}, nudges: ${t.nudges ?? 0}`
+              );
         pushMessage({ id: "mgr-risks", role: "ai", kind: "bullets", text: "", bullets });
         return;
       }
@@ -359,13 +439,28 @@ export function StressSenseAiWidget({
           id: "mgr-explain",
           role: "ai",
           text:
-            "Пример сообщения: «Мы измеряем рабочий стресс, чтобы вовремя убирать перегруз и делать приоритеты прозрачнее. Опрос анонимный, смотрим только агрегаты по команде. По результатам дадим конкретные действия в Action center.»",
+            locale === "ru"
+              ? "Пример сообщения: «Мы измеряем рабочий стресс, чтобы вовремя убирать перегруз и делать приоритеты прозрачнее. Опрос анонимный, смотрим только агрегаты по команде. По результатам дадим конкретные действия в Action center.»"
+              : "Sample message: “We measure work stress to spot overload early and make priorities clearer. The survey is anonymous; we only show team aggregates. Results feed into specific actions in Action center.”",
         });
         return;
       }
     }
     if (id === "report") {
-      pushMessage({ id: "report-preview", role: "ai", kind: "report", text: "Вот как выглядит отчёт по стрессу в StressSense", reportData: { stress: 7, engagement: 8.3, insights: landingReportInsights } });
+      pushMessage({
+        id: "report-preview",
+        role: "ai",
+        kind: "report",
+        text: locale === "ru" ? "Вот как выглядит отчёт по стрессу в StressSense" : "Here’s how a StressSense stress report looks",
+        reportData: {
+          stress: 7,
+          engagement: 8.3,
+          insights:
+            locale === "ru"
+              ? landingReportInsights
+              : [t(locale, "widgetLandingInsight1"), t(locale, "widgetLandingInsight2"), t(locale, "widgetLandingInsight3")],
+        },
+      });
       return;
     }
     if (id === "privacy") {
@@ -420,28 +515,34 @@ export function StressSenseAiWidget({
     const userMessage: Message = { id: crypto.randomUUID(), role: "user", text: input.trim() };
     setMessages((prev) => [...prev, userMessage]);
     const answer =
-      keywordAnswers.find((k) => k.keywords.some((kw) => input.toLowerCase().includes(kw)))?.text ||
+      keywordAnswers(locale).find((k) => k.keywords.some((kw) => input.toLowerCase().includes(kw)))?.text ||
       (mode === "employee"
-        ? "Это похоже на вопрос про рабочий стресс. Я помогу с фокусом, привычками и разговором с менеджером, но не даю медицинских советов."
+        ? locale === "ru"
+          ? "Это похоже на вопрос про рабочий стресс. Я помогу с фокусом, привычками и разговором с менеджером, но не даю медицинских советов."
+          : "Sounds like a work-stress question. I’ll help with focus, habits, and talking to your manager—no medical advice."
         : mode === "manager"
-          ? "Сфокусируйтесь на командах с высоким стрессом и низким participation. Откройте Action center, чтобы закрыть nudges."
-          : "StressSense измеряет стресс и вовлечённость, даёт AI-подсказки и работает только с агрегированными данными.");
+          ? locale === "ru"
+            ? "Сфокусируйтесь на командах с высоким стрессом и низким participation. Откройте Action center, чтобы закрыть nudges."
+            : "Focus on teams with high stress and low participation. Open Action center to close nudges."
+          : locale === "ru"
+            ? "StressSense измеряет стресс и вовлечённость, даёт AI-подсказки и работает только с агрегированными данными."
+            : "StressSense measures stress and engagement, gives AI tips, and works only with aggregated data.");
     setMessages((prev) => [...prev, { id: crypto.randomUUID(), role: "ai", text: answer }]);
     setInput("");
     setTab("messages");
   };
 
   const quickActionsLanding = [
-    { id: "report", label: "Показать отчёт по стрессу" },
-    { id: "simulate", label: "Смоделировать стресс в команде" },
-    { id: "privacy", label: "Как мы работаем с данными" },
-    { id: "plan", label: "Подобрать план и цену" },
+    { id: "report", label: locale === "ru" ? "Показать отчёт по стрессу" : "Show stress report" },
+    { id: "simulate", label: locale === "ru" ? "Смоделировать стресс в команде" : "Simulate team stress" },
+    { id: "privacy", label: locale === "ru" ? "Как мы работаем с данными" : "How we handle data" },
+    { id: "plan", label: locale === "ru" ? "Подобрать план и цену" : "Pick a plan and price" },
   ];
 
   const managerQuickActions = [
-    { id: "focus-week", label: "What should I focus on this week?" },
-    { id: "risk-teams", label: "Which teams are at risk?" },
-    { id: "explain-pulse", label: "Как объяснить командe, зачем мы измеряем стресс?" },
+    { id: "focus-week", label: locale === "ru" ? "На чём сфокусироваться на этой неделе?" : "What should I focus on this week?" },
+    { id: "risk-teams", label: locale === "ru" ? "Какие команды в риске?" : "Which teams are at risk?" },
+    { id: "explain-pulse", label: locale === "ru" ? "Как объяснить команде, зачем мы измеряем стресс?" : "How to explain why we measure stress?" },
   ];
 
   const employeeQuestionsList = ["Почему у меня высокий стресс?", "Что делать, если дедлайны горят?", "Как не думать о работе вечером?"];
@@ -465,8 +566,8 @@ export function StressSenseAiWidget({
           >
             {msg.kind === "report" ? (
               <div className="space-y-2 text-left">
-                <p className="text-xs font-semibold text-primary/90">Мини-отчёт</p>
-                <ReportMiniCard />
+                <p className="text-xs font-semibold text-primary/90">{locale === "ru" ? "Мини-отчёт" : "Mini report"}</p>
+                <ReportMiniCard locale={locale} />
               </div>
             ) : msg.kind === "bullets" ? (
               <ul className="space-y-1 text-left">
@@ -489,8 +590,12 @@ export function StressSenseAiWidget({
   const renderHomeLanding = () => (
     <div className="space-y-4">
       <div className="rounded-2xl bg-white/70 p-4 text-sm shadow-sm ring-1 ring-slate-200">
-        <p className="text-base font-semibold text-slate-900">Hi there 👋 Я StressSense AI</p>
-        <p className="text-slate-600">Помогу показать, как мы измеряем и снижаем стресс команд.</p>
+        <p className="text-base font-semibold text-slate-900">
+          {locale === "ru" ? "Привет! Я StressSense AI" : "Hi there 👋 I’m StressSense AI"}
+        </p>
+        <p className="text-slate-600">
+          {locale === "ru" ? "Помогу показать, как мы измеряем и снижаем стресс команд." : "I’ll show how we measure and reduce team stress."}
+        </p>
       </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {quickActionsLanding.map((qa) => (
@@ -624,17 +729,24 @@ export function StressSenseAiWidget({
   );
 
   const startEmployeeCheckin = () => {
-    pushMessage({ id: "checkin-ask-1", role: "ai", text: "Как ты себя чувствуешь сегодня по шкале 1–5?" });
+    pushMessage({
+      id: "checkin-ask-1",
+      role: "ai",
+      text: locale === "ru" ? "Как ты себя чувствуешь сегодня по шкале 1–5?" : "How do you feel today on a scale of 1–5?",
+    });
     pushMessage({
       id: "checkin-ask-2",
       role: "ai",
-      text: "Что сильнее всего давит сегодня? Выбери вариант: дедлайны, митинги, ясность задач, личное.",
+      text:
+        locale === "ru"
+          ? "Что сильнее всего давит сегодня? Выбери вариант: дедлайны, митинги, ясность задач, личное."
+          : "What pressures you most today? Pick one: deadlines, meetings, task clarity, personal.",
     });
   };
 
   const renderHelp = () => (
     <div className="space-y-3">
-      {(mode === "landing" ? landingHelpCategories : employeeHelpCategories).map((cat) => (
+      {(mode === "landing" ? landingHelpCategories(locale) : employeeHelpCategories(locale)).map((cat) => (
         <details key={cat.title} className="rounded-2xl bg-white p-3 shadow-sm ring-1 ring-slate-200">
           <summary className="cursor-pointer text-sm font-semibold text-slate-800">{cat.title}</summary>
           <div className="mt-2 space-y-2 text-sm text-slate-600">
@@ -656,11 +768,15 @@ export function StressSenseAiWidget({
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm font-semibold">StressSense AI (beta)</p>
-            <p className="text-xs text-white/80">Только про рабочий стресс и вовлечённость. Без медицинских рекомендаций.</p>
+            <p className="text-xs text-white/80">
+              {locale === "ru"
+                ? "Только про рабочий стресс и вовлечённость. Без медицинских рекомендаций."
+                : "Work stress and engagement only. No medical advice."}
+            </p>
           </div>
           {showClose && (
             <button onClick={() => setOpen(false)} className="rounded-full bg-white/20 px-3 py-1 text-xs font-semibold hover:bg-white/30">
-              Закрыть
+              {locale === "ru" ? "Закрыть" : "Close"}
             </button>
           )}
         </div>

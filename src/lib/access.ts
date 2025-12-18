@@ -20,12 +20,10 @@ export async function getUserWithTeams() {
 }
 
 export async function ensureOrgSettings(organizationId: string) {
-  const settings = await prisma.organizationSettings.findUnique({ where: { organizationId } });
-  if (settings) return settings;
-  return prisma.organizationSettings.create({
-    data: {
-      organizationId,
-    },
+  return prisma.organizationSettings.upsert({
+    where: { organizationId },
+    create: { organizationId },
+    update: {},
   });
 }
 

@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { SurveyReport } from "@/components/app/SurveyReport";
+import { SurveyReportWithAiPanel } from "@/components/app/SurveyReportWithAiPanel";
 
 type Props = { params: { id: string } };
 
@@ -20,12 +20,12 @@ export default async function TeamStressPage({ params }: Props) {
 
   const timeseries =
     history.length > 0
-      ? history.map((h: any) => ({ label: h.periodLabel, value: h.engagementScore ?? 0 }))
+      ? history.map((h: any) => ({ label: h.periodLabel, value: h.engagementScore ?? 0, date: h.createdAt }))
       : [
-          { label: "W1", value: team.engagementScore ?? 7.0 },
-          { label: "W2", value: (team.engagementScore ?? 7.0) + 0.1 },
-          { label: "W3", value: (team.engagementScore ?? 7.0) - 0.2 },
-          { label: "W4", value: (team.engagementScore ?? 7.0) + 0.3 },
+          { label: "W1", value: team.engagementScore ?? 7.0, date: new Date(Date.now() - 21 * 24 * 60 * 60 * 1000) },
+          { label: "W2", value: (team.engagementScore ?? 7.0) + 0.1, date: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000) },
+          { label: "W3", value: (team.engagementScore ?? 7.0) - 0.2, date: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },
+          { label: "W4", value: (team.engagementScore ?? 7.0) + 0.3, date: new Date() },
         ];
 
   const drivers = [
@@ -33,6 +33,10 @@ export default async function TeamStressPage({ params }: Props) {
     { name: "Recognition", score: 6.8, delta: 0.1 },
     { name: "Workload", score: team.stressIndex ?? 6.5, delta: -0.2 },
   ];
+  const firstDate = timeseries[0]?.date ? new Date(timeseries[0].date) : new Date(Date.now() - 28 * 24 * 60 * 60 * 1000);
+  const lastDate = timeseries[timeseries.length - 1]?.date ? new Date(timeseries[timeseries.length - 1].date) : new Date();
+  const periodFrom = firstDate.toISOString().slice(0, 10);
+  const periodTo = lastDate.toISOString().slice(0, 10);
 
   return (
     <div className="space-y-6">
@@ -47,7 +51,7 @@ export default async function TeamStressPage({ params }: Props) {
         <Metric label="Participation" value={`${team.participation ?? 0}%`} />
       </div>
 
-      <SurveyReport
+      <SurveyReportWithAiPanel
         title="Team survey report"
         subtitle="Live preview"
         score={team.engagementScore ?? 0}
@@ -56,6 +60,8 @@ export default async function TeamStressPage({ params }: Props) {
         periodLabel="Last 6 weeks"
         timeseries={timeseries}
         drivers={drivers}
+        periodFrom={periodFrom}
+        periodTo={periodTo}
       />
     </div>
   );

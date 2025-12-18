@@ -1,13 +1,16 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { NpsWidget } from "@/components/app/NpsWidget";
-import { SurveyReport } from "@/components/app/SurveyReport";
+import { SurveyReportWithAiPanel } from "@/components/app/SurveyReportWithAiPanel";
+import { getLocale } from "@/lib/i18n-server";
+import { initialActions, type ActionItem } from "@/lib/actionCenterMocks";
 
 export default async function OverviewPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
   // Позволяем всем ролям видеть обзор, как в старой версии
+  const locale = await getLocale();
+  const isRu = locale === "ru";
 
   const teams = await prisma.team.findMany({ where: { organizationId: user.organizationId }, orderBy: { createdAt: "desc" } });
   const runs = (await prisma.surveyRun.findMany({ where: { orgId: user.organizationId }, orderBy: { launchedAt: "desc" }, take: 5 })) ?? [];
@@ -64,35 +67,84 @@ export default async function OverviewPage() {
       ? safeRuns.map((run: any, idx: number) => ({
           label: run.launchedAt ? new Date(run.launchedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : `W${idx + 1}`,
           value: run.avgEngagementScore ?? engagementScore,
+          date: run.launchedAt ?? null,
         }))
       : [
-          { label: "Mar", value: Math.max(6.5, engagementScore - 0.3) },
-          { label: "Apr", value: Math.max(6.5, engagementScore - 0.2) },
-          { label: "May", value: engagementScore - 0.1 },
-          { label: "Jun", value: engagementScore + 0.2 },
-          { label: "Jul", value: engagementScore + 0.1 },
-          { label: "Aug", value: engagementScore + 0.3 },
+          { label: "Jul", value: Math.max(6.5, engagementScore - 0.3), date: new Date(Date.now() - 150 * 24 * 60 * 60 * 1000) },
+          { label: "Aug", value: Math.max(6.5, engagementScore - 0.2), date: new Date(Date.now() - 120 * 24 * 60 * 60 * 1000) },
+          { label: "Sep", value: engagementScore - 0.1, date: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000) },
+          { label: "Oct", value: engagementScore + 0.2, date: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000) },
+          { label: "Nov", value: engagementScore + 0.1, date: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
+          { label: "Dec", value: engagementScore + 0.3, date: new Date() },
         ];
 
   const driverCards = [
-    { name: "Alignment", score: 7.6, delta: 0.2 },
-    { name: "Recognition", score: 7.2, delta: 0.1 },
-    { name: "Workload", score: Math.max(0, 10 - avgStress), delta: -0.3 },
-    { name: "Psych. safety", score: 7.9, delta: 0.4 },
-    { name: "Wellbeing", score: 7.1, delta: -0.1 },
+    { name: isRu ? "Вовлечённость" : "Alignment", score: 7.6, delta: 0.2 },
+    { name: isRu ? "Признание" : "Recognition", score: 7.2, delta: 0.1 },
+    { name: isRu ? "Нагрузка" : "Workload", score: Math.max(0, 10 - avgStress), delta: -0.3 },
+    { name: isRu ? "Псих. безопасность" : "Psych. safety", score: 7.9, delta: 0.4 },
+    { name: isRu ? "Благополучие" : "Wellbeing", score: 7.1, delta: -0.1 },
   ];
+  const watchThreshold = 7.5;
+  const firstDate = reportTimeseries[0]?.date ? new Date(reportTimeseries[0].date) : new Date(Date.now() - 180 * 24 * 60 * 60 * 1000);
+  const lastDate = reportTimeseries[reportTimeseries.length - 1]?.date ? new Date(reportTimeseries[reportTimeseries.length - 1].date) : new Date();
+  const periodFrom = firstDate.toISOString().slice(0, 10);
+  const periodTo = lastDate.toISOString().slice(0, 10);
+
+  const computeWeekdayStreak = (dates: (Date | null | undefined)[]) => {
+    const daySet = new Set(
+      dates
+        .filter((d): d is Date => !!d)
+        .map((d) => {
+          const local = new Date(d);
+          local.setHours(0, 0, 0, 0);
+          return local.toISOString().slice(0, 10);
+        })
+    );
+    let streak = 0;
+    const cursor = new Date();
+    cursor.setHours(0, 0, 0, 0);
+
+    while (true) {
+      const day = cursor.getDay();
+      if (day === 0 || day === 6) {
+        cursor.setDate(cursor.getDate() - 1);
+        continue;
+      }
+      const iso = cursor.toISOString().slice(0, 10);
+      if (daySet.has(iso)) {
+        streak += 1;
+        cursor.setDate(cursor.getDate() - 1);
+        continue;
+      }
+      break;
+    }
+    return streak;
+  };
+
+  const streak = computeWeekdayStreak(reportTimeseries.map((p) => (p as any).date ? new Date((p as any).date) : null));
+  const focusActions = initialActions.filter((a) => a.status !== "done").slice(0, 3) as ActionItem[];
+  const dueLabel = (days: number) => {
+    if (days < 0) return isRu ? `Просрочено на ${Math.abs(days)} дн.` : `Overdue by ${Math.abs(days)} days`;
+    if (days === 0) return isRu ? "Срок сегодня" : "Due today";
+    return isRu ? `До срока: ${days} дн.` : `Due in ${days} days`;
+  };
 
   return (
     <div className="space-y-6">
       <header className="flex items-center justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.22em] text-primary">StressSense</p>
-          <h1 className="text-2xl font-semibold text-slate-900">Stress overview</h1>
-          <p className="text-sm text-slate-600">Quick snapshot of your StressSense workspace.</p>
+          <h1 className="text-2xl font-semibold text-slate-900">{isRu ? "Обзор стресса" : "Stress overview"}</h1>
+          <p className="text-sm text-slate-600">
+            {isRu ? "Краткий снимок состояния рабочего пространства." : "Quick snapshot of your StressSense workspace."}
+          </p>
         </div>
-        <div className="flex items-center gap-4 text-xs">
-          <span className="rounded-full bg-slate-100 px-3 py-1 font-semibold text-slate-700">EN</span>
-          <span className="rounded-full bg-indigo-50 px-3 py-1 font-semibold text-indigo-700">RU</span>
+        <div className="flex flex-wrap items-center justify-end gap-3 text-xs">
+          <div className="flex items-center gap-2 rounded-full bg-amber-50 px-3 py-1 text-sm font-semibold text-amber-800 ring-1 ring-amber-200">
+            <span>🔥</span>
+            <span>{isRu ? `Серия опросов: ${streak} дн.` : `Survey streak: ${streak} days`}</span>
+          </div>
         </div>
       </header>
 
@@ -100,136 +152,126 @@ export default async function OverviewPage() {
         <div className="flex flex-wrap items-start justify-between gap-6">
           <div className="space-y-2">
             <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary">At a glance</p>
-            <h3 className="text-xl font-semibold text-slate-900">Workspace health</h3>
-            <p className="text-sm text-slate-600 max-w-xl">Snapshot of stress, participation, engagement.</p>
+            <h3 className="text-xl font-semibold text-slate-900">{isRu ? "Здоровье пространства" : "Workspace health"}</h3>
+            <p className="text-sm text-slate-600 max-w-xl">
+              {isRu ? "Стресс, участие и вовлечённость в одном виде." : "Snapshot of stress, participation, engagement."}
+            </p>
           </div>
           <div className="grid grid-cols-2 gap-3 text-sm md:grid-cols-4">
-            <Metric label="Average stress index" value={`${avgStress.toFixed(1)}`} />
-            <Metric label="Participation rate" value={`${participation}%`} />
-            <Metric label="Engagement score" value={`${avgEngagement.toFixed(1)}`} />
-            <Metric label="Active surveys" value={`${activeSurveys}`} />
+            <Metric label={isRu ? "Средний индекс стресса" : "Average stress index"} value={`${avgStress.toFixed(1)}`} />
+            <Metric label={isRu ? "Уровень участия" : "Participation rate"} value={`${participation}%`} />
+            <Metric label={isRu ? "Индекс вовлечённости" : "Engagement score"} value={`${avgEngagement.toFixed(1)}`} />
+            <Metric label={isRu ? "Активных опросов" : "Active surveys"} value={`${activeSurveys}`} />
           </div>
         </div>
       </section>
 
       <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
-        <SurveyReport
-          title="Survey report"
-          subtitle="Live preview"
+        <SurveyReportWithAiPanel
+          title={isRu ? "Отчёт по опросу" : "Survey report"}
+          subtitle={isRu ? "Онлайн-просмотр" : "Live preview"}
           score={engagementScore || 0}
           delta={0.6}
           deltaDirection="up"
-          periodLabel="Last 6 months"
+          periodLabel={isRu ? "Последние 6 месяцев" : "Last 6 months"}
           timeseries={reportTimeseries}
           drivers={driverCards}
-          ctaLabel="Analyze engagement"
+          ctaLabel={isRu ? "Проанализировать вовлечённость" : "Analyze engagement"}
+          locale={locale}
+          periodFrom={periodFrom}
+          periodTo={periodTo}
         />
       </section>
 
       <section className="grid gap-3 lg:grid-cols-2">
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary">AI insight</p>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary">
+            {isRu ? "AI инсайт" : "AI insight"}
+          </p>
           <ul className="mt-3 space-y-2 text-sm text-slate-700">
-            <li>• Engagement steady, recognition and support drive sentiment.</li>
-            <li>• Watch workload spikes in Product; clarify weekly priorities.</li>
-            <li>• Participation is healthy; keep short updates to sustain it.</li>
+            <li>
+              {isRu
+                ? "• Вовлечённость стабильна, поддержку и признание стоит укреплять."
+                : "• Engagement steady; recognition and support drive sentiment."}
+            </li>
+            <li>
+              {isRu
+                ? "• Следите за нагрузкой в Product и уточняйте приоритеты недели."
+                : "• Watch workload spikes in Product; clarify weekly priorities."}
+            </li>
+            <li>
+              {isRu
+                ? "• Участие хорошее — короткие апдейты помогут удержать уровень."
+                : "• Participation is healthy; keep short updates to sustain it."}
+            </li>
           </ul>
-          <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-primary">AI generated</p>
+          <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-primary">
+            {isRu ? "AI сгенерировано" : "AI generated"}
+          </p>
         </div>
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex items-center justify-between">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary">Your focus this week</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary">
+              {isRu ? "Фокус недели" : "Your focus this week"}
+            </p>
             <a href="/app/actions" className="text-sm font-semibold text-primary hover:underline">
-              Открыть Action center
+              {isRu ? "Открыть Action center" : "Open Action center"}
             </a>
           </div>
           <div className="mt-3 space-y-3">
-            <div className="rounded-2xl border border-slate-100 bg-slate-50 px-3 py-2 shadow-inner">
-              <p className="text-sm font-semibold text-slate-900">Run 1:1s with overloaded teams</p>
-              <p className="text-xs text-slate-600">Discuss priorities and unblock top tasks.</p>
-            </div>
-            <div className="rounded-2xl border border-slate-100 bg-slate-50 px-3 py-2 shadow-inner">
-              <p className="text-sm font-semibold text-slate-900">Celebrate recent wins</p>
-              <p className="text-xs text-slate-600">Boost recognition in next team huddle.</p>
-            </div>
-            <div className="rounded-2xl border border-slate-100 bg-slate-50 px-3 py-2 shadow-inner">
-              <p className="text-sm font-semibold text-slate-900">Clarify sprint priorities</p>
-              <p className="text-xs text-slate-600">Share 3 outcomes for the next two weeks.</p>
-            </div>
+            {focusActions.map((a) => (
+              <div key={a.id} className="rounded-2xl border border-slate-100 bg-slate-50 px-3 py-3 shadow-inner">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-700 ring-1 ring-slate-200">{a.teamName}</span>
+                  <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-700 ring-1 ring-slate-200">{a.priority}</span>
+                  <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-700 ring-1 ring-slate-200">{dueLabel(a.dueInDays)}</span>
+                </div>
+                <p className="mt-2 text-sm font-semibold text-slate-900">{a.title}</p>
+                <p className="text-xs text-slate-600">{a.description}</p>
+                <p className="mt-1 text-xs font-semibold text-slate-700">
+                  {isRu ? "Драйвер" : "Driver"}: {a.driver} · {isRu ? "Опрос" : "Survey"} {a.sourceSurveyDate}
+                </p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {a.tags.map((t) => (
+                    <span key={t} className="rounded-full bg-white px-2 py-1 text-[11px] font-semibold text-slate-700 ring-1 ring-slate-200">
+                      {t}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ))}
+            {focusActions.length === 0 && <p className="text-sm text-slate-600">{isRu ? "Нет приоритетных действий." : "No focus actions yet."}</p>}
           </div>
         </div>
       </section>
 
-      <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary">Your focus this week</p>
-            <p className="text-sm text-slate-600">Основано на последних опросах стресса</p>
-          </div>
-          <a href="/app/actions" className="text-sm font-semibold text-primary hover:underline">
-            Открыть Action center
-          </a>
-        </div>
-        <div className="mt-4 grid gap-3 md:grid-cols-2">
-          {safeNudges.slice(0, 3).map((nudge: any) => (
-            <div key={nudge.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4 shadow-sm">
-              <div className="flex items-start justify-between gap-3">
-                <div className="space-y-1">
-                  <p className="text-sm font-semibold text-slate-900">{nudge.template?.title ?? "Nudge"}</p>
-                  <p className="text-xs text-slate-600">
-                    {nudge.template?.description ?? "Suggested action based on team stress"} {nudge.team ? `· ${nudge.team.name}` : ""}
-                  </p>
-                  <div className="flex flex-wrap gap-2 pt-1">
-                    {(nudge.tags ?? nudge.template?.triggerTags ?? []).slice(0, 3).map((tag: string) => (
-                      <span key={tag} className="rounded-full bg-white px-2 py-1 text-[11px] font-semibold text-slate-700 ring-1 ring-slate-200">
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-                <span
-                  className={`rounded-full px-3 py-1 text-[11px] font-semibold uppercase ${
-                    nudge.status === "planned"
-                      ? "bg-amber-50 text-amber-700"
-                      : "bg-emerald-50 text-emerald-700"
-                  }`}
-                >
-                  {nudge.status}
-                </span>
-              </div>
-            </div>
-          ))}
-          {(nudges ?? []).length === 0 && (
-            <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-5 text-sm text-slate-600">
-              Нет активных действий — запустите опрос, чтобы получить рекомендации.
-            </div>
-          )}
-        </div>
-      </section>
+      {/* Убрали дублирующий блок "Фокус недели" с nudges */}
 
       <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-        <h3 className="text-lg font-semibold text-slate-900">Recent surveys</h3>
+        <h3 className="text-lg font-semibold text-slate-900">{isRu ? "Недавние опросы" : "Recent surveys"}</h3>
         <div className="mt-3 space-y-2">
           {safeRuns.map((run: any) => (
             <div key={run.id} className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm shadow-sm">
               <div>
                 <p className="font-semibold text-slate-900">{run.title}</p>
                 <p className="text-xs text-slate-500">
-                  {new Date(run.launchedAt).toLocaleDateString()} · stress {run.avgStressIndex?.toFixed(1) ?? "n/a"} · engagement{" "}
-                  {run.avgEngagementScore?.toFixed(1) ?? "n/a"}
+                  {new Date(run.launchedAt).toLocaleDateString()} · {isRu ? "стресс" : "stress"} {run.avgStressIndex?.toFixed(1) ?? "n/a"} ·{" "}
+                  {isRu ? "вовлечённость" : "engagement"} {run.avgEngagementScore?.toFixed(1) ?? "n/a"}
                 </p>
               </div>
             </div>
           ))}
-          {safeRuns.length === 0 && <p className="text-sm text-slate-600">No surveys yet.</p>}
+          {safeRuns.length === 0 && <p className="text-sm text-slate-600">{isRu ? "Пока нет опросов." : "No surveys yet."}</p>}
         </div>
       </section>
 
       <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-lg font-semibold text-slate-900">Команды</h3>
-            <p className="text-sm text-slate-600">Stress / Engagement / Participation</p>
+            <h3 className="text-lg font-semibold text-slate-900">{isRu ? "Команды" : "Teams"}</h3>
+            <p className="text-sm text-slate-600">
+              {isRu ? "Стресс / Вовлечённость / Участие" : "Stress / Engagement / Participation"}
+            </p>
           </div>
           <a href="/app/teams" className="text-sm font-semibold text-primary hover:underline">
             Все команды
@@ -240,14 +282,23 @@ export default async function OverviewPage() {
             <div key={team.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4 shadow-sm">
               <div className="flex items-center justify-between">
                 <p className="text-sm font-semibold text-slate-900">{team.name}</p>
-                <span className="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-semibold uppercase text-slate-600">
-                  {team.status ?? "Watch"}
-                </span>
+                {(() => {
+                  const statusValue = team.stressIndex ?? 0;
+                  const statusLabel =
+                    statusValue >= watchThreshold ? (isRu ? "В риске" : "At risk") : isRu ? "Watch" : "Watch";
+                  const badgeClass =
+                    statusValue >= watchThreshold ? "bg-rose-50 text-rose-700" : "bg-amber-50 text-amber-700";
+                  return (
+                    <span className={`rounded-full px-3 py-1 text-[11px] font-semibold uppercase ${badgeClass}`}>
+                      {statusLabel}
+                    </span>
+                  );
+                })()}
               </div>
               <div className="mt-3 flex items-center justify-between text-xs font-semibold text-slate-700">
-                <span>Stress {(team.stressIndex ?? 0).toFixed(1)}</span>
-                <span>Eng {(team.engagementScore ?? 0).toFixed(1)}</span>
-                <span>Part {Math.round(team.participation ?? 0)}%</span>
+                <span>{isRu ? "Стресс" : "Stress"} {(team.stressIndex ?? 0).toFixed(1)}</span>
+                <span>{isRu ? "Вовл." : "Eng"} {(team.engagementScore ?? 0).toFixed(1)}</span>
+                <span>{isRu ? "Участие" : "Part"} {Math.round(team.participation ?? 0)}%</span>
               </div>
             </div>
           ))}
@@ -256,18 +307,6 @@ export default async function OverviewPage() {
               Пока нет команд. Создайте команду, чтобы получать метрики.
             </div>
           )}
-        </div>
-      </section>
-
-      <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-lg font-semibold text-slate-900">Tell us how we’re doing</h3>
-            <p className="text-xs text-slate-500">Quick NPS check</p>
-          </div>
-        </div>
-        <div className="mt-3">
-          <NpsWidget surveyId="nps_default" />
         </div>
       </section>
 

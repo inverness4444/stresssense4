@@ -61,12 +61,12 @@ export default function Header({ locale = "en" }: { locale?: Locale }) {
 
         <nav className="hidden flex-1 items-center justify-center gap-8 text-sm font-semibold text-slate-700 md:flex">
           {[
-            { href: "#product", label: locale === "ru" ? "О продукте" : "Product" },
-            { href: "#solutions", label: locale === "ru" ? "Решения" : "Solutions" },
-            { href: "#how", label: locale === "ru" ? "Как работает" : "How it works" },
-            { href: "#integrations", label: locale === "ru" ? "Интеграции" : "Integrations" },
-            { href: "#pricing", label: locale === "ru" ? "Цены" : "Pricing" },
-            { href: "#demo", label: "Live demo" },
+            { href: "#product", label: t(locale, "headerProduct") },
+            { href: "#solutions", label: t(locale, "headerSolutions") },
+            { href: "#how", label: t(locale, "headerHow") },
+            { href: "#integrations", label: t(locale, "headerIntegrations") },
+            { href: "#pricing", label: t(locale, "headerPricing") },
+            { href: "#demo", label: t(locale, "headerDemo") },
           ].map((item) => (
             <a
               key={item.href}

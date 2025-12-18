@@ -26,10 +26,10 @@ export default async function ArticlePage({ params }: Props) {
         <h3 className="text-lg font-semibold text-slate-900">See it in action</h3>
         <p className="text-sm text-slate-600">Запустите стресс-пульс за пару минут и покажите данные команде.</p>
         <a
-          href="/demo"
+          href="/signup"
           className="mt-3 inline-flex rounded-full bg-gradient-to-r from-primary to-primary-strong px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:scale-[1.02]"
         >
-          Try live demo
+          Start free trial
         </a>
       </div>
     </div>

@@ -1,8 +1,9 @@
-'use server';
+"use server";
 
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { ensureDefaultSurveyTemplate } from "@/lib/surveySeed";
 
 type CreateSurveyInput = {
   name: string;
@@ -17,26 +18,36 @@ type CreateSurveyInput = {
 export async function createSurvey(input: CreateSurveyInput) {
   const user = await getCurrentUser();
   if (!user) return { error: "Unauthorized" };
-  if (!["HR", "Manager"].includes(user.role)) return { error: "Forbidden" };
+  const role = (user.role ?? "").toUpperCase();
+  if (!["HR", "MANAGER", "ADMIN"].includes(role)) return { error: "Forbidden" };
 
-  const template = await prisma.surveyTemplate.findFirst({ include: { questions: true } });
+  const template = await ensureDefaultSurveyTemplate();
   if (!template) return { error: "No survey templates available" };
-  const teamId = input.teamIds[0] ?? null;
 
-  await prisma.surveyRun.create({
-    data: {
-      orgId: user.organizationId,
-      teamId,
-      templateId: template.id,
-      title: input.name || template.title,
-      launchedByUserId: user.id,
-      targetCount: 0,
-      completedCount: 0,
-      avgStressIndex: null,
-      avgEngagementScore: null,
-      tags: [],
-    },
-  });
+  const launchedAt =
+    input.startNow || !input.startsAt ? new Date() : new Date(input.startsAt);
+
+  const teamsToTarget = input.teamIds.length ? input.teamIds : [null];
+
+  await Promise.all(
+    teamsToTarget.map((teamId) =>
+      prisma.surveyRun.create({
+        data: {
+          orgId: user.organizationId,
+          teamId: teamId ?? null,
+          templateId: template.id,
+          title: input.name || template.name,
+          launchedByUserId: user.id,
+          launchedAt,
+          targetCount: 0,
+          completedCount: 0,
+          avgStressIndex: null,
+          avgEngagementScore: null,
+          tags: [],
+        },
+      })
+    )
+  );
 
   revalidatePath("/app/surveys");
   return { success: true };

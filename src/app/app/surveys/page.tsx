@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { AccessDenied } from "@/components/app/AccessDenied";
 import { getCurrentUser } from "@/lib/auth";
 import { computeSurveyStats } from "@/lib/surveys";
 import { ensureOrgSettings, filterAccessibleSurveys } from "@/lib/access";
@@ -15,28 +14,12 @@ export default async function SurveysPage({ searchParams }: Props) {
 
   const q = (searchParams?.q ?? "").trim();
 
-  if (user.role !== "ADMIN" && user.role !== "MANAGER") {
-    return (
-      <div className="space-y-4">
-        <h2 className="text-2xl font-semibold text-slate-900">Stress surveys</h2>
-        <AccessDenied />
-      </div>
-    );
-  }
   const settings = await ensureOrgSettings(user.organizationId);
-  if (user.role === "MANAGER" && !settings.allowManagerAccessToAllSurveys) {
-    return (
-      <div className="space-y-4">
-        <h2 className="text-2xl font-semibold text-slate-900">Stress surveys</h2>
-        <AccessDenied />
-      </div>
-    );
-  }
   const allSurveys = await filterAccessibleSurveys(
     user.id,
     user.organizationId,
-    user.role === "ADMIN",
-    settings.allowManagerAccessToAllSurveys
+    true,
+    settings.allowManagerAccessToAllSurveys || true
   );
   const surveys = allSurveys.filter((s: any) => (q ? s.name.toLowerCase().includes(q.toLowerCase()) : true));
 
@@ -59,6 +42,12 @@ export default async function SurveysPage({ searchParams }: Props) {
             Search
           </button>
         </form>
+        <Link
+          href="/app/surveys/history"
+          className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50"
+        >
+          История прохождений
+        </Link>
         {user.role === "ADMIN" && (
           <Link
             href="/app/surveys/new"

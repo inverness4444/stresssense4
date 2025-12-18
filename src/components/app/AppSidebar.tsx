@@ -6,6 +6,7 @@ import type { OrganizationSettings, User } from "@prisma/client";
 import { t, type Locale } from "@/lib/i18n";
 import { isFeatureEnabled } from "@/lib/features";
 import clsx from "clsx";
+import { useSelfStressSurvey } from "./SelfStressSurveyProvider";
 
 type SidebarProps = {
   user: User & { organizationId: string };
@@ -16,7 +17,7 @@ type SidebarProps = {
 
 export function AppSidebar({ user, locale, settings, actionCount }: SidebarProps) {
   const pathname = usePathname();
-  const schedulesEnabled = isFeatureEnabled("schedules", settings);
+  const { openSurvey } = useSelfStressSurvey();
   const notificationsEnabled = isFeatureEnabled("notifications", settings);
   const billingEnabled = isFeatureEnabled("growth_module_v1", settings);
   const role = (user.role ?? "").toUpperCase();
@@ -24,17 +25,17 @@ export function AppSidebar({ user, locale, settings, actionCount }: SidebarProps
   const navItems = [
     // Базовые пункты видны всем
     { href: "/app/overview", label: t(locale, "navOverview"), icon: HomeIcon },
-    { href: "/app/my/home", label: "My wellbeing", icon: HomeIcon },
-    { href: "/app/actions", label: "Action center", icon: ClipboardIcon, badge: actionCount },
+    { href: "/app/my/home", label: t(locale, "navMyWellbeing"), icon: HomeIcon },
+    { href: "/app/actions", label: t(locale, "navActionCenter"), icon: ClipboardIcon, badge: actionCount },
+    { href: "/app/manager/home", label: t(locale, "navTeamsOverview"), icon: LayersIcon, roles: ["MANAGER", "HR"] },
     // Остальные — по ролям, чтобы у сотрудника не было лишнего (настройки, биллинг и т.д.)
     { href: "/app/employees", label: t(locale, "navEmployees"), icon: UsersIcon, roles: ["HR", "ADMIN"] },
     { href: "/app/teams", label: t(locale, "navTeams"), icon: LayersIcon, roles: ["HR", "ADMIN", "MANAGER"] },
-    { href: "/app/surveys", label: t(locale, "navSurveys"), icon: ClipboardIcon, roles: ["HR", "ADMIN", "MANAGER"] },
+    { href: "/app/my/stress-survey", label: t(locale, "navSurveys"), icon: ClipboardIcon, roles: ["EMPLOYEE", "HR", "ADMIN", "MANAGER"] },
     ...(notificationsEnabled ? [{ href: "/app/notifications", label: t(locale, "navNotifications"), icon: BellIcon, roles: ["HR", "ADMIN", "MANAGER", "EMPLOYEE"] }] : []),
-    ...(schedulesEnabled ? [{ href: "/app/schedules", label: t(locale, "navSchedules"), icon: CalendarIcon, roles: ["HR", "ADMIN"] }] : []),
-    { href: "/app/developers", label: "Developers", icon: CodeIcon, roles: ["HR", "ADMIN"] },
+    { href: "/app/developers", label: t(locale, "navDevelopers"), icon: CodeIcon, roles: ["HR", "ADMIN"] },
     { href: "/app/settings", label: t(locale, "navSettings"), icon: SettingsIcon, roles: ["HR", "ADMIN"] },
-    { href: "/app/settings/billing", label: "Billing", icon: CreditCardIcon, roles: ["HR", "ADMIN"], visible: billingEnabled },
+    { href: "/app/settings/billing", label: t(locale, "navBilling"), icon: CreditCardIcon, roles: ["HR", "ADMIN"], visible: billingEnabled },
   ]
     .filter((item) => item.visible ?? true)
     .filter((item) => !item.roles || item.roles.includes(role));
@@ -54,17 +55,8 @@ export function AppSidebar({ user, locale, settings, actionCount }: SidebarProps
       <nav className="space-y-1">
         {navItems.map((item) => {
           const active = pathname?.startsWith(item.href);
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={clsx(
-                "flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold transition",
-                active
-                  ? "bg-primary/10 text-primary ring-1 ring-primary/20"
-                  : "text-slate-700 hover:bg-slate-100 hover:text-slate-900"
-              )}
-            >
+          const content = (
+            <>
               <item.icon className={clsx("h-4 w-4", active ? "text-primary" : "text-slate-500")} />
               {item.label}
               {item.badge ? (
@@ -72,7 +64,38 @@ export function AppSidebar({ user, locale, settings, actionCount }: SidebarProps
                   {item.badge}
                 </span>
               ) : null}
-            </Link>
+            </>
+          );
+          return (
+            item.onClick ? (
+              <button
+                key={item.href}
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  item.onClick?.();
+                }}
+                className={clsx(
+                  "flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-semibold transition",
+                  "text-slate-700 hover:bg-slate-100 hover:text-slate-900"
+                )}
+              >
+                {content}
+              </button>
+            ) : (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={clsx(
+                  "flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold transition",
+                  active
+                    ? "bg-primary/10 text-primary ring-1 ring-primary/20"
+                    : "text-slate-700 hover:bg-slate-100 hover:text-slate-900"
+                )}
+              >
+                {content}
+              </Link>
+            )
           );
         })}
       </nav>
@@ -138,15 +161,6 @@ function SettingsIcon(props: React.SVGProps<SVGSVGElement>) {
         d="M10.5 4.5h3l.6 2.4a2 2 0 0 0 1.6 1.5l2.4.4v3.4l-2.4.4a2 2 0 0 0-1.6 1.5l-.6 2.4h-3l-.6-2.4a2 2 0 0 0-1.6-1.5l-2.4-.4v-3.4l2.4-.4a2 2 0 0 0 1.6-1.5z"
       />
       <circle cx="12" cy="12" r="2.5" />
-    </svg>
-  );
-}
-
-function CalendarIcon(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" {...props}>
-      <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-      <path strokeLinecap="round" strokeLinejoin="round" d="M16 2v4M8 2v4M3 10h18" />
     </svg>
   );
 }

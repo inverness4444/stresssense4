@@ -26,7 +26,7 @@ export async function signupAction(formData: FormData) {
 
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) {
-    throw new Error("Email already exists");
+    redirect(`/signin?error=email_exists`);
   }
 
   const planKey = (formData.get("plan") as string) || undefined;

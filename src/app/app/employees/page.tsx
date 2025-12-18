@@ -3,6 +3,8 @@ import { AccessDenied } from "@/components/app/AccessDenied";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { USER_ROLES, type UserRole } from "@/lib/roles";
+import { t, type Locale } from "@/lib/i18n";
+import { getLocale } from "@/lib/i18n-server";
 
 type Props = {
   searchParams?: {
@@ -13,10 +15,11 @@ type Props = {
 
 export default async function EmployeesPage({ searchParams }: Props) {
   const currentUser = await getCurrentUser();
+  const locale = await getLocale();
   if (!currentUser) {
     return (
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <p className="text-sm text-slate-700">Please sign in to view employees.</p>
+        <p className="text-sm text-slate-700">{t(locale, "employeesSigninPrompt")}</p>
       </div>
     );
   }
@@ -24,8 +27,8 @@ export default async function EmployeesPage({ searchParams }: Props) {
     return (
       <div className="space-y-4">
         <div className="space-y-2">
-          <h2 className="text-2xl font-semibold text-slate-900">Employees</h2>
-          <p className="text-sm text-slate-600">Manage everyone in your StressSense workspace — roles, teams, and access.</p>
+          <h2 className="text-2xl font-semibold text-slate-900">{t(locale, "employeesTitle")}</h2>
+          <p className="text-sm text-slate-600">{t(locale, "employeesSubtitle")}</p>
         </div>
         <AccessDenied />
       </div>
@@ -73,16 +76,16 @@ export default async function EmployeesPage({ searchParams }: Props) {
   return (
     <div className="space-y-6">
       <div className="space-y-2">
-        <h2 className="text-2xl font-semibold text-slate-900">Employees</h2>
+        <h2 className="text-2xl font-semibold text-slate-900">{t(locale, "employeesTitle")}</h2>
         <p className="text-sm text-slate-600">
-          Manage everyone in your StressSense workspace — roles, teams, and access.
+          {t(locale, "employeesSubtitle")}
         </p>
       </div>
 
       {!isAdmin && <AccessDenied />}
       {!isAdmin && (
         <div className="text-sm text-slate-600">
-          You need admin access to view and manage employees.
+          {t(locale, "employeesAdminOnly")}
         </div>
       )}
       {!isAdmin ? (
@@ -95,7 +98,7 @@ export default async function EmployeesPage({ searchParams }: Props) {
           <input
             name="q"
             defaultValue={query}
-            placeholder="Search name or email"
+            placeholder={t(locale, "employeesSearchPlaceholder")}
             className="w-full rounded-full px-2 text-sm text-slate-800 outline-none"
           />
           <select
@@ -103,24 +106,24 @@ export default async function EmployeesPage({ searchParams }: Props) {
             defaultValue={roleFilter ?? "all"}
             className="rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-semibold uppercase text-slate-700 outline-none transition hover:border-primary/30"
           >
-            <option value="all">All roles</option>
-            <option value="ADMIN">Admins</option>
-            <option value="MANAGER">Managers</option>
-            <option value="EMPLOYEE">Employees</option>
+            <option value="all">{t(locale, "employeesFilterAllRoles")}</option>
+            <option value="ADMIN">{t(locale, "employeesFilterAdmins")}</option>
+            <option value="MANAGER">{t(locale, "employeesFilterManagers")}</option>
+            <option value="EMPLOYEE">{t(locale, "employeesFilterEmployees")}</option>
           </select>
           <button
             type="submit"
             className="rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white transition hover:opacity-90"
           >
-            Filter
+            {t(locale, "employeesFilterButton")}
           </button>
         </form>
 
         <div className="flex items-center gap-2">
           <button className="rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-100">
-            Import CSV
+            {t(locale, "employeesImportCsv")}
           </button>
-          {isAdmin && <AddEmployeeModal teams={teams} />}
+          {isAdmin && <AddEmployeeModal locale={locale} teams={teams} />}
         </div>
       </div>
 
@@ -128,7 +131,7 @@ export default async function EmployeesPage({ searchParams }: Props) {
         <table className="min-w-full divide-y divide-slate-100">
           <thead className="bg-slate-50">
             <tr>
-              {["Name", "Role", "Teams", "Status", "Actions"].map((header) => (
+              {[t(locale, "employeesTableName"), t(locale, "employeesTableRole"), t(locale, "employeesTableTeams"), t(locale, "employeesTableStatus"), t(locale, "employeesTableActions")].map((header) => (
                 <th
                   key={header}
                   className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.14em] text-slate-500"
@@ -157,7 +160,7 @@ export default async function EmployeesPage({ searchParams }: Props) {
                   </div>
                 </td>
                 <td className="px-4 py-3">
-                  <RoleBadge role={user.role as UserRole} />
+                  <RoleBadge locale={locale} role={user.role as UserRole} />
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex flex-wrap gap-2">
@@ -176,11 +179,11 @@ export default async function EmployeesPage({ searchParams }: Props) {
                 </td>
                 <td className="px-4 py-3">
                   <span className="rounded-full bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-100">
-                    Active
+                    {t(locale, "employeesStatusActive")}
                   </span>
                 </td>
                 <td className="px-4 py-3">
-                  <button className="text-sm font-semibold text-primary hover:underline">Manage</button>
+                  <button className="text-sm font-semibold text-primary hover:underline">{t(locale, "employeesActionManage")}</button>
                 </td>
               </tr>
             ))}
@@ -190,7 +193,7 @@ export default async function EmployeesPage({ searchParams }: Props) {
                   colSpan={5}
                   className="px-4 py-6 text-center text-sm text-slate-600"
                 >
-                  No employees yet. Add your first people to start measuring stress.
+                  {t(locale, "employeesEmptyState")}
                 </td>
               </tr>
             )}
@@ -203,7 +206,7 @@ export default async function EmployeesPage({ searchParams }: Props) {
   );
 }
 
-function RoleBadge({ role }: { role: UserRole }) {
+function RoleBadge({ role, locale }: { role: UserRole; locale: Locale }) {
   const colors: Record<UserRole, string> = {
     ADMIN: "bg-rose-50 text-rose-700 ring-rose-100",
     MANAGER: "bg-amber-50 text-amber-700 ring-amber-100",
@@ -211,7 +214,7 @@ function RoleBadge({ role }: { role: UserRole }) {
   };
   return (
     <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${colors[role]}`}>
-      {role}
+      {role === "ADMIN" ? t(locale, "employeesRoleAdmin") : role === "MANAGER" ? t(locale, "employeesRoleManager") : t(locale, "employeesRoleEmployee")}
     </span>
   );
 }

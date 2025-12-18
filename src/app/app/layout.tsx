@@ -9,6 +9,7 @@ import { getLocale } from "@/lib/i18n-server";
 import { ensureOrgSettings } from "@/lib/access";
 import { actionBadge } from "@/lib/nudgesStore";
 import { StressSenseAiFloating } from "@/components/StressSenseAiFloating";
+import { SelfStressSurveyProvider } from "@/components/app/SelfStressSurveyProvider";
 
 export const metadata: Metadata = {
   title: "StressSense | App",
@@ -31,13 +32,15 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const actionsCount = await actionBadge(user.organizationId);
 
   return (
-    <div className="flex min-h-screen bg-slate-50">
-      <AppSidebar user={user} locale={locale} settings={settings} actionCount={actionsCount} />
-      <div className="flex min-h-screen flex-1 flex-col">
-        <AppTopbar user={user} notifications={notifications} unreadCount={unread} demoMode={demoMode} locale={locale} />
-        <main className="flex-1 px-4 py-6 sm:px-6 lg:px-10">{children}</main>
-        <StressSenseAiFloating mode={user.role === "Employee" ? "employee" : "manager"} />
+    <SelfStressSurveyProvider locale={locale}>
+      <div className="flex min-h-screen bg-slate-50">
+        <AppSidebar user={user} locale={locale} settings={settings} actionCount={actionsCount} />
+        <div className="flex min-h-screen flex-1 flex-col">
+          <AppTopbar user={user} notifications={notifications} unreadCount={unread} demoMode={demoMode} locale={locale} />
+          <main className="flex-1 px-4 py-6 sm:px-6 lg:px-10">{children}</main>
+          <StressSenseAiFloating role={user.role ?? "User"} locale={locale} />
+        </div>
       </div>
-    </div>
+    </SelfStressSurveyProvider>
   );
 }

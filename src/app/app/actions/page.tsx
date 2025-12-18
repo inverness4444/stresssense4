@@ -3,22 +3,26 @@ import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { ActionCenterClient } from "@/components/app/ActionCenterClient";
 import { seedDemoNudgesForTeams } from "@/lib/nudgesStore";
+import { getLocale } from "@/lib/i18n-server";
+import { t } from "@/lib/i18n";
 
 export default async function ActionsPage({ searchParams }: { searchParams?: Record<string, string | undefined> }) {
   const user = await getCurrentUser();
   if (!user) {
     redirect("/login");
   }
-  if (!["HR", "Manager"].includes(user.role)) {
+  const role = (user.role ?? "").toUpperCase();
+  const locale = await getLocale();
+  if (!["HR", "MANAGER", "ADMIN"].includes(role)) {
     return (
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <p className="text-sm text-slate-700">You don&apos;t have access to this area.</p>
+        <p className="text-sm text-slate-700">{t(locale, "accessDeniedBody")}</p>
       </div>
     );
   }
 
   const teams =
-    user.role === "ADMIN"
+    role === "ADMIN"
       ? await prisma.team.findMany({ where: { organizationId: user.organizationId } })
       : await prisma.member
           .findMany({ where: { userId: user.id }, include: { team: true } })
@@ -43,7 +47,7 @@ export default async function ActionsPage({ searchParams }: { searchParams?: Rec
 
   return (
     <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-      <ActionCenterClient teams={teams.map((t: any) => ({ id: t.id, name: t.name }))} defaultTeamId={defaultTeamId} />
+      <ActionCenterClient locale={locale} teams={teams.map((t: any) => ({ id: t.id, name: t.name }))} defaultTeamId={defaultTeamId} />
     </div>
   );
 }

@@ -1,33 +1,62 @@
-export default function SectionPeopleCompOnboarding() {
-  const cards = [
-    {
-      title: "People management",
-      text: "1:1, цели, feedback и recognition в одном потоке. Менеджер и HR видят прогресс и риски без микроменеджмента.",
-      cta: "See how it works",
-      href: "#manager",
-    },
-    {
-      title: "Compensation & fairness",
-      text: "Bands, review cycles, рекомендации и контроль справедливости — без раскрытия лишнего и с учётом приватности.",
-      cta: "Learn about comp",
-      href: "#people",
-    },
-    {
-      title: "Onboarding & journeys",
-      text: "30/60/90-day планы, чек-листы, шаги с курсами, привычками и 1:1. Прогресс и nudges по расписанию.",
-      cta: "View journeys",
-      href: "#people",
-    },
-  ];
+import { getLocale } from "@/lib/i18n-server";
+
+export default async function SectionPeopleCompOnboarding() {
+  const locale = await getLocale();
+  const isRu = locale === "ru";
+  const cards = isRu
+    ? [
+        {
+          title: "People management",
+          text: "1:1, цели, feedback и recognition в одном потоке. Менеджер и HR видят прогресс и риски без микроменеджмента.",
+          cta: "Посмотреть, как работает",
+          href: "#manager",
+        },
+        {
+          title: "Compensation & fairness",
+          text: "Bands, review cycles, рекомендации и контроль справедливости — без раскрытия лишнего и с учётом приватности.",
+          cta: "Узнать про компенсации",
+          href: "#people",
+        },
+        {
+          title: "Onboarding & journeys",
+          text: "30/60/90-day планы, чек-листы, шаги с курсами, привычками и 1:1. Прогресс и nudges по расписанию.",
+          cta: "Открыть journeys",
+          href: "#people",
+        },
+      ]
+    : [
+        {
+          title: "People management",
+          text: "1:1s, goals, feedback, and recognition in one flow. Managers and HR see progress and risks without micromanagement.",
+          cta: "See how it works",
+          href: "#manager",
+        },
+        {
+          title: "Compensation & fairness",
+          text: "Bands, review cycles, recommendations, and fairness controls — privacy-safe and transparent.",
+          cta: "Learn about comp",
+          href: "#people",
+        },
+        {
+          title: "Onboarding & journeys",
+          text: "30/60/90-day plans, checklists, steps with courses, habits, and 1:1s. Progress and nudges on schedule.",
+          cta: "View journeys",
+          href: "#people",
+        },
+      ];
 
   return (
     <section id="people" className="bg-slate-50/80 py-16 sm:py-24">
       <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         <div className="space-y-4 text-center">
           <p className="text-xs font-semibold uppercase tracking-[0.25em] text-primary">People, Compensation & Onboarding</p>
-          <h2 className="text-3xl font-semibold text-slate-900 sm:text-4xl">Все People-процессы в одной платформе</h2>
+          <h2 className="text-3xl font-semibold text-slate-900 sm:text-4xl">
+            {isRu ? "Все People-процессы в одной платформе" : "All People processes in one platform"}
+          </h2>
           <p className="mx-auto max-w-3xl text-slate-600">
-            От People-хаба до компенсации и онбординга: StressSense связывает данные, действия и обучение, чтобы команда росла устойчиво.
+            {isRu
+              ? "От People-хаба до компенсации и онбординга: StressSense связывает данные, действия и обучение, чтобы команда росла устойчиво."
+              : "From People hub to compensation and onboarding: StressSense connects data, actions, and learning so teams grow sustainably."}
           </p>
         </div>
 

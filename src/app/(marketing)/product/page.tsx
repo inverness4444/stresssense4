@@ -7,6 +7,7 @@ import SectionAIAutomation from "./_components/SectionAIAutomation";
 import SectionSecurityTrust from "./_components/SectionSecurityTrust";
 import SectionIntegrations from "./_components/SectionIntegrations";
 import SectionCTA from "./_components/SectionCTA";
+import HowItWorks from "../_components/HowItWorks";
 
 export default function ProductPage() {
   return (
@@ -19,6 +20,7 @@ export default function ProductPage() {
       <SectionAIAutomation />
       <SectionSecurityTrust />
       <SectionIntegrations />
+      <HowItWorks />
       <SectionCTA />
     </div>
   );

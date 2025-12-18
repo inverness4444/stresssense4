@@ -1,11 +1,6 @@
 import Link from "next/link";
 import { EngagementTrendCard, TrendPoint } from "@/components/EngagementTrendCard";
-
-const metricBadges = [
-  { label: "-27% стресс", hint: "в пилотных командах" },
-  { label: "+18 п.п.", hint: "рост вовлечённости" },
-  { label: "2 недели", hint: "до первого результата" },
-];
+import { useMemo } from "react";
 
 const heroTrend: TrendPoint[] = [
   { label: "Mar", value: 7.4 },
@@ -17,6 +12,18 @@ const heroTrend: TrendPoint[] = [
 ];
 
 export default function HeroSection() {
+  const isRu = useMemo(() => (typeof document !== "undefined" ? (document.documentElement.lang || "").toLowerCase().startsWith("ru") : false), []);
+  const metricBadges = isRu
+    ? [
+        { label: "-27% стресс", hint: "в пилотных командах" },
+        { label: "+18 п.п.", hint: "рост вовлечённости" },
+        { label: "2 недели", hint: "до первого результата" },
+      ]
+    : [
+        { label: "-27% stress", hint: "in pilot teams" },
+        { label: "+18 pts", hint: "engagement growth" },
+        { label: "2 weeks", hint: "to first results" },
+      ];
   return (
     <section className="relative overflow-hidden pt-24 pb-16 sm:pt-28 sm:pb-20">
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-indigo-100/70 via-white to-emerald-50/70" />
@@ -26,25 +33,34 @@ export default function HeroSection() {
             Stress intelligence platform
           </div>
           <h1 className="text-4xl font-bold leading-tight text-slate-900 sm:text-5xl lg:text-6xl">
-            Видите стресс команд.
-            <br />
-            Действуйте вовремя. Растите уверенно.
+            {isRu ? (
+              <>
+                Видите стресс команд.
+                <br />
+                Действуйте вовремя. Растите уверенно.
+              </>
+            ) : (
+              <>
+                See team stress early.
+                <br />
+                Act in time. Grow with confidence.
+              </>
+            )}
           </h1>
           <p className="max-w-2xl text-lg text-slate-600">
-            StressSense соединяет опросы, AI-коуча, People-модули и автоматизацию, чтобы HR и менеджеры снижали стресс и поднимали вовлечённость.
+            {isRu
+              ? "StressSense соединяет опросы, AI-коуча, People-модули и автоматизацию, чтобы HR и менеджеры снижали стресс и поднимали вовлечённость."
+              : "StressSense combines surveys, AI coaching, people modules, and automation so HR and managers reduce stress and lift engagement."}
           </p>
           <div className="flex flex-wrap gap-3">
             <Link href="/signup" className="rounded-full bg-primary px-6 py-3 text-sm font-semibold text-white shadow-md shadow-primary/30 transition hover:translate-y-[-2px]">
-              Начать бесплатный trial
+              {isRu ? "Начать бесплатный trial" : "Start free trial"}
             </Link>
-            <Link
-              href="/demo"
-              className="rounded-full border border-slate-300 px-6 py-3 text-sm font-semibold text-slate-800 transition hover:border-primary/40 hover:text-primary"
-            >
-              Посмотреть продукт
-            </Link>
+            {/* Live demo убран */}
           </div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Без карты · данные только у вас</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            {isRu ? "Без карты · данные только у вас" : "No card needed · your data stays with you"}
+          </p>
           <div className="flex flex-wrap gap-3 pt-2">
             {metricBadges.map((item) => (
               <div key={item.label} className="rounded-full bg-white/80 px-4 py-2 text-xs font-semibold text-slate-800 shadow-sm ring-1 ring-slate-200">
@@ -58,10 +74,10 @@ export default function HeroSection() {
           <div className="absolute right-0 top-24 h-24 w-24 rounded-full bg-emerald-200/40 blur-3xl" />
           <EngagementTrendCard
             scope="team"
-            title="Отчёт по вовлечённости"
+            title={isRu ? "Отчёт по вовлечённости" : "Engagement report"}
             score={8.4}
             delta={0.6}
-            trendLabel="за последние 6 месяцев"
+            trendLabel={isRu ? "за последние 6 месяцев" : "last 6 months"}
             participation={75}
             data={heroTrend}
           />

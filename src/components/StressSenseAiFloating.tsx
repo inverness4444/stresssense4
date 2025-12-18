@@ -1,56 +1,55 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { StressSenseAiWidget } from "@/components/StressSenseAiWidget";
+import { useEffect, useMemo, useState } from "react";
+import { usePathname } from "next/navigation";
+import type { Locale } from "@/lib/i18n";
+import { StressSenseAiDrawer } from "./ai/StressSenseAiDrawer";
+import type { AiContextData, AiContextType } from "../lib/ai/mockAiClient";
 
 type FloatingProps = {
-  mode?: "landing" | "employee" | "manager";
+  role: string;
+  locale: Locale;
 };
 
-export function StressSenseAiFloating({ mode = "manager" }: FloatingProps) {
+export function StressSenseAiFloating({ role, locale }: FloatingProps) {
   const [open, setOpen] = useState(false);
+  const pathname = usePathname();
 
   useEffect(() => {
     const onEsc = (e: KeyboardEvent) => {
       if (e.key === "Escape") setOpen(false);
     };
     document.addEventListener("keydown", onEsc);
-    return () => document.removeEventListener("keydown", onEsc);
+    const onExternalOpen = () => setOpen(true);
+    window.addEventListener("stresssense-ai-open", onExternalOpen);
+    return () => {
+      document.removeEventListener("keydown", onEsc);
+      window.removeEventListener("stresssense-ai-open", onExternalOpen);
+    };
   }, []);
+
+  const contextType: AiContextType = useMemo(() => {
+    if (pathname?.includes("/teams/")) return "team_overview";
+    if (pathname?.includes("/surveys")) return "survey_report";
+    if (pathname?.includes("/manager") || pathname?.includes("/actions")) return "manager_view";
+    if (pathname?.includes("/my")) return "employee_home";
+    return "workspace_overview";
+  }, [pathname]);
+
+  const contextData: AiContextData = useMemo(
+    () => ({
+      role,
+      locale,
+    }),
+    [locale, role]
+  );
 
   return (
     <>
-      {open && (
-        <div
-          className="fixed inset-0 z-40 bg-slate-900/30 backdrop-blur-sm"
-          onClick={() => setOpen(false)}
-          aria-label="AI overlay"
-        />
-      )}
-      {open && (
-        <div className="fixed bottom-4 right-4 z-50 w-[360px] max-w-[calc(100vw-32px)] sm:bottom-6 sm:right-6 sm:w-[420px]">
-          <div className="overflow-hidden rounded-3xl bg-white shadow-2xl ring-1 ring-slate-200">
-            <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">StressSense AI</p>
-                <p className="text-[11px] text-slate-500">Только про рабочий стресс, не мед. советы.</p>
-              </div>
-              <button
-                onClick={() => setOpen(false)}
-                className="rounded-full border border-slate-200 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-              >
-                ✕
-              </button>
-            </div>
-            <div className="max-h-[80vh] overflow-y-auto">
-              <StressSenseAiWidget mode={mode} variant="inline" onClose={() => setOpen(false)} />
-            </div>
-          </div>
-        </div>
-      )}
+      <StressSenseAiDrawer open={open} locale={locale} contextType={contextType} contextData={contextData} onClose={() => setOpen(false)} />
       <button
         aria-label="Open StressSense AI"
-        onClick={() => setOpen(true)}
+        onClick={() => setOpen((v) => !v)}
         className="fixed bottom-4 right-4 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-primary to-indigo-500 text-white shadow-2xl transition hover:scale-105 focus:outline-none focus:ring-4 focus:ring-primary/30 sm:bottom-6 sm:right-6"
       >
         <span className="text-xl">✨</span>

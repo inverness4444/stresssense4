@@ -4,9 +4,35 @@ import { prisma } from "@/lib/prisma";
 import { createSurvey } from "../actions";
 import { ensureDefaultSurveyTemplate } from "@/lib/surveySeed";
 
+async function createSurveyAction(formData: FormData) {
+  "use server";
+  const name = (formData.get("name") as string) || "Stress Pulse";
+  const description = (formData.get("description") as string) || "";
+  const startNow = formData.get("startNow") === "on";
+  const startsAt = (formData.get("startsAt") as string) || "";
+  const endsAt = (formData.get("endsAt") as string) || "";
+  const defaultMin = Number(formData.get("defaultMinResponses") || 4);
+  const minResponses = Number(formData.get("minResponsesForBreakdown") || defaultMin || 4);
+  const teamIds = formData.getAll("teamIds") as string[];
+
+  const result = await createSurvey({
+    name,
+    description,
+    teamIds,
+    startNow,
+    startsAt,
+    endsAt,
+    minResponsesForBreakdown: minResponses,
+  });
+  if (result?.success) {
+    redirect(`/app/surveys`);
+  }
+}
+
 export default async function NewSurveyPage() {
   const user = await getCurrentUser();
-  if (!user || user.role !== "ADMIN") {
+  const role = (user?.role ?? "").toUpperCase();
+  if (!user || !["ADMIN", "HR", "MANAGER"].includes(role)) {
     redirect("/app/surveys");
   }
 
@@ -51,31 +77,10 @@ function NewSurveyForm({
 }) {
   return (
     <form
-      action={async (formData) => {
-        "use server";
-        const name = (formData.get("name") as string) || "Stress Pulse";
-        const description = (formData.get("description") as string) || "";
-        const startNow = formData.get("startNow") === "on";
-        const startsAt = formData.get("startsAt") as string;
-        const endsAt = formData.get("endsAt") as string;
-        const minResponses = Number(formData.get("minResponsesForBreakdown") || defaultMinResponses || 4);
-        const teamIds = formData.getAll("teamIds") as string[];
-
-        const result = await createSurvey({
-          name,
-          description,
-          teamIds,
-          startNow,
-          startsAt,
-          endsAt,
-          minResponsesForBreakdown: minResponses,
-        });
-        if (result?.success) {
-          redirect(`/app/surveys`);
-        }
-      }}
+      action={createSurveyAction}
       className="space-y-6"
     >
+      <input type="hidden" name="defaultMinResponses" value={defaultMinResponses} />
       <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
         <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Step 1</p>
         <h3 className="text-lg font-semibold text-slate-900">Basic setup</h3>
@@ -116,30 +121,7 @@ function NewSurveyForm({
         <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Step 2</p>
         <h3 className="text-lg font-semibold text-slate-900">Who to include</h3>
         <div className="mt-4 space-y-3">
-          <div className="flex flex-wrap gap-2 text-xs text-slate-600">
-            <button
-              formAction={async () => {}}
-              type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                document.querySelectorAll<HTMLInputElement>('input[name="teamIds"]').forEach((el) => (el.checked = true));
-              }}
-              className="rounded-full bg-slate-100 px-3 py-1 font-semibold text-slate-700"
-            >
-              Select all teams
-            </button>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                document.querySelectorAll<HTMLInputElement>('input[name="teamIds"]').forEach((el) => (el.checked = false));
-              }}
-              className="rounded-full bg-slate-100 px-3 py-1 font-semibold text-slate-700"
-            >
-              Clear selection
-            </button>
-          </div>
-          <p className="text-sm text-slate-600">Estimated reach: {totalMembers} people (based on current team membership).</p>
+          <p className="text-sm text-slate-600">Estimated reach: {totalMembers} people (based on current team membership). Select teams below.</p>
           <div className="grid gap-3 md:grid-cols-2">
             {teams.map((team) => (
               <label key={team.id} className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-800 shadow-sm">

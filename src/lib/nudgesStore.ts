@@ -37,7 +37,9 @@ export async function createNudgesForTeamFromSurvey(team: any, metrics: TeamMetr
     orgId: team.organizationId as any,
   }));
   const existing = await prisma.nudgeInstance.findMany({ where: { teamId: team.id, status: "todo" } });
-  const newOnes = generated.filter((g: any) => !existing.some((e: any) => e.templateId === g.templateId));
+  const safeExisting = Array.isArray(existing) ? existing : [];
+  const safeGenerated = Array.isArray(generated) ? generated : [];
+  const newOnes = safeGenerated.filter((g: any) => !safeExisting.some((e: any) => e?.templateId === g.templateId));
   if (!newOnes.length) return [];
   await prisma.nudgeInstance.createMany({
     data: newOnes.map((n: any) => ({
