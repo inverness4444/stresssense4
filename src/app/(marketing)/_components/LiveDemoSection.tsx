@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { SurveyReport } from "@/components/app/SurveyReport";
+import type { Locale } from "@/lib/i18n";
 
 type DemoScenario = {
   key: string;
@@ -33,11 +34,8 @@ const demoTimeseries = [
   { label: "Aug", value: 7.6, date: new Date() },
 ];
 
-export default function LiveDemoSection() {
-  const isRu = useMemo(
-    () => (typeof document !== "undefined" ? (document.documentElement.lang || "").toLowerCase().startsWith("ru") : true),
-    []
-  );
+export default function LiveDemoSection({ locale = "en" }: { locale?: Locale }) {
+  const isRu = locale === "ru";
   const scenarios: DemoScenario[] = isRu
     ? [
         {

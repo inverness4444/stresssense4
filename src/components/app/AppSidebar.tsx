@@ -29,12 +29,12 @@ export function AppSidebar({ user, locale, settings, actionCount }: SidebarProps
     { href: "/app/actions", label: t(locale, "navActionCenter"), icon: ClipboardIcon, badge: actionCount },
     { href: "/app/manager/home", label: t(locale, "navTeamsOverview"), icon: LayersIcon, roles: ["MANAGER", "HR"] },
     // Остальные — по ролям, чтобы у сотрудника не было лишнего (настройки, биллинг и т.д.)
-    { href: "/app/employees", label: t(locale, "navEmployees"), icon: UsersIcon, roles: ["HR", "ADMIN"] },
+    { href: "/app/employees", label: t(locale, "navEmployees"), icon: UsersIcon, roles: ["HR", "ADMIN", "MANAGER"] },
     { href: "/app/teams", label: t(locale, "navTeams"), icon: LayersIcon, roles: ["HR", "ADMIN", "MANAGER"] },
     { href: "/app/my/stress-survey", label: t(locale, "navSurveys"), icon: ClipboardIcon, roles: ["EMPLOYEE", "HR", "ADMIN", "MANAGER"] },
     ...(notificationsEnabled ? [{ href: "/app/notifications", label: t(locale, "navNotifications"), icon: BellIcon, roles: ["HR", "ADMIN", "MANAGER", "EMPLOYEE"] }] : []),
     { href: "/app/developers", label: t(locale, "navDevelopers"), icon: CodeIcon, roles: ["HR", "ADMIN"] },
-    { href: "/app/settings", label: t(locale, "navSettings"), icon: SettingsIcon, roles: ["HR", "ADMIN"] },
+    { href: "/app/settings", label: t(locale, "navSettings"), icon: SettingsIcon, roles: ["HR", "ADMIN", "MANAGER"] },
     { href: "/app/settings/billing", label: t(locale, "navBilling"), icon: CreditCardIcon, roles: ["HR", "ADMIN"], visible: billingEnabled },
   ]
     .filter((item) => item.visible ?? true)

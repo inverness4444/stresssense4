@@ -22,7 +22,7 @@ type UpdateTeamInput = {
 export async function createTeam(input: CreateTeamInput) {
   const currentUser = await getCurrentUser();
   if (!currentUser) return { error: "You must be signed in." };
-  if (currentUser.role !== "ADMIN") return { error: "You don't have access to create teams." };
+  if (!["ADMIN", "HR", "MANAGER"].includes((currentUser.role ?? "").toUpperCase())) return { error: "You don't have access to create teams." };
 
   const trimmedName = input.name.trim();
   if (!trimmedName) return { error: "Team name is required." };
@@ -76,7 +76,7 @@ export async function createTeam(input: CreateTeamInput) {
 export async function updateTeam(input: UpdateTeamInput) {
   const currentUser = await getCurrentUser();
   if (!currentUser) return { error: "You must be signed in." };
-  if (currentUser.role !== "ADMIN") return { error: "You don't have access to edit teams." };
+  if (!["ADMIN", "HR", "MANAGER"].includes((currentUser.role ?? "").toUpperCase())) return { error: "You don't have access to edit teams." };
 
   const team = await prisma.team.findFirst({
     where: { id: input.teamId, organizationId: currentUser.organizationId },

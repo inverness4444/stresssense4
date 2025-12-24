@@ -2,15 +2,8 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { EngagementTrendCard, type TrendPoint } from "@/components/EngagementTrendCard";
-import { getTeamStatus, getTeamActionsByStatus, teamStatusMeta } from "@/lib/statusLogic";
+import { getTeamStatus, teamStatusMeta } from "@/lib/statusLogic";
 import type { Locale } from "@/lib/i18n";
-import {
-  updateActionCenterItemStatus,
-  createCustomActionCenterItem,
-  quickLaunchPulseSurvey,
-  quickSendAppreciation,
-  quickShareReport,
-} from "../actions";
 
 type SerializableActionItem = {
   id: string;
@@ -39,6 +32,7 @@ type TeamCard = {
   actionItems: SerializableActionItem[];
   upcoming: { type: string; title: string; date: string; ref: string }[];
   aiLens: { summary: string; risks: string[]; strengths: string[]; suggestedActions: string[] };
+  drivers?: { name: string; score: number | null; delta?: number | null }[];
 };
 
 export type ManagerHomeData = {
@@ -53,6 +47,7 @@ export function ManagerHomeClient({ data, locale = "en" }: { data: ManagerHomeDa
   const [isPending, startTransition] = useTransition();
   const isRu = locale === "ru";
 
+  const hasTeams = data.teams.length > 0;
   const activeCard = useMemo(() => data.teamCards[selectedTeam] ?? Object.values(data.teamCards)[0], [data.teamCards, selectedTeam]);
   const participationPct = Math.round((activeCard?.participation.rate ?? 0) * 100);
   const teamStatus = activeCard ? getTeamStatus(activeCard.stress.index ?? 0, activeCard.engagement.score ?? 0, participationPct) : "watch";
@@ -64,41 +59,30 @@ export function ManagerHomeClient({ data, locale = "en" }: { data: ManagerHomeDa
     red: "bg-rose-50 text-rose-700 ring-rose-200",
   };
   const engagementData: TrendPoint[] = (activeCard?.engagement.timeseries ?? []).map((p, idx) => ({
-    label: p.date ? new Date(p.date).toLocaleDateString("ru-RU", { month: "short" }) : `P${idx + 1}`,
+    label: p.date ? new Date(p.date).toLocaleDateString(isRu ? "ru-RU" : "en-US", { month: "short" }) : `P${idx + 1}`,
     value: (p as any).score ?? (p as any).value ?? 0,
   }));
-  if (engagementData.length === 0 && activeCard) {
-    engagementData.push(
-      { label: "Mar", value: Math.max(0, activeCard.engagement.score - 0.6) },
-      { label: "Apr", value: activeCard.engagement.score - 0.4 },
-      { label: "May", value: activeCard.engagement.score - 0.2 },
-      { label: "Jun", value: activeCard.engagement.score },
-    );
-  }
-  const engagementDelta = activeCard ? activeCard.engagement.score - (engagementData[0]?.value ?? activeCard.engagement.score) : 0;
-  const actionsFromStatus = getTeamActionsByStatus(teamStatus);
-  const actionItems = activeCard?.actionItems.length
-    ? activeCard.actionItems
-    : actionsFromStatus.map((a) => ({
-        id: `suggest-${a.id}`,
-        organizationId: data.orgId,
-        teamId: activeCard?.teamId ?? null,
-        managerUserId: null,
-        type: a.type,
-        sourceRef: null,
-        title: a.title,
-        description: a.desc,
-        severity: "medium",
-        status: "open",
-        dueAt: null,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        completedAt: null,
-        completedByUserId: null,
-      }));
+  const hasTrend = engagementData.length > 0;
+  const engagementDelta = activeCard && hasTrend ? activeCard.engagement.score - (engagementData[0]?.value ?? activeCard.engagement.score) : 0;
+  const actionItems = activeCard?.actionItems ?? [];
 
-  if (!activeCard) {
-    return <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">{isRu ? "Команды не найдены." : "No teams found."}</div>;
+  if (!hasTeams || !activeCard) {
+    return (
+      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <p className="text-base font-semibold text-slate-900">{isRu ? "Пока нет команд." : "No teams yet."}</p>
+        <p className="mt-1 text-sm text-slate-600">
+          {isRu ? "Создайте первую команду и запустите опрос, чтобы увидеть данные." : "Create your first team and launch a survey to see data."}
+        </p>
+        <div className="mt-4 flex gap-3">
+          <a href="/app/teams" className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm hover:brightness-105">
+            {isRu ? "Добавить команду" : "Add team"}
+          </a>
+          <a href="/app/surveys/new" className="rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-800 hover:border-primary/40 hover:text-primary">
+            {isRu ? "Запустить опрос" : "Launch survey"}
+          </a>
+        </div>
+      </div>
+    );
   }
 
   const handleComplete = (_id: string, _status: "done" | "dismissed") => {
@@ -110,15 +94,11 @@ export function ManagerHomeClient({ data, locale = "en" }: { data: ManagerHomeDa
   };
 
   const driverCards = [
-    { name: isRu ? "Нагрузка" : "Workload", score: Math.max(0, Math.min(10, 10 - (activeCard.stress.index ?? 0))), delta: -0.2 },
-    { name: isRu ? "Ясность" : "Clarity", score: 7.2, delta: 0.1 },
-    { name: isRu ? "Поддержка менеджера" : "Manager support", score: 7.4, delta: 0.2 },
-    { name: isRu ? "Признание" : "Recognition", score: 7.1, delta: 0.1 },
-    { name: isRu ? "Псих. безопасность" : "Psych safety", score: 7.8, delta: 0.3 },
-    { name: isRu ? "Благополучие" : "Wellbeing", score: 7.0, delta: -0.1 },
+    ...(activeCard.drivers ?? []),
   ];
 
   const watchThreshold = 7.5;
+  const hasMetrics = (activeCard.engagement.score ?? 0) > 0 || (activeCard.stress.index ?? 0) > 0 || (activeCard.participation.rate ?? 0) > 0;
 
   return (
     <div className="space-y-6">
@@ -147,22 +127,34 @@ export function ManagerHomeClient({ data, locale = "en" }: { data: ManagerHomeDa
             ))}
           </select>
           <div className={`rounded-full px-4 py-2 text-xs font-semibold shadow-sm ring-1 ${toneClasses[statusMeta.tone]}`}>
-            {isRu ? "Здоровье команды" : "Team health"}: {statusMeta.badge}
+            {isRu ? "Здоровье команды" : "Team health"}: {hasMetrics ? statusMeta.badge : isRu ? "Нет данных" : "No data"}
           </div>
         </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-[1.1fr_0.9fr_0.9fr]">
-        <EngagementTrendCard
-          scope="team"
-          title={isRu ? "Вовлечённость и стресс" : "Team engagement & stress"}
-          score={activeCard.engagement.score}
-          delta={engagementDelta}
-          participation={participationPct}
-          trendLabel={isRu ? "за последние 4 спринта" : "last 4 sprints"}
-          data={engagementData}
-          locale={locale}
-        />
+        {hasTrend ? (
+          <EngagementTrendCard
+            scope="team"
+            title={isRu ? "Вовлечённость и стресс" : "Team engagement & stress"}
+            score={activeCard.engagement.score}
+            delta={engagementDelta}
+            participation={participationPct}
+            trendLabel={isRu ? "за последние 4 спринта" : "last 4 sprints"}
+            data={engagementData}
+            locale={locale}
+          />
+        ) : (
+          <div className="rounded-3xl border border-dashed border-slate-200 bg-white p-6 shadow-sm">
+            <p className="text-sm font-semibold text-slate-900">{isRu ? "Нет данных опросов" : "No survey data yet"}</p>
+            <p className="mt-1 text-sm text-slate-600">
+              {isRu ? "Запустите первый pulse, чтобы увидеть динамику вовлечённости." : "Run your first pulse to see engagement trends."}
+            </p>
+            <a href="/app/surveys/new" className="mt-3 inline-flex rounded-full bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm hover:brightness-105">
+              {isRu ? "Запустить опрос" : "Launch survey"}
+            </a>
+          </div>
+        )}
 
         <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
@@ -170,18 +162,18 @@ export function ManagerHomeClient({ data, locale = "en" }: { data: ManagerHomeDa
           </p>
           <div className="mt-3 flex items-center gap-4">
             <div className="flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-amber-100 to-amber-200 text-xl font-semibold text-amber-700">
-              {activeCard.stress.index.toFixed(1)}
+              {hasMetrics ? activeCard.stress.index.toFixed(1) : "—"}
             </div>
             <div>
-              <p className="text-sm font-semibold text-slate-900">{statusMeta.label}</p>
-              <p className="text-sm text-slate-600">{statusMeta.summary}</p>
+              <p className="text-sm font-semibold text-slate-900">{hasMetrics ? statusMeta.label : isRu ? "Нет данных" : "No data yet"}</p>
+              <p className="text-sm text-slate-600">{hasMetrics ? statusMeta.summary : isRu ? "Данные появятся после опроса." : "Data will appear after a survey."}</p>
               <p className="text-xs text-emerald-600 mt-1">
-                {isRu ? "Тренд" : "Trend"}: {activeCard.stress.trend ?? "stable"}
+                {isRu ? "Тренд" : "Trend"}: {hasMetrics ? activeCard.stress.trend ?? "stable" : isRu ? "недоступен" : "not available"}
               </p>
             </div>
           </div>
           <div className="mt-3 text-xs text-slate-500">
-            {isRu ? "Участие" : "Participation"}: {(activeCard.participation.rate * 100).toFixed(0)}%
+            {isRu ? "Участие" : "Participation"}: {hasMetrics ? (activeCard.participation.rate * 100).toFixed(0) : "—"}%
           </div>
         </div>
 
@@ -190,14 +182,20 @@ export function ManagerHomeClient({ data, locale = "en" }: { data: ManagerHomeDa
             {isRu ? "Участие" : "Participation"}
           </p>
           <div className="mt-3 h-3 w-full overflow-hidden rounded-full bg-slate-100">
-            <div className="h-full rounded-full bg-primary" style={{ width: `${activeCard.participation.rate * 100}%` }} />
+            <div className="h-full rounded-full bg-primary" style={{ width: `${Math.max(0, activeCard.participation.rate * 100)}%` }} />
           </div>
           <p className="mt-2 text-sm text-slate-700">
             {isRu ? "Участие в последнем pulse" : "Latest pulse participation"}
           </p>
           <p className="text-xs text-slate-500">
-            {activeCard.participation.delta >= 0 ? "+" : "-"}
-            {(Math.abs(activeCard.participation.delta) * 100).toFixed(1)} {isRu ? "п." : "pts"} {isRu ? "к прошлому циклу" : "vs last cycle"}
+            {hasMetrics ? (
+              <>
+                {activeCard.participation.delta >= 0 ? "+" : "-"}
+                {(Math.abs(activeCard.participation.delta) * 100).toFixed(1)} {isRu ? "п." : "pts"} {isRu ? "к прошлому циклу" : "vs last cycle"}
+              </>
+            ) : (
+              <span>{isRu ? "Данные появятся после опроса." : "Data will appear after your first survey."}</span>
+            )}
           </p>
         </div>
       </div>
@@ -256,15 +254,24 @@ export function ManagerHomeClient({ data, locale = "en" }: { data: ManagerHomeDa
           <span className="text-xs font-semibold text-slate-500">{isRu ? "По последнему pulse" : "Based on last pulse"}</span>
         </div>
         <div className="mt-3 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+          {driverCards.length === 0 && (
+            <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-4 text-sm text-slate-600">
+              {isRu ? "Драйверы появятся после первых опросов." : "Drivers will appear after your first surveys."}
+            </div>
+          )}
           {driverCards.map((d) => (
             <div key={d.name} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm shadow-sm">
               <div className="flex items-center justify-between">
                 <p className="font-semibold text-slate-900">{d.name}</p>
-                <span className="text-xs font-semibold text-slate-700">{d.score.toFixed(1)}</span>
+                <span className="text-xs font-semibold text-slate-700">{d.score !== null && d.score !== undefined ? d.score.toFixed(1) : "—"}</span>
               </div>
-              <p className={`text-xs font-semibold ${d.delta >= 0 ? "text-emerald-600" : "text-amber-600"}`}>
-                {d.delta >= 0 ? "↑" : "↓"} {Math.abs(d.delta).toFixed(1)} {isRu ? "п." : "pt"}
-              </p>
+              {d.delta !== undefined && d.delta !== null ? (
+                <p className={`text-xs font-semibold ${d.delta >= 0 ? "text-emerald-600" : "text-amber-600"}`}>
+                  {d.delta >= 0 ? "↑" : "↓"} {Math.abs(d.delta).toFixed(1)} {isRu ? "п." : "pt"}
+                </p>
+              ) : (
+                <p className="text-xs font-semibold text-slate-500">{isRu ? "Нет данных" : "No data"}</p>
+              )}
             </div>
           ))}
         </div>
@@ -279,42 +286,48 @@ export function ManagerHomeClient({ data, locale = "en" }: { data: ManagerHomeDa
             {isRu ? "AI инсайт" : "AI insight"}
           </span>
         </div>
-        <div className="mt-3 grid gap-4 md:grid-cols-3">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{isRu ? "Кратко" : "Summary"}</p>
-            <p className="mt-2 text-sm text-slate-700">{activeCard.aiLens.summary}</p>
+        {activeCard.aiLens.summary || activeCard.aiLens.risks.length || activeCard.aiLens.strengths.length ? (
+          <div className="mt-3 grid gap-4 md:grid-cols-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{isRu ? "Кратко" : "Summary"}</p>
+              <p className="mt-2 text-sm text-slate-700">{activeCard.aiLens.summary}</p>
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{isRu ? "Сильные стороны" : "Strengths"}</p>
+              <ul className="mt-2 space-y-1 text-sm text-emerald-700">
+                {activeCard.aiLens.strengths.map((r) => (
+                  <li key={r}>• {r}</li>
+                ))}
+              </ul>
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{isRu ? "Риски и действия" : "Risks & actions"}</p>
+              <ul className="mt-2 space-y-1 text-sm text-slate-700">
+                {activeCard.aiLens.risks.map((r) => (
+                  <li key={r} className="text-rose-700">• {r}</li>
+                ))}
+              </ul>
+              <ul className="mt-2 space-y-1 text-sm text-slate-700">
+                {activeCard.aiLens.suggestedActions.map((r) => (
+                  <li key={r} className="flex items-center justify-between gap-2">
+                    <span>• {r}</span>
+                    <button
+                      disabled={isPending}
+                      onClick={() => handleCreateAction(r)}
+                      className="text-xs font-semibold text-primary underline underline-offset-4 disabled:opacity-50"
+                    >
+                      {isRu ? "Добавить" : "Add"}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
           </div>
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{isRu ? "Сильные стороны" : "Strengths"}</p>
-            <ul className="mt-2 space-y-1 text-sm text-emerald-700">
-              {activeCard.aiLens.strengths.map((r) => (
-                <li key={r}>• {r}</li>
-              ))}
-            </ul>
-          </div>
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{isRu ? "Риски и действия" : "Risks & actions"}</p>
-            <ul className="mt-2 space-y-1 text-sm text-slate-700">
-              {activeCard.aiLens.risks.map((r) => (
-                <li key={r} className="text-rose-700">• {r}</li>
-              ))}
-            </ul>
-            <ul className="mt-2 space-y-1 text-sm text-slate-700">
-              {activeCard.aiLens.suggestedActions.map((r) => (
-                <li key={r} className="flex items-center justify-between gap-2">
-                  <span>• {r}</span>
-                  <button
-                    disabled={isPending}
-                    onClick={() => handleCreateAction(r)}
-                    className="text-xs font-semibold text-primary underline underline-offset-4 disabled:opacity-50"
-                  >
-                    {isRu ? "Добавить" : "Add"}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
+        ) : (
+          <p className="mt-3 text-sm text-slate-600">
+            {isRu ? "Инсайты появятся после того, как накопятся данные опросов." : "Insights will show up after survey data starts flowing."}
+          </p>
+        )}
       </div>
 
       <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -326,18 +339,19 @@ export function ManagerHomeClient({ data, locale = "en" }: { data: ManagerHomeDa
           {data.teams.map((t) => {
             const card = data.teamCards[t.teamId];
             const stress = card?.stress.index ?? 0;
+            const hasCardData = (card?.stress.index ?? 0) > 0 || (card?.engagement.score ?? 0) > 0 || (card?.participation.rate ?? 0) > 0;
             const badge = stress >= watchThreshold ? (isRu ? "At risk" : "At risk") : isRu ? "Watch" : "Watch";
             const badgeClass = stress >= watchThreshold ? "bg-rose-50 text-rose-700" : "bg-amber-50 text-amber-700";
             return (
               <div key={t.teamId} className="rounded-2xl border border-slate-200 bg-slate-50 p-4 shadow-sm">
                 <div className="flex items-center justify-between">
                   <p className="text-sm font-semibold text-slate-900">{t.name}</p>
-                  <span className={`rounded-full px-3 py-1 text-[11px] font-semibold uppercase ${badgeClass}`}>{badge}</span>
+                  <span className={`rounded-full px-3 py-1 text-[11px] font-semibold uppercase ${badgeClass}`}>{hasCardData ? badge : isRu ? "Нет данных" : "No data"}</span>
                 </div>
                 <div className="mt-2 flex items-center justify-between text-xs font-semibold text-slate-700">
-                  <span>{isRu ? "Стресс" : "Stress"} {(card?.stress.index ?? 0).toFixed(1)}</span>
-                  <span>{isRu ? "Вовл." : "Eng"} {(card?.engagement.score ?? 0).toFixed(1)}</span>
-                  <span>{isRu ? "Участие" : "Part"} {Math.round((card?.participation.rate ?? 0) * 100)}%</span>
+                  <span>{isRu ? "Стресс" : "Stress"} {hasCardData ? (card?.stress.index ?? 0).toFixed(1) : "—"}</span>
+                  <span>{isRu ? "Вовл." : "Eng"} {hasCardData ? (card?.engagement.score ?? 0).toFixed(1) : "—"}</span>
+                  <span>{isRu ? "Участие" : "Part"} {hasCardData ? Math.round((card?.participation.rate ?? 0) * 100) : "—"}%</span>
                 </div>
               </div>
             );

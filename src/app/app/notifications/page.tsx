@@ -27,14 +27,14 @@ export default async function NotificationsPage() {
     );
   }
 
-  const notifications = await prisma.notification.findMany({
+  const notifications = (await prisma.notification.findMany({
     where: {
       organizationId: user.organizationId,
       OR: [{ userId: null }, { userId: user.id }],
     },
     orderBy: { createdAt: "desc" },
     take: 50,
-  });
+  })) ?? [];
 
   return (
     <div className="space-y-6">

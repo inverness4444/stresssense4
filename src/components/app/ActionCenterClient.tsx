@@ -1,20 +1,27 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import type { ActionItem, NudgeItem, RiskLevel, ActionStatus } from "@/lib/actionCenterMocks";
 import { completedMocks, initialActions, initialNudges } from "@/lib/actionCenterMocks";
 import { t, type Locale } from "@/lib/i18n";
 
 type TeamOption = { id: string; name: string };
 
-export function ActionCenterClient({ teams, defaultTeamId, locale }: { teams: TeamOption[]; defaultTeamId?: string; locale: Locale }) {
+export function ActionCenterClient({ teams, defaultTeamId, locale, isDemo = false }: { teams: TeamOption[]; defaultTeamId?: string; locale: Locale; isDemo?: boolean }) {
+  const tr = (key: string, fallback: string) => {
+    const value = t(locale, key);
+    return value === key || !value ? fallback : value;
+  };
   const [actions, setActions] = useState<ActionItem[]>(() =>
-    initialActions.map((a) => ({
-      ...a,
-      teamName: teams.find((t) => t.id === a.teamId)?.name ?? a.teamName,
-    }))
+    isDemo
+      ? initialActions.map((a) => ({
+          ...a,
+          teamName: teams.find((t) => t.id === a.teamId)?.name ?? a.teamName,
+        }))
+      : []
   );
-  const [nudges, setNudges] = useState<NudgeItem[]>(initialNudges);
+  const [nudges, setNudges] = useState<NudgeItem[]>(isDemo ? initialNudges : []);
   const [selectedTeam, setSelectedTeam] = useState<string>(defaultTeamId ?? "all");
   const [levelFilter, setLevelFilter] = useState<RiskLevel | "all">("all");
   const [statusFilter, setStatusFilter] = useState<ActionStatus | "all">("all");
@@ -22,6 +29,31 @@ export function ActionCenterClient({ teams, defaultTeamId, locale }: { teams: Te
   const [expandedFocus, setExpandedFocus] = useState<Record<string, boolean>>({});
   const [driverFilter, setDriverFilter] = useState<"all" | "workload" | "meetings" | "clarity" | "support">("all");
   const [priorityFilter, setPriorityFilter] = useState<"all" | "High" | "Medium" | "Low">("all");
+
+  if (!isDemo && actions.length === 0) {
+    return (
+      <div className="rounded-3xl border border-slate-200 bg-white p-6 text-sm text-slate-700 shadow-sm">
+        <p className="text-base font-semibold text-slate-900">{tr("actionEmptyTitle", "No actions yet")}</p>
+        <p className="mt-1 text-slate-600">
+          {tr("actionEmptyBody", "Run your first survey or ask StressSense AI which steps to start with.")}
+        </p>
+        <div className="mt-4 flex flex-wrap gap-3">
+          <Link
+            href="/app/surveys/new"
+            className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:brightness-105"
+          >
+            {tr("actionEmptyCtaSurvey", "Launch first survey")}
+          </Link>
+          <Link
+            href="/app/actions"
+            className="rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-800 transition hover:border-primary/40 hover:text-primary"
+          >
+            {tr("actionEmptyCtaAi", "Ask StressSense AI")}
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   const summary = useMemo(() => {
     const byTeam = (a: ActionItem) => (selectedTeam === "all" ? true : a.teamId === selectedTeam);
@@ -73,9 +105,9 @@ export function ActionCenterClient({ teams, defaultTeamId, locale }: { teams: Te
     level === "AtRisk" ? "bg-rose-50 text-rose-700 ring-rose-200" : level === "UnderPressure" ? "bg-orange-50 text-orange-700 ring-orange-200" : "bg-amber-50 text-amber-700 ring-amber-200";
 
   const dueLabel = (days: number) => {
-    if (days < 0) return t(locale, "actionDueOverdue").replace("{{days}}", Math.abs(days).toString());
-    if (days === 0) return t(locale, "actionDueToday");
-    return t(locale, "actionDueIn").replace("{{days}}", days.toString());
+    if (days < 0) return tr("actionDueOverdue", "Overdue {{days}} days").replace("{{days}}", Math.abs(days).toString());
+    if (days === 0) return tr("actionDueToday", "Due today");
+    return tr("actionDueIn", "Due in {{days}} days").replace("{{days}}", days.toString());
   };
 
   const addNudgeAsAction = (n: NudgeItem) => {

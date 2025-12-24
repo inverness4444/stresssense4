@@ -1,11 +1,11 @@
 import Link from "next/link";
-import { AccessDenied } from "@/components/app/AccessDenied";
 import { CreateTeamModal } from "@/components/app/CreateTeamModal";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 export default async function TeamsPage() {
   const currentUser = await getCurrentUser();
+  const role = (currentUser?.role ?? "").toUpperCase();
 
   if (!currentUser) {
     return (
@@ -14,14 +14,10 @@ export default async function TeamsPage() {
       </div>
     );
   }
-  if (currentUser.role !== "ADMIN" && currentUser.role !== "MANAGER") {
+  if (!["ADMIN", "MANAGER", "HR"].includes(role)) {
     return (
-      <div className="space-y-4">
-        <div className="space-y-2">
-          <h2 className="text-2xl font-semibold text-slate-900">Teams</h2>
-          <p className="text-sm text-slate-600">Organize your workspace into teams so stress insights stay relevant and actionable.</p>
-        </div>
-        <AccessDenied />
+      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <p className="text-sm text-slate-700">No access.</p>
       </div>
     );
   }
@@ -46,7 +42,7 @@ export default async function TeamsPage() {
     prisma.userTeam.findMany({ where: { userId: currentUser.id } }),
   ]);
 
-  const isAdmin = currentUser.role === "ADMIN";
+  const isAdmin = role === "ADMIN" || role === "HR" || role === "MANAGER";
   const visibleTeams = isAdmin ? teams : teams.filter((t: any) => myTeams.some((mt: any) => mt.teamId === t.id));
 
   return (
@@ -60,10 +56,6 @@ export default async function TeamsPage() {
         </div>
         {isAdmin && <CreateTeamModal users={users} />}
       </div>
-
-      {!isAdmin && visibleTeams.length === 0 && (
-        <AccessDenied />
-      )}
 
       {visibleTeams.length === 0 && (
         <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-6 text-sm text-slate-700">

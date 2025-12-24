@@ -22,7 +22,8 @@ export async function createEmployee(input: CreateEmployeeInput) {
   if (!currentUser) {
     return { error: "You must be signed in." };
   }
-  if (currentUser.role !== "ADMIN") {
+  const role = (currentUser.role ?? "").toUpperCase();
+  if (!["ADMIN", "HR"].includes(role)) {
     return { error: "You don't have access to add employees." };
   }
 

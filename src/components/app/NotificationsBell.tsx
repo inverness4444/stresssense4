@@ -6,15 +6,15 @@ import type { Notification } from "@prisma/client";
 import { markAll, markOne } from "@/app/app/notifications/actions";
 
 type Props = {
-  notifications: Notification[];
-  unreadCount: number;
+  notifications?: Notification[] | null;
+  unreadCount?: number | null;
 };
 
 export function NotificationsBell({ notifications, unreadCount }: Props) {
   const [open, setOpen] = useState(false);
-  const [items, setItems] = useState(notifications);
+  const [items, setItems] = useState<Notification[]>(Array.isArray(notifications) ? notifications : []);
   const [pending, startTransition] = useTransition();
-  const unread = items.filter((n) => !n.isRead).length || unreadCount;
+  const unread = (items?.filter((n) => !n.isRead).length || 0) || (unreadCount ?? 0);
 
   return (
     <div className="relative">
@@ -84,7 +84,7 @@ export function NotificationsBell({ notifications, unreadCount }: Props) {
                 )}
               </div>
             ))}
-            {notifications.length === 0 && <p className="text-sm text-slate-600">No notifications yet.</p>}
+            {items.length === 0 && <p className="text-sm text-slate-600">No notifications yet.</p>}
           </div>
           <Link
             href="/app/notifications"

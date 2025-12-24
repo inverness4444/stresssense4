@@ -1,8 +1,9 @@
+import Link from "next/link";
 import { AddEmployeeModal } from "@/components/app/AddEmployeeModal";
 import { AccessDenied } from "@/components/app/AccessDenied";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { USER_ROLES, type UserRole } from "@/lib/roles";
+import { USER_ROLES } from "@/lib/roles";
 import { t, type Locale } from "@/lib/i18n";
 import { getLocale } from "@/lib/i18n-server";
 
@@ -23,7 +24,10 @@ export default async function EmployeesPage({ searchParams }: Props) {
       </div>
     );
   }
-  if (currentUser.role !== "ADMIN") {
+  const role = (currentUser.role ?? "").toUpperCase();
+  const canViewEmployees = ["ADMIN", "HR", "MANAGER"].includes(role);
+  const canManageEmployees = ["ADMIN", "HR"].includes(role);
+  if (!canViewEmployees) {
     return (
       <div className="space-y-4">
         <div className="space-y-2">
@@ -37,9 +41,8 @@ export default async function EmployeesPage({ searchParams }: Props) {
 
   const query = (searchParams?.q ?? "").trim();
   const roleFilterRaw = (searchParams?.role ?? "all").toUpperCase();
-  const roleFilter = USER_ROLES.includes(roleFilterRaw as UserRole)
-    ? (roleFilterRaw as UserRole)
-    : null;
+  const allowedRoles = new Set([...USER_ROLES, "HR"]);
+  const roleFilter = allowedRoles.has(roleFilterRaw) ? roleFilterRaw : null;
 
   const where = {
     organizationId: currentUser.organizationId,
@@ -54,24 +57,33 @@ export default async function EmployeesPage({ searchParams }: Props) {
       : {}),
   };
 
-  const [users, teams] = await Promise.all([
-    prisma.user.findMany({
-      where,
-      include: {
-        teams: {
-          include: { team: true },
-        },
-      },
-      orderBy: { createdAt: "desc" },
-    }),
-    prisma.team.findMany({
-      where: { organizationId: currentUser.organizationId },
-      orderBy: { name: "asc" },
-      select: { id: true, name: true },
-    }),
-  ]);
+  const users = await prisma.user.findMany({
+    where,
+    orderBy: { createdAt: "desc" },
+  });
 
-  const isAdmin = currentUser.role === "ADMIN";
+  const userIds = users.map((user) => user.id);
+  const userTeamsPromise = userIds.length
+    ? prisma.userTeam.findMany({
+        where: { userId: { in: userIds } },
+        include: { team: true },
+      })
+    : Promise.resolve([]);
+  const teamsPromise = canManageEmployees
+    ? prisma.team.findMany({
+        where: { organizationId: currentUser.organizationId },
+        orderBy: { name: "asc" },
+        select: { id: true, name: true },
+      })
+    : Promise.resolve([]);
+  const [userTeams, teams] = await Promise.all([userTeamsPromise, teamsPromise]);
+  const teamsByUserId = userTeams.reduce<Record<string, { id: string; name: string }[]>>((acc, entry: any) => {
+    if (!acc[entry.userId]) acc[entry.userId] = [];
+    acc[entry.userId].push(entry.team);
+    return acc;
+  }, {});
+
+  const isAdmin = canManageEmployees;
 
   return (
     <div className="space-y-6">
@@ -81,17 +93,6 @@ export default async function EmployeesPage({ searchParams }: Props) {
           {t(locale, "employeesSubtitle")}
         </p>
       </div>
-
-      {!isAdmin && <AccessDenied />}
-      {!isAdmin && (
-        <div className="text-sm text-slate-600">
-          {t(locale, "employeesAdminOnly")}
-        </div>
-      )}
-      {!isAdmin ? (
-        <></>
-      ) : (
-        <>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <form className="flex w-full max-w-xl items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 shadow-sm sm:w-auto">
@@ -120,10 +121,14 @@ export default async function EmployeesPage({ searchParams }: Props) {
         </form>
 
         <div className="flex items-center gap-2">
-          <button className="rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-100">
-            {t(locale, "employeesImportCsv")}
-          </button>
-          {isAdmin && <AddEmployeeModal locale={locale} teams={teams} />}
+          {isAdmin && (
+            <>
+              <button className="rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-100">
+                {t(locale, "employeesImportCsv")}
+              </button>
+              <AddEmployeeModal locale={locale} teams={teams} />
+            </>
+          )}
         </div>
       </div>
 
@@ -160,14 +165,14 @@ export default async function EmployeesPage({ searchParams }: Props) {
                   </div>
                 </td>
                 <td className="px-4 py-3">
-                  <RoleBadge locale={locale} role={user.role as UserRole} />
+                  <RoleBadge locale={locale} role={String(user.role ?? "")} />
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex flex-wrap gap-2">
-                    {user.teams.length === 0 && (
+                    {(teamsByUserId[user.id] ?? []).length === 0 && (
                       <span className="text-xs text-slate-500">—</span>
                     )}
-                    {user.teams.map(({ team }: any) => (
+                    {(teamsByUserId[user.id] ?? []).map((team) => (
                       <span
                         key={team.id}
                         className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700"
@@ -178,12 +183,19 @@ export default async function EmployeesPage({ searchParams }: Props) {
                   </div>
                 </td>
                 <td className="px-4 py-3">
-                  <span className="rounded-full bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-100">
-                    {t(locale, "employeesStatusActive")}
-                  </span>
+                  <StatusBadge locale={locale} createdAt={user.createdAt} updatedAt={user.updatedAt} />
                 </td>
                 <td className="px-4 py-3">
-                  <button className="text-sm font-semibold text-primary hover:underline">{t(locale, "employeesActionManage")}</button>
+                  {isAdmin ? (
+                    <Link
+                      href={`/app/employees/${user.id}`}
+                      className="text-sm font-semibold text-primary hover:underline"
+                    >
+                      {t(locale, "employeesActionManage")}
+                    </Link>
+                  ) : (
+                    <span className="text-sm text-slate-400">—</span>
+                  )}
                 </td>
               </tr>
             ))}
@@ -200,21 +212,42 @@ export default async function EmployeesPage({ searchParams }: Props) {
           </tbody>
         </table>
       </div>
-        </>
-      )}
     </div>
   );
 }
 
-function RoleBadge({ role, locale }: { role: UserRole; locale: Locale }) {
-  const colors: Record<UserRole, string> = {
+function RoleBadge({ role, locale }: { role: string; locale: Locale }) {
+  const colors: Record<string, string> = {
     ADMIN: "bg-rose-50 text-rose-700 ring-rose-100",
+    HR: "bg-rose-50 text-rose-700 ring-rose-100",
     MANAGER: "bg-amber-50 text-amber-700 ring-amber-100",
     EMPLOYEE: "bg-slate-100 text-slate-700 ring-slate-200",
   };
+  const normalizedRole = role.toUpperCase();
+  const label =
+    normalizedRole === "ADMIN"
+      ? t(locale, "employeesRoleAdmin")
+      : normalizedRole === "HR"
+        ? t(locale, "employeesRoleHr")
+        : normalizedRole === "MANAGER"
+          ? t(locale, "employeesRoleManager")
+          : t(locale, "employeesRoleEmployee");
   return (
-    <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${colors[role]}`}>
-      {role === "ADMIN" ? t(locale, "employeesRoleAdmin") : role === "MANAGER" ? t(locale, "employeesRoleManager") : t(locale, "employeesRoleEmployee")}
+    <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${colors[normalizedRole] ?? colors.EMPLOYEE}`}>
+      {label}
+    </span>
+  );
+}
+
+function StatusBadge({ createdAt, updatedAt, locale }: { createdAt: Date; updatedAt: Date; locale: Locale }) {
+  const hasJoined = updatedAt.getTime() > createdAt.getTime();
+  const tone = hasJoined
+    ? "bg-emerald-50 text-emerald-700 ring-emerald-100"
+    : "bg-amber-50 text-amber-700 ring-amber-100";
+  const label = hasJoined ? t(locale, "employeesStatusActive") : t(locale, "employeesStatusPending");
+  return (
+    <span className={`rounded-full px-2 py-1 text-xs font-semibold ring-1 ${tone}`}>
+      {label}
     </span>
   );
 }

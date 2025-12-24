@@ -5,13 +5,20 @@ import { updateSettings } from "./actions";
 import { InfoTooltip } from "@/components/ui/InfoTooltip";
 import { prisma } from "@/lib/prisma";
 import { saveSSOConfig } from "./ssoActions";
+import { ensureInviteToken } from "@/lib/orgData";
+import { InviteLinkBlock } from "./InviteLinkBlock";
 
 export default async function SettingsPage() {
   const user = await getCurrentUser();
-  if (!user || user.role !== "ADMIN") redirect("/app/overview");
+  const role = (user?.role ?? "").toUpperCase();
+  if (!user || !["ADMIN", "HR", "MANAGER"].includes(role)) redirect("/app/overview");
+  const canEdit = ["ADMIN", "HR"].includes(role);
 
   const settings = await ensureOrgSettings(user.organizationId);
   const sso = await prisma.sSOConfig.findUnique({ where: { organizationId: user.organizationId } });
+  const org = await prisma.organization.findUnique({ where: { id: user.organizationId } });
+  const inviteToken = org?.inviteToken || (await ensureInviteToken(user.organizationId));
+  const linkSlug = org?.slug && org.slug.trim().length > 0 ? org.slug : org?.id ?? "workspace";
 
   return (
     <div className="space-y-6">
@@ -36,7 +43,8 @@ export default async function SettingsPage() {
                 name="minResponsesForBreakdown"
                 min={1}
                 defaultValue={settings.minResponsesForBreakdown}
-                className="w-32 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+                disabled={!canEdit}
+                className="w-32 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:bg-slate-50"
               />
               <p className="text-xs text-slate-500">Below this number, team or subgroup results stay hidden.</p>
             </label>
@@ -54,7 +62,8 @@ export default async function SettingsPage() {
               <select
                 name="stressScaleMin"
                 defaultValue={settings.stressScaleMin ?? 1}
-                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                disabled={!canEdit}
+                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:bg-slate-50"
               >
                 <option value="1">1</option>
                 <option value="0">0</option>
@@ -67,7 +76,8 @@ export default async function SettingsPage() {
               <select
                 name="stressScaleMax"
                 defaultValue={settings.stressScaleMax ?? 5}
-                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                disabled={!canEdit}
+                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:bg-slate-50"
               >
                 <option value="5">5</option>
                 <option value="7">7</option>
@@ -82,15 +92,16 @@ export default async function SettingsPage() {
           <p className="text-sm text-slate-600">
             Decide whether managers can view surveys targeting their teams even if they weren&apos;t creators.
           </p>
-          <label className="mt-4 flex items-center gap-2 text-sm text-slate-800">
-            <input
-              type="checkbox"
-              name="allowManagerAccessToAllSurveys"
-              defaultChecked={settings.allowManagerAccessToAllSurveys}
-              className="rounded border-slate-300 text-primary focus:ring-primary/40"
-            />
-            Allow managers to access all surveys that include their teams
-          </label>
+            <label className="mt-4 flex items-center gap-2 text-sm text-slate-800">
+              <input
+                type="checkbox"
+                name="allowManagerAccessToAllSurveys"
+                defaultChecked={settings.allowManagerAccessToAllSurveys}
+                disabled={!canEdit}
+                className="rounded border-slate-300 text-primary focus:ring-primary/40 disabled:cursor-not-allowed disabled:bg-slate-50"
+              />
+              Allow managers to access all surveys that include their teams
+            </label>
         </section>
 
         <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -101,7 +112,8 @@ export default async function SettingsPage() {
             <select
               name="timezone"
               defaultValue={settings.timezone ?? "UTC"}
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+              disabled={!canEdit}
+              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:bg-slate-50"
             >
               <option value="UTC">UTC</option>
               <option value="Europe/Berlin">Europe/Berlin</option>
@@ -111,15 +123,26 @@ export default async function SettingsPage() {
           </label>
         </section>
 
-        <div className="flex justify-end">
-          <button
-            type="submit"
-            className="rounded-full bg-gradient-to-r from-primary to-primary-strong px-5 py-3 text-sm font-semibold text-white shadow-md transition hover:scale-[1.02] hover:shadow-lg"
-          >
-            Save settings
-          </button>
-        </div>
+        {canEdit && (
+          <div className="flex justify-end">
+            <button
+              type="submit"
+              className="rounded-full bg-gradient-to-r from-primary to-primary-strong px-5 py-3 text-sm font-semibold text-white shadow-md transition hover:scale-[1.02] hover:shadow-lg"
+            >
+              Save settings
+            </button>
+          </div>
+        )}
       </form>
+
+      {org && (
+        <InviteLinkBlock
+          slug={linkSlug}
+          inviteToken={inviteToken}
+          canRegenerate={canEdit}
+          baseUrl={process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}
+        />
+      )}
 
       <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex items-center gap-2">

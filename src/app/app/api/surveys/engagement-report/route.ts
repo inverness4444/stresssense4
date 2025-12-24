@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
 import { getEngagementReport } from "@/lib/engagementScore";
 
 const sample = {
@@ -31,12 +32,14 @@ export async function POST(req: Request) {
     if (!orgId) {
       return NextResponse.json({ error: "orgId required" }, { status: 400 });
     }
+    const org = await prisma.organization.findUnique({ where: { id: orgId }, select: { isDemo: true } });
     const report = await getEngagementReport({ orgId, teamId, surveyId });
     if (report?.insufficientSample || !report) {
-      return NextResponse.json({ data: sample });
+      if (org?.isDemo) return NextResponse.json({ data: sample });
+      return NextResponse.json({ data: { insufficientSample: true } });
     }
     return NextResponse.json({ data: report });
   } catch (e) {
-    return NextResponse.json({ data: sample });
+    return NextResponse.json({ data: { insufficientSample: true } });
   }
 }

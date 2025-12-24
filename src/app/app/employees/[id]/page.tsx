@@ -7,7 +7,8 @@ type Props = { params: { id: string } };
 
 export default async function EmployeeDetailPage({ params }: Props) {
   const user = await getCurrentUser();
-  if (!user || user.role !== "ADMIN") redirect("/signin");
+  const role = (user?.role ?? "").toUpperCase();
+  if (!user || !["ADMIN", "HR"].includes(role)) redirect("/signin");
 
   const employee = await prisma.user.findFirst({
     where: { id: params.id, organizationId: user.organizationId },

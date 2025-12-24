@@ -23,6 +23,14 @@ export const authOptions: NextAuthOptions = {
         if (!user) return null;
         const ok = await bcrypt.compare(credentials.password, user.passwordHash);
         if (!ok) return null;
+        try {
+          await prisma.user.update({
+            where: { id: user.id },
+            data: { updatedAt: new Date() },
+          });
+        } catch {
+          // Ignore last-seen update failures to avoid blocking sign-in.
+        }
         return {
           id: user.id,
           email: user.email,

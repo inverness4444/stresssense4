@@ -3,6 +3,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getLocale } from "@/lib/i18n-server";
 import { ManagerHomeClient, type ManagerHomeData } from "./ManagerHomeClient";
+import { getTeamStatus } from "@/lib/statusLogic";
 
 export default async function ManagerHomePage() {
   const user = await getCurrentUser();
@@ -11,26 +12,33 @@ export default async function ManagerHomePage() {
   const locale = await getLocale();
 
   const teams = await prisma.team.findMany({ where: { organizationId: user.organizationId }, orderBy: { createdAt: "asc" } });
+  const teamIds = teams.map((t) => t.id);
+  const metricsHistory = teamIds.length
+    ? await prisma.teamMetricsHistory.findMany({ where: { teamId: { in: teamIds } }, orderBy: { createdAt: "asc" } })
+    : [];
   const primaryTeam = teams[0];
 
   const teamCards: ManagerHomeData["teamCards"] = {};
-  teams.forEach((team, idx) => {
+  teams.forEach((team) => {
     const participationRate = (team.participation ?? 0) / 100;
-    const engagement = team.engagementScore ?? 7;
-    const stress = team.stressIndex ?? 6.5;
-    const timeseries = Array.from({ length: 6 }).map((_, i) => ({
-      date: new Date(Date.now() - (5 - i) * 7 * 24 * 60 * 60 * 1000).toISOString(),
-      score: Number((engagement + (i - 3) * 0.05).toFixed(1)),
+    const engagement = team.engagementScore ?? 0;
+    const stress = team.stressIndex ?? 0;
+    const history = metricsHistory.filter((h) => h.teamId === team.id);
+    const timeseries = history.map((h) => ({
+      date: h.createdAt.toISOString(),
+      score: h.engagementScore ?? 0,
     }));
+    const riskLevel = getTeamStatus(stress, engagement, Math.round(participationRate * 100));
     teamCards[team.id] = {
       teamId: team.id,
       name: team.name,
-      engagement: { score: engagement, delta: 0.2, timeseries },
-      stress: { index: stress, delta: -0.1, riskLevel: idx % 2 === 0 ? "watch" : "at_risk", trend: "stable" },
-      participation: { rate: participationRate, delta: 0.02 },
+      engagement: { score: engagement, delta: 0, timeseries },
+      stress: { index: stress, delta: 0, riskLevel },
+      participation: { rate: participationRate, delta: 0 },
       actionItems: [],
       upcoming: [],
-      aiLens: { summary: "Ключевые драйверы: нагрузка и ясность. Поддержите recognition.", risks: [], strengths: [], suggestedActions: [] },
+      aiLens: { summary: "", risks: [], strengths: [], suggestedActions: [] },
+      drivers: [],
     };
   });
 

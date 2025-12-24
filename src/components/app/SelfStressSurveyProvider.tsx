@@ -13,7 +13,7 @@ type SurveyContextValue = {
 
 const SurveyContext = createContext<SurveyContextValue | null>(null);
 
-type Props = { children: React.ReactNode; locale: Locale };
+type Props = { children: React.ReactNode; locale: Locale; userId?: string };
 
 type StressLevel = "low" | "mid" | "high";
 
@@ -23,7 +23,7 @@ export function useSelfStressSurvey() {
   return ctx;
 }
 
-export function SelfStressSurveyProvider({ children, locale }: Props) {
+export function SelfStressSurveyProvider({ children, locale, userId = "local-user" }: Props) {
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<(number | null)[]>(() => []);
@@ -31,11 +31,12 @@ export function SelfStressSurveyProvider({ children, locale }: Props) {
   const [questions, setQuestions] = useState<string[]>([]);
   const [lastCompletedDay, setLastCompletedDay] = useState<string | null>(null);
   const isLastStep = questions.length > 0 && step === questions.length - 1;
+  const storagePrefix = useMemo(() => `stressSurvey:${userId}`, [userId]);
 
   const hydrateQuestions = () => {
     const today = new Date();
-    setLastCompletedDay(window.localStorage.getItem("stressSurveyLastCompleted"));
-    const questionSet = getTodayQuestionSetForUser("local-user", today, STRESS_QUESTION_DAYS, [], locale);
+    setLastCompletedDay(window.localStorage.getItem(`${storagePrefix}:lastCompleted`));
+    const questionSet = getTodayQuestionSetForUser(userId || "local-user", today, STRESS_QUESTION_DAYS, [], locale);
     const list = questionSet.questions.map((q) => q.text);
     setQuestions(list);
     setAnswers(Array(list.length || 1).fill(null));
@@ -95,11 +96,11 @@ export function SelfStressSurveyProvider({ children, locale }: Props) {
     // placeholder for future API call
     console.log("Stress survey answers", answers);
     const todayIso = new Date().toISOString().slice(0, 10);
-    window.localStorage.setItem("stressSurveyLastCompleted", todayIso);
+    window.localStorage.setItem(`${storagePrefix}:lastCompleted`, todayIso);
     setLastCompletedDay(todayIso);
     window.dispatchEvent(
       new CustomEvent("stress-survey-completed", {
-        detail: { average, answers, date: new Date().toISOString() },
+        detail: { average, answers, date: new Date().toISOString(), userId },
       })
     );
     setFinished(true);

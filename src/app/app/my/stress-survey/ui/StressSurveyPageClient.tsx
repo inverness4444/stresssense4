@@ -28,15 +28,16 @@ function formatDuration(ms: number) {
   return `${mins} мин ${secs.toString().padStart(2, "0")} c`;
 }
 
-export default function StressSurveyPageClient({ userName, locale }: { userName: string; locale: Locale }) {
+export default function StressSurveyPageClient({ userName, userId, locale }: { userName: string; userId: string; locale: Locale }) {
   const { openSurvey } = useSelfStressSurvey();
   const isRu = locale === "ru";
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [startedAt, setStartedAt] = useState<Date | null>(null);
+  const storagePrefix = useMemo(() => `stressSurvey:${userId || "local-user"}`, [userId]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const stored = window.localStorage.getItem("stressSurveyHistory");
+    const stored = window.localStorage.getItem(`${storagePrefix}:history`);
     if (stored) {
       try {
         const parsed = JSON.parse(stored) as HistoryItem[];
@@ -44,12 +45,15 @@ export default function StressSurveyPageClient({ userName, locale }: { userName:
       } catch {
         setHistory([]);
       }
+    } else {
+      setHistory([]);
     }
-  }, []);
+  }, [storagePrefix]);
 
   useEffect(() => {
     const handler = (e: Event) => {
-      const detail = (e as CustomEvent<{ average: number; answers: number[]; date: string }>).detail;
+      const detail = (e as CustomEvent<{ average: number; answers: number[]; date: string; userId?: string }>).detail;
+      if (detail?.userId && detail.userId !== userId) return;
       const finished = detail?.date ? new Date(detail.date) : new Date();
       const started = startedAt ?? finished;
       const durationMs = Math.max(0, finished.getTime() - started.getTime());
@@ -63,7 +67,7 @@ export default function StressSurveyPageClient({ userName, locale }: { userName:
       setHistory((prev) => {
         const next = [entry, ...prev].slice(0, 20);
         if (typeof window !== "undefined") {
-          window.localStorage.setItem("stressSurveyHistory", JSON.stringify(next));
+          window.localStorage.setItem(`${storagePrefix}:history`, JSON.stringify(next));
         }
         return next;
       });
@@ -71,7 +75,7 @@ export default function StressSurveyPageClient({ userName, locale }: { userName:
     };
     window.addEventListener("stress-survey-completed", handler as EventListener);
     return () => window.removeEventListener("stress-survey-completed", handler as EventListener);
-  }, [startedAt]);
+  }, [startedAt, storagePrefix]);
 
   const todayIso = new Date().toISOString().slice(0, 10);
   const lastEntry = history.find((h) => h.startedAt.slice(0, 10) === todayIso);

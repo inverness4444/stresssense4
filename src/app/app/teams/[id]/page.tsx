@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { AccessDenied } from "@/components/app/AccessDenied";
 import { EditTeamModal } from "@/components/app/EditTeamModal";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -41,6 +40,7 @@ export default async function TeamDetailPage({ params }: Props) {
 
   const isAdmin = currentUser.role === "ADMIN";
   const members = team.users.map((u: any) => u.user);
+  const canManage = ["ADMIN", "HR", "MANAGER"].includes((currentUser.role ?? "").toUpperCase());
 
   return (
     <div className="space-y-6">
@@ -62,7 +62,7 @@ export default async function TeamDetailPage({ params }: Props) {
             </span>
           </div>
         </div>
-        {isAdmin && (
+        {canManage && (
           <div className="flex items-center gap-2">
             <EditTeamModal
               teamId={team.id}
@@ -82,96 +82,52 @@ export default async function TeamDetailPage({ params }: Props) {
         )}
       </div>
 
-      {!isAdmin && (
-        <>
-          <AccessDenied />
-          <p className="text-sm text-slate-600">Admins can manage team details.</p>
-        </>
-      )}
-
-      {isAdmin && (
-        <div className="grid gap-6 lg:grid-cols-[1.4fr_0.8fr]">
-          <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <table className="min-w-full divide-y divide-slate-100">
-              <thead className="bg-slate-50">
-                <tr>
-                  {["Name", "Email", "Role"].map((header) => (
-                    <th
-                      key={header}
-                      className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.14em] text-slate-500"
-                    >
-                      {header}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {members.map((member: any) => (
-                  <tr key={member.id} className="transition hover:bg-slate-50/80">
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
-                          {member.name.charAt(0)}
-                        </div>
-                        <span className="text-sm font-semibold text-slate-900">{member.name}</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-slate-700">{member.email}</td>
-                    <td className="px-4 py-3">
-                      <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold uppercase text-slate-700">
-                        {member.role}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-                {members.length === 0 && (
-                  <tr>
-                    <td
-                      colSpan={3}
-                      className="px-4 py-6 text-center text-sm text-slate-600"
-                    >
-                      No members yet.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="space-y-4">
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-slate-900">Stress snapshot (coming soon)</h3>
-                <span className="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-semibold uppercase text-slate-700">
-                  Preview
-                </span>
-              </div>
-              <div className="mt-4 space-y-3 text-sm text-slate-700">
-                <p className="flex items-center justify-between rounded-xl bg-indigo-50/60 px-3 py-2">
-                  <span>Average stress index</span>
-                  <span className="font-semibold text-slate-900">62</span>
-                </p>
-                <p className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2">
-                  <span>Participation</span>
-                  <span className="font-semibold text-slate-900">78%</span>
-                </p>
-                <p className="flex items-center justify-between rounded-xl bg-emerald-50/70 px-3 py-2">
-                  <span>Trend</span>
-                  <span className="font-semibold text-emerald-700">Stable</span>
-                </p>
-              </div>
-            </div>
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 text-sm text-slate-700 shadow-sm">
-              <p className="font-semibold text-slate-900">Next steps</p>
-              <ul className="mt-2 space-y-2">
-                <li>• Invite managers to review this team weekly.</li>
-                <li>• Share manager playbooks to address stress themes.</li>
-                <li>• Schedule your next pulse cadence.</li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      )}
+      <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <table className="min-w-full divide-y divide-slate-100">
+          <thead className="bg-slate-50">
+            <tr>
+              {["Name", "Email", "Role"].map((header) => (
+                <th
+                  key={header}
+                  className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.14em] text-slate-500"
+                >
+                  {header}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {members.map((member: any) => (
+              <tr key={member.id} className="transition hover:bg-slate-50/80">
+                <td className="px-4 py-3">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
+                      {member.name.charAt(0)}
+                    </div>
+                    <span className="text-sm font-semibold text-slate-900">{member.name}</span>
+                  </div>
+                </td>
+                <td className="px-4 py-3 text-sm text-slate-700">{member.email}</td>
+                <td className="px-4 py-3">
+                  <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold uppercase text-slate-700">
+                    {member.role}
+                  </span>
+                </td>
+              </tr>
+            ))}
+            {members.length === 0 && (
+              <tr>
+                <td
+                  colSpan={3}
+                  className="px-4 py-6 text-center text-sm text-slate-600"
+                >
+                  No members yet.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

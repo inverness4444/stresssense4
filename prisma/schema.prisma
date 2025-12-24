@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -74,6 +74,8 @@ model Organization {
   id        String   @id @default(cuid())
   name      String
   slug      String   @unique
+  inviteToken String?  @unique @default(uuid())
+  isDemo    Boolean  @default(false)
   createdAt DateTime @default(now())
   users     User[]
   teams     Team[]
@@ -81,6 +83,7 @@ model Organization {
   surveyTemplates SurveyTemplate[]
   surveyRuns SurveyRun[]
   nudges    NudgeInstance[]
+  settings  OrganizationSettings?
 }
 
 model Team {
@@ -210,6 +213,7 @@ model NudgeTemplate {
   estimatedImpact   String
   recommendedChannel Json
   createdAt         DateTime   @default(now())
+  instances         NudgeInstance[]
 }
 
 model NudgeInstance {
@@ -252,4 +256,20 @@ model ActionCenterItem {
   dueAt          DateTime?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+}
+
+model OrganizationSettings {
+  id                         String   @id @default(cuid())
+  organization               Organization @relation(fields: [organizationId], references: [id])
+  organizationId             String   @unique
+  minResponsesForBreakdown   Int      @default(4)
+  stressScaleMin             Int      @default(1)
+  stressScaleMax             Int      @default(5)
+  timezone                   String?  @default("UTC")
+  allowManagerAccessToAllSurveys Boolean @default(false)
+  featureFlags               Json?
+  slackEnabled               Boolean  @default(false)
+  slackAlertsChannelId       String?
+  defaultLanguage            String   @default("en")
+  dataRetentionDays          Int?
 }

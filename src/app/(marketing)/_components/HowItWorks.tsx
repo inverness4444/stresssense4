@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { getLocale } from "@/lib/i18n-server";
 
 const steps = (isRu: boolean) => [
   {
@@ -15,13 +15,9 @@ const steps = (isRu: boolean) => [
   },
 ];
 
-export default function HowItWorks() {
-  const isRu = useMemo(() => {
-    if (typeof document !== "undefined") {
-      return (document.documentElement.lang || "").toLowerCase().startsWith("ru");
-    }
-    return false;
-  }, []);
+export default async function HowItWorks() {
+  const locale = await getLocale();
+  const isRu = locale === "ru";
   return (
     <section id="how" className="bg-white py-16 lg:py-24">
       <div className="mx-auto max-w-6xl px-4">

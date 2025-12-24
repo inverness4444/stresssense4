@@ -1,10 +1,28 @@
 import { redirect } from "next/navigation";
 import { submitSurveyResponse } from "./actions";
 import { prisma } from "@/lib/prisma";
+import { getLocale } from "@/lib/i18n-server";
+import type { Locale } from "@/lib/i18n";
+
+const QUESTION_TRANSLATIONS: Record<string, string> = {
+  "Overall, how stressed do you feel about work right now?": "В целом, насколько вы сейчас чувствуете рабочий стресс?",
+  "I feel I can disconnect from work after hours.": "Я могу отключаться от работы после рабочего дня.",
+  "My current workload feels sustainable.": "Текущая рабочая нагрузка кажется посильной.",
+  "I have the support I need from my manager and team.": "Я получаю поддержку, которая мне нужна от менеджера и команды.",
+  "How clear are priorities for your team this week?": "Насколько ясны приоритеты команды на этой неделе?",
+  "Anything else you want to share about how work feels lately?": "Поделитесь, если есть что-то ещё о том, как вам работается в последнее время.",
+  "If stress is rising, what is the biggest contributor?": "Если стресс растёт, что является главным источником?",
+};
+
+function localizeQuestions(questions: any[], locale: Locale) {
+  if (locale !== "ru") return questions;
+  return questions.map((q) => ({ ...q, text: QUESTION_TRANSLATIONS[q.text] ?? q.text }));
+}
 
 type Props = { params: { token: string }; searchParams?: { thanks?: string } };
 
 export default async function PublicSurveyPage({ params, searchParams }: Props) {
+  const locale = await getLocale();
   const run = await prisma.surveyRun.findUnique({
     where: { id: params.token },
     include: { template: { include: { questions: { orderBy: { order: "asc" } } }, organization: { include: { settings: true } } } },
@@ -12,11 +30,21 @@ export default async function PublicSurveyPage({ params, searchParams }: Props) 
 
   if (searchParams?.thanks === "1") {
     return (
-      <Notice message="Thanks for sharing. Your responses are anonymous and will be used in aggregate to improve how your team works." />
+      <Notice
+        message={
+          locale === "ru"
+            ? "Спасибо, что поделились. Ответы анонимны и используются только в агрегированном виде, чтобы улучшить работу команды."
+            : "Thanks for sharing. Your responses are anonymous and will be used in aggregate to improve how your team works."
+        }
+      />
     );
   }
 
-  if (!run) return <Notice message="This survey link is invalid." />;
+  if (!run) {
+    return <Notice message={locale === "ru" ? "Эта ссылка на опрос недействительна." : "This survey link is invalid."} />;
+  }
+
+  const questions = localizeQuestions(run.template.questions, locale);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-indigo-50 via-white to-white px-4 py-10">
@@ -27,28 +55,39 @@ export default async function PublicSurveyPage({ params, searchParams }: Props) 
           </span>
           <div>
             <p className="text-base font-semibold text-slate-900">StressSense</p>
-            <p className="text-xs font-medium text-slate-500">Stress pulse</p>
+            <p className="text-xs font-medium text-slate-500">{locale === "ru" ? "Пульс стресса" : "Stress pulse"}</p>
           </div>
         </div>
         <div className="mt-4 flex items-center gap-2">
           <h1 className="text-2xl font-semibold text-slate-900">{run.title}</h1>
           <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-100">
-            Anonymous by design
+            {locale === "ru" ? "Анонимно по умолчанию" : "Anonymous by design"}
           </span>
         </div>
         <p className="text-sm text-slate-600">
-          This quick check-in helps your company understand stress levels. Answers are anonymous and aggregated.
+          {locale === "ru"
+            ? "Короткий опрос помогает понять уровень стресса в работе. Ответы анонимны и показываются только в агрегированном виде."
+            : "This quick check-in helps your company understand stress levels. Answers are anonymous and aggregated."}
         </p>
 
         <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-800">
-          <p className="text-sm font-semibold text-slate-900">How your answers are used</p>
+          <p className="text-sm font-semibold text-slate-900">
+            {locale === "ru" ? "Как используются ответы" : "How your answers are used"}
+          </p>
           <ul className="mt-2 space-y-1 text-sm text-slate-700">
-            <li>• Individual answers are never shown to managers; only aggregated results are shared.</li>
-            <li>• Your answers are stored securely and only used to understand stress trends.</li>
+            <li>
+              •{" "}
+              {locale === "ru"
+                ? "Отдельные ответы не показываются менеджерам — только агрегированные результаты."
+                : "Individual answers are never shown to managers; only aggregated results are shared."}
+            </li>
+            <li>
+              • {locale === "ru" ? "Ответы хранятся безопасно и используются только для понимания трендов стресса." : "Your answers are stored securely and only used to understand stress trends."}
+            </li>
           </ul>
         </div>
 
-        <SurveyForm questions={run.template.questions.map((q: any) => ({ ...q }))} token={params.token} />
+        <SurveyForm questions={questions.map((q: any) => ({ ...q }))} token={params.token} locale={locale} />
       </div>
     </div>
   );
@@ -67,9 +106,11 @@ function Notice({ message }: { message: string }) {
 function SurveyForm({
   questions,
   token,
+  locale,
 }: {
   questions: { id: string; text: string; type: string; choices?: any; dimension?: string }[];
   token: string;
+  locale: Locale;
 }) {
   return (
     <form
@@ -154,7 +195,9 @@ function SurveyForm({
               name={`q-${q.id}`}
               rows={3}
               className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
-              placeholder="Share any context you feel comfortable adding"
+              placeholder={
+                locale === "ru" ? "Поделитесь контекстом, если хотите" : "Share any context you feel comfortable adding"
+              }
             />
           </div>
         );
@@ -163,7 +206,7 @@ function SurveyForm({
         type="submit"
         className="w-full rounded-full bg-gradient-to-r from-primary to-primary-strong px-5 py-3 text-sm font-semibold text-white shadow-md transition hover:scale-[1.01] hover:shadow-lg"
       >
-        Submit
+        {locale === "ru" ? "Отправить" : "Submit"}
       </button>
     </form>
   );

@@ -30,12 +30,23 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const locale = await getLocale();
   const settings = await ensureOrgSettings(user.organizationId);
   const actionsCount = await actionBadge(user.organizationId);
+  const isDemo = Boolean((user as any)?.organization?.isDemo);
+  const createdAt = (user as any)?.organization?.createdAt ? new Date((user as any).organization.createdAt) : new Date();
+  const diffDays = Math.max(0, Math.ceil((7 * 24 * 60 * 60 * 1000 - (Date.now() - createdAt.getTime())) / (24 * 60 * 60 * 1000)));
+  const showWarmup = !isDemo && diffDays > 0;
 
   return (
-    <SelfStressSurveyProvider locale={locale}>
+    <SelfStressSurveyProvider locale={locale} userId={user.id}>
       <div className="flex min-h-screen bg-slate-50">
         <AppSidebar user={user} locale={locale} settings={settings} actionCount={actionsCount} />
         <div className="flex min-h-screen flex-1 flex-col">
+          {showWarmup && (
+            <div className="bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-800 ring-1 ring-amber-100">
+              {locale === "ru"
+                ? `Продвинутые метрики будут доступны через 7 дней. Осталось: ${diffDays} дн.`
+                : `Advanced metrics unlock in 7 days. Days remaining: ${diffDays}.`}
+            </div>
+          )}
           <AppTopbar user={user} notifications={notifications} unreadCount={unread} demoMode={demoMode} locale={locale} />
           <main className="flex-1 px-4 py-6 sm:px-6 lg:px-10">{children}</main>
           <StressSenseAiFloating role={user.role ?? "User"} locale={locale} />

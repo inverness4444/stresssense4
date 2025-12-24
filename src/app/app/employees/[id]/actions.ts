@@ -6,7 +6,8 @@ import { getCurrentUser } from "@/lib/auth";
 
 export async function anonymize(formData: FormData) {
   const user = await getCurrentUser();
-  if (!user || user.role !== "ADMIN") redirect("/signin");
+  const role = (user?.role ?? "").toUpperCase();
+  if (!user || !["ADMIN", "HR"].includes(role)) redirect("/signin");
   const targetId = formData.get("userId") as string;
   await anonymizeUser(targetId, user.organizationId, user.id);
   redirect("/app/employees");

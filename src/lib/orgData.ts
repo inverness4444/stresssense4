@@ -1,8 +1,21 @@
 import { prisma } from "@/lib/prisma";
 import { getTeamStatus, type InsightTag, type TeamStatus } from "@/lib/statusLogic";
 import { createNudgesForTeamFromSurvey } from "@/lib/nudgesStore";
+import crypto from "crypto";
 
 export type Tag = InsightTag | "communication" | "participation" | "wellbeing" | "focus" | "boundaries";
+
+export function generateInviteToken() {
+  return crypto.randomBytes(24).toString("hex");
+}
+
+export async function ensureInviteToken(orgId: string) {
+  const org = await prisma.organization.findUnique({ where: { id: orgId } });
+  if (org?.inviteToken) return org.inviteToken;
+  const token = generateInviteToken();
+  await prisma.organization.updateMany({ where: { id: orgId }, data: { inviteToken: token } });
+  return token;
+}
 
 export async function getOrganizations() {
   return prisma.organization.findMany();
@@ -13,12 +26,59 @@ export async function getOrganizationBySlug(slug: string) {
 }
 
 export async function createDemoOrganization(name: string, ownerEmail?: string) {
-  const slug =
+  // If a user with this email already exists, reuse their org to avoid unique constraint errors.
+  if (ownerEmail) {
+    const existingUser = await prisma.user.findUnique({ where: { email: ownerEmail }, include: { organization: true } });
+    if (existingUser && existingUser.organization) {
+      const org = existingUser.organization;
+      let team = await prisma.team.findFirst({ where: { organizationId: org.id } });
+      if (!team) {
+        team = await prisma.team.create({
+          data: {
+            name: "Demo team",
+            description: "Starter team",
+            organizationId: org.id,
+            stressIndex: 5.5,
+            engagementScore: 7.0,
+            participation: 0,
+            status: "Watch",
+          },
+        });
+      }
+      let member = await prisma.member.findFirst({ where: { userId: existingUser.id, organizationId: org.id, teamId: team.id } });
+      if (!member) {
+        member = await prisma.member.create({
+          data: {
+            displayName: existingUser.name ?? "Demo manager",
+            role: "Manager",
+            email: existingUser.email,
+            organizationId: org.id,
+            teamId: team.id,
+            userId: existingUser.id,
+          },
+        });
+      }
+      return { org, team, owner: member };
+    }
+  }
+
+  const base =
     name
       .toLowerCase()
       .replace(/[^a-z0-9а-яё]+/gi, "-")
       .replace(/^-+|-+$/g, "") || `org-${Date.now()}`;
-  const org = await prisma.organization.create({ data: { name, slug } });
+  let slug = base;
+  let attempt = 0;
+  // ensure slug uniqueness to avoid collisions on repeated demo creation
+  // (SQLite in dev will throw otherwise)
+  // limit attempts to avoid infinite loop
+  while (attempt < 5) {
+    const existing = await prisma.organization.findUnique({ where: { slug } });
+    if (!existing) break;
+    attempt += 1;
+    slug = `${base}-${Math.floor(Math.random() * 9000 + 1000)}`;
+  }
+  const org = await prisma.organization.create({ data: { name, slug, isDemo: true, inviteToken: generateInviteToken() } });
   const team = await prisma.team.create({
     data: {
       name: "Пилотная команда",

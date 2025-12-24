@@ -4,41 +4,30 @@ import { useEffect, useMemo, useState } from "react";
 import type { Locale } from "@/lib/i18n";
 import type { TrendPoint } from "@/components/EngagementTrendCard";
 import { SurveyReportWithAiPanel } from "@/components/app/SurveyReportWithAiPanel";
+import { useSelfStressSurvey } from "@/components/app/SelfStressSurveyProvider";
 
 type HomeData = Awaited<ReturnType<typeof import("../../actions").getMyHomeData>>;
 
-export default function MyHomeClient({ data, userName, locale }: { data: HomeData; userName: string; locale: Locale }) {
+export default function MyHomeClient({ data, userName, userId, locale }: { data: HomeData; userName: string; userId: string; locale: Locale }) {
   const isRu = locale === "ru";
+  const { openSurvey } = useSelfStressSurvey();
 
-  const stressScore = data.personalStatus.stress.score ?? 6.4;
-  const engagementScore = data.personalStatus.engagement.score ?? 7.3;
-  const participation = data.personalStatus.engagement.participation ?? 76;
-  const surveysCount = 1;
+  const stressScore = data.personalStatus.stress.score;
+  const engagementScore = data.personalStatus.engagement.score;
+  const participation = data.personalStatus.engagement.participation;
+  const surveysCount = 0;
 
   const trendSource = (data.personalStatus.engagement as any)?.timeseries ?? [];
   const trendData: TrendPoint[] =
     trendSource.length > 0
       ? trendSource.map((p: any, idx: number) => ({
           label: p.date ? new Date(p.date).toLocaleDateString("ru-RU", { month: "short", day: "numeric" }) : `W${idx + 1}`,
-          value: (p as any).score ?? (p as any).value ?? engagementScore,
+          value: (p as any).score ?? (p as any).value ?? 0,
           date: p.date ?? new Date(Date.now() - (trendSource.length - idx - 1) * 7 * 24 * 60 * 60 * 1000),
         }))
-      : [
-          { label: "Пн", value: engagementScore - 0.2, date: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000) },
-          { label: "Вт", value: engagementScore - 0.1, date: new Date(Date.now() - 13 * 24 * 60 * 60 * 1000) },
-          { label: "Ср", value: engagementScore, date: new Date(Date.now() - 12 * 24 * 60 * 60 * 1000) },
-          { label: "Чт", value: engagementScore + 0.1, date: new Date(Date.now() - 11 * 24 * 60 * 60 * 1000) },
-          { label: "Пт", value: engagementScore + 0.2, date: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000) },
-          { label: "Пн", value: engagementScore + 0.3, date: new Date() },
-        ];
+      : [];
 
-  const drivers = [
-    { name: "Поддержка менеджера", score: 7.5, delta: 0.3 },
-    { name: "Признание", score: 7.2, delta: 0.1 },
-    { name: "Нагрузка", score: stressScore, delta: -0.2 },
-    { name: "Баланс", score: 6.8, delta: -0.1 },
-    { name: "Фокус", score: 7.0, delta: 0.2 },
-  ];
+  const drivers = [];
 
   const firstDate = trendData[0]?.date ? new Date(trendData[0].date as any) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
   const lastDate = trendData[trendData.length - 1]?.date ? new Date(trendData[trendData.length - 1].date as any) : new Date();
@@ -76,10 +65,11 @@ export default function MyHomeClient({ data, userName, locale }: { data: HomeDat
   };
 
   const [history, setHistory] = useState<{ id: string; startedAt: Date; finishedAt: Date; score: number }[]>([]);
+  const storagePrefix = useMemo(() => `stressSurvey:${userId || "local-user"}`, [userId]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const stored = window.localStorage.getItem("stressSurveyHistory");
+    const stored = window.localStorage.getItem(`${storagePrefix}:history`);
     if (stored) {
       try {
         const parsed = JSON.parse(stored) as { id: string; startedAt: string; finishedAt: string; score: number }[];
@@ -95,20 +85,19 @@ export default function MyHomeClient({ data, userName, locale }: { data: HomeDat
         // fall back to default below
       }
     }
-    // fallback mock if no history yet
-    setHistory([
-      { id: "self-1", startedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000 + 5 * 60 * 1000), finishedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000 + 9 * 60 * 1000), score: 7.2 },
-      { id: "self-2", startedAt: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000 + 4 * 60 * 1000), finishedAt: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000 + 7 * 60 * 1000), score: 6.9 },
-    ]);
-  }, []);
+    // no stored history — leave empty
+    setHistory([]);
+  }, [storagePrefix]);
 
   const streak = useMemo(
-    () =>
-      history.length
-        ? computeWeekdayStreak(history.map((h) => h.startedAt))
-        : computeWeekdayStreak(trendData.map((p) => (p.date ? new Date(p.date as any) : null))),
-    [history, trendData]
+    () => (history.length ? computeWeekdayStreak(history.map((h) => h.startedAt)) : 0),
+    [history]
   );
+  const hasMetrics =
+    (stressScore !== null && stressScore !== undefined) ||
+    (engagementScore !== null && engagementScore !== undefined) ||
+    trendData.length > 0 ||
+    history.length > 0;
 
   const formatDate = (d: Date) =>
     d.toLocaleString("ru-RU", {
@@ -152,29 +141,44 @@ export default function MyHomeClient({ data, userName, locale }: { data: HomeDat
             </p>
           </div>
           <div className="grid grid-cols-2 gap-3 text-sm md:grid-cols-4">
-            <Metric label={isRu ? "Мой индекс стресса" : "My stress index"} value={`${stressScore.toFixed(1)}`} />
-            <Metric label={isRu ? "Участие" : "Participation"} value={`${participation}%`} />
-            <Metric label={isRu ? "Моя вовлечённость" : "My engagement"} value={`${engagementScore.toFixed(1)}`} />
+            <Metric label={isRu ? "Мой индекс стресса" : "My stress index"} value={stressScore !== undefined && stressScore !== null ? `${stressScore.toFixed(1)}` : "—"} />
+            <Metric label={isRu ? "Участие" : "Participation"} value={participation !== undefined && participation !== null ? `${participation}%` : "—"} />
+            <Metric label={isRu ? "Моя вовлечённость" : "My engagement"} value={engagementScore !== undefined && engagementScore !== null ? `${engagementScore.toFixed(1)}` : "—"} />
             <Metric label={isRu ? "Активных опросов" : "Active surveys"} value={`${surveysCount}`} />
           </div>
         </div>
       </section>
 
       <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
-        <SurveyReportWithAiPanel
-          title={isRu ? "Мой отчёт" : "My report"}
-          subtitle={isRu ? "Личный просмотр" : "Personal view"}
-          score={engagementScore}
-          delta={0.3}
-          deltaDirection="up"
-          periodLabel={isRu ? "Последние недели" : "Recent weeks"}
-          timeseries={trendData}
-          drivers={drivers}
-          ctaLabel={isRu ? "Проанализировать вовлечённость" : "Analyze engagement"}
-          locale={locale}
-          periodFrom={periodFrom}
-          periodTo={periodTo}
-        />
+        {trendData.length > 0 ? (
+          <SurveyReportWithAiPanel
+            title={isRu ? "Мой отчёт" : "My report"}
+            subtitle={isRu ? "Личный просмотр" : "Personal view"}
+            score={engagementScore ?? 0}
+            delta={0}
+            deltaDirection="flat"
+            periodLabel={isRu ? "Последние недели" : "Recent weeks"}
+            timeseries={trendData}
+            drivers={drivers}
+            ctaLabel={isRu ? "Проанализировать вовлечённость" : "Analyze engagement"}
+            locale={locale}
+            periodFrom={periodFrom}
+            periodTo={periodTo}
+          />
+        ) : (
+          <div className="space-y-2 text-sm text-slate-700">
+            <p className="text-base font-semibold text-slate-900">{isRu ? "Нет персональных данных" : "No personal data yet"}</p>
+            <p className="text-slate-600">
+              {isRu ? "Пройдите опрос, чтобы увидеть личный отчёт и динамику." : "Take a pulse to unlock your personal report and trends."}
+            </p>
+            <button
+              onClick={() => openSurvey()}
+              className="inline-flex rounded-full bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm hover:brightness-105"
+            >
+              {isRu ? "Пройти опрос" : "Start pulse"}
+            </button>
+          </div>
+        )}
       </section>
 
       <section className="grid gap-3 lg:grid-cols-2">
@@ -182,14 +186,20 @@ export default function MyHomeClient({ data, userName, locale }: { data: HomeDat
           <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary">
             {isRu ? "AI инсайт" : "AI insight"}
           </p>
-          <ul className="mt-3 space-y-2 text-sm text-slate-700">
-            <li>{isRu ? "• Нагрузка растёт в начале недели — планируйте фокус-блоки утром." : "• Load spikes early week — block morning focus time."}</li>
-            <li>{isRu ? "• Поддержка и признание держатся на хорошем уровне." : "• Support and recognition stay healthy."}</li>
-            <li>{isRu ? "• Проверьте баланс задач к четвергу, чтобы не уходить в переработки." : "• Rebalance tasks by Thu to avoid spillover."}</li>
-          </ul>
-          <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-primary">
-            {isRu ? "AI сгенерировано" : "AI generated"}
-          </p>
+          {hasMetrics ? (
+            <>
+              <p className="mt-3 text-sm text-slate-600">
+                {isRu ? "Инсайты появятся, когда накопятся результаты опросов." : "Insights will appear once survey results accumulate."}
+              </p>
+              <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-primary">
+                {isRu ? "AI сгенерировано" : "AI generated"}
+              </p>
+            </>
+          ) : (
+            <p className="mt-3 text-sm text-slate-600">
+              {isRu ? "Пройдите опрос, чтобы получить персональные подсказки." : "Complete a pulse to receive personal suggestions."}
+            </p>
+          )}
         </div>
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex items-center justify-between">
@@ -198,29 +208,8 @@ export default function MyHomeClient({ data, userName, locale }: { data: HomeDat
             </p>
           </div>
           <div className="mt-3 space-y-3">
-            <div className="rounded-2xl border border-slate-100 bg-slate-50 px-3 py-2 shadow-inner">
-              <p className="text-sm font-semibold text-slate-900">
-                {isRu ? "Сократить шум митингов" : "Reduce meeting noise"}
-              </p>
-              <p className="text-xs text-slate-600">
-                {isRu ? "Сгруппируйте встречи и оставьте два фокус-блока без звонков." : "Group meetings and keep two focus blocks meeting-free."}
-              </p>
-            </div>
-            <div className="rounded-2xl border border-slate-100 bg-slate-50 px-3 py-2 shadow-inner">
-              <p className="text-sm font-semibold text-slate-900">
-                {isRu ? "Уточнить 3 приоритета недели" : "Align 3 weekly priorities"}
-              </p>
-              <p className="text-xs text-slate-600">
-                {isRu ? "Зафиксируйте результаты недели и обсудите их с менеджером." : "Lock 3 outcomes and review with your manager."}
-              </p>
-            </div>
-            <div className="rounded-2xl border border-slate-100 bg-slate-50 px-3 py-2 shadow-inner">
-              <p className="text-sm font-semibold text-slate-900">
-                {isRu ? "Поддержка при перегрузке" : "Support when overloaded"}
-              </p>
-              <p className="text-xs text-slate-600">
-                {isRu ? "Если задачи копятся, попросите перераспределение или буфер." : "If work piles up, ask to rebalance or add buffer."}
-              </p>
+            <div className="rounded-2xl border border-dashed border-slate-200 bg-white px-3 py-2 text-sm text-slate-600">
+              {isRu ? "Рекомендации появятся через несколько дней активности." : "Recommendations will appear after you start using pulses."}
             </div>
           </div>
         </div>

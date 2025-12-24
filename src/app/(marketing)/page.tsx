@@ -1,3 +1,4 @@
+import { getLocale } from "@/lib/i18n-server";
 import ProductHero from "./product/_components/ProductHero";
 import SectionStressAnalytics from "./product/_components/SectionStressAnalytics";
 import SectionManagerCockpit from "./product/_components/SectionManagerCockpit";
@@ -12,7 +13,8 @@ import PricingTeaser from "./_components/PricingTeaser";
 import SecuritySection from "./_components/SecuritySection";
 import MarketingFooter from "./_components/MarketingFooter";
 
-export default function LandingPage() {
+export default async function LandingPage() {
+  const locale = await getLocale();
   return (
     <div className="min-h-screen bg-gradient-to-b from-indigo-50 via-white to-white text-slate-900">
       <ProductHero />
@@ -24,7 +26,7 @@ export default function LandingPage() {
       <SectionSecurityTrust />
       <SectionIntegrations />
       <SectionCTA />
-      <LiveDemoSection />
+      <LiveDemoSection locale={locale} />
       <PricingTeaser />
       <SecuritySection />
       <MarketingFooter />
