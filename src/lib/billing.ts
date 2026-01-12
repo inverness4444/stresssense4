@@ -1,7 +1,9 @@
+import "server-only";
 import Stripe from "stripe";
 import { env } from "@/config/env";
 import { prisma } from "./prisma";
 import { getBaseUrl } from "./url";
+import { normalizeSeats } from "@/config/pricing";
 
 const stripe = env.STRIPE_SECRET_KEY ? new Stripe(env.STRIPE_SECRET_KEY) : null;
 
@@ -21,17 +23,18 @@ export async function createOrUpdateCustomer(organizationId: string, name: strin
   return customer.id;
 }
 
-export async function createCheckoutSession(organizationId: string, planId: string) {
+export async function createCheckoutSession(organizationId: string, seats: number) {
   if (!stripe) throw new Error("Stripe not configured");
-  const plan = await prisma.plan.findUnique({ where: { id: planId } });
-  if (!plan) throw new Error("Plan not found");
+  const plan = await prisma.plan.findFirst();
+  if (!plan) throw new Error("Pricing not configured");
   const org = await prisma.organization.findUnique({ where: { id: organizationId } });
   if (!org) throw new Error("Organization not found");
+  const quantity = normalizeSeats(seats);
 
   const customerId = await createOrUpdateCustomer(organizationId, org.name);
   const session = await stripe.checkout.sessions.create({
     mode: "subscription",
-    line_items: [{ price: plan.stripePriceId, quantity: 1 }],
+    line_items: [{ price: plan.stripePriceId, quantity }],
     customer: customerId,
     success_url: `${getBaseUrl()}/app/billing?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${getBaseUrl()}/app/billing`,

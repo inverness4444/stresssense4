@@ -14,6 +14,7 @@ const serverSchema = z.object({
   SMTP_PASSWORD: z.string().optional(),
   SMTP_SECURE: z.string().optional(),
   NEXTAUTH_SECRET: z.string().min(16, "NEXTAUTH_SECRET must be set and at least 16 characters").default("dev-nextauth-secret"),
+  BOOTSTRAP_TOKEN: z.string().optional(),
   STRIPE_SECRET_KEY: z.string().optional(),
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
   STRIPE_PUBLISHABLE_KEY: z.string().optional(),
@@ -31,7 +32,10 @@ const serverSchema = z.object({
   AI_PROVIDER: z.enum(["openai", "none"]).default("none"),
   OPENAI_API_KEY: z.string().optional(),
   AI_MODEL_SUMMARY: z.string().optional(),
+  AI_MODEL_SUMMARY_FALLBACK: z.string().optional(),
   AI_MODEL_ASSISTANT: z.string().optional(),
+  AI_MODEL_ASSISTANT_VISION: z.string().optional(),
+  CRON_SECRET: z.string().optional(),
   REDIS_URL: z.string().optional(),
   QUEUE_CONCURRENCY: z.coerce.number().optional(),
   DWH_TYPE: z.string().optional(),
@@ -65,6 +69,15 @@ export const env = {
   featureFlags,
   isDev: serverEnv.NODE_ENV !== "production",
 };
+
+if (!env.isDev) {
+  if (env.SESSION_SECRET === "dev-session-secret-placeholder") {
+    throw new Error("SESSION_SECRET must be set in production.");
+  }
+  if (env.NEXTAUTH_SECRET === "dev-nextauth-secret") {
+    throw new Error("NEXTAUTH_SECRET must be set in production.");
+  }
+}
 
 if (env.AI_PROVIDER === "openai") {
   const missing = [];

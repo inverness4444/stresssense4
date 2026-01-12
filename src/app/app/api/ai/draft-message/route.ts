@@ -4,11 +4,21 @@ import { prisma } from "@/lib/prisma";
 import { getAIClient } from "@/lib/ai";
 import { headers } from "next/headers";
 import { rateLimit } from "@/lib/rateLimit";
+import { assertSameOrigin } from "@/lib/apiAuth";
+import { getBillingGateStatus } from "@/lib/billingGate";
+import { env } from "@/config/env";
 
 export async function POST(req: Request) {
+  const originError = assertSameOrigin(req);
+  if (originError) return originError;
   const user = await getCurrentUser();
-  if (!user || (user.role !== "ADMIN" && user.role !== "MANAGER")) {
+  if (!user || (user.role !== "ADMIN" && user.role !== "MANAGER" && user.role !== "SUPER_ADMIN")) {
     return NextResponse.json({ error: "Not allowed" }, { status: 403 });
+  }
+  const orgCreatedAt = (user as any)?.organization?.createdAt ? new Date((user as any).organization.createdAt) : undefined;
+  const gateStatus = await getBillingGateStatus(user.organizationId, orgCreatedAt);
+  if (!gateStatus.hasPaidAccess && !env.isDev) {
+    return NextResponse.json({ error: "payment_required" }, { status: 402 });
   }
   const ip = (await headers()).get("x-forwarded-for") ?? "unknown";
   const limiter = rateLimit(`ai-draft:${user.id}:${ip}`, { limit: 5, windowMs: 60_000 });

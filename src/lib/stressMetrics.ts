@@ -1,9 +1,11 @@
 import { prisma } from "./prisma";
 import type { Survey, SurveyQuestion } from "@prisma/client";
+import { computeOverallStressFromDrivers, scoreAnswer, type DriverKey } from "@/lib/stressScoring";
 
 export function normalize(value: number, min: number, max: number) {
   if (max === min) return 0;
-  return Math.max(0, Math.min(100, Math.round(((value - min) / (max - min)) * 100)));
+  const normalized = ((value - min) / (max - min)) * 10;
+  return Math.max(0, Math.min(10, Number(normalized.toFixed(2))));
 }
 
 export function averageScale(answers: { scaleValue: number | null }[]) {
@@ -40,18 +42,29 @@ export function averageStressIndexForSurvey(
   scaleMin: number,
   scaleMax: number
 ) {
-  let sum = 0;
-  let count = 0;
-  const scaleQuestions = questions.filter((q) => q.type === "SCALE");
-  survey.responses.forEach((r) => {
-    scaleQuestions.forEach((q) => {
-      const ans = r.answers.find((a) => a.questionId === q.id);
-      if (ans?.scaleValue != null) {
-        sum += ans.scaleValue;
-        count += 1;
-      }
+  const questionMap = new Map(questions.map((q) => [q.id, q]));
+  const driverTotals = new Map<DriverKey, { sum: number; count: number }>();
+  let fallbackSum = 0;
+  let fallbackCount = 0;
+
+  survey.responses.forEach((response) => {
+    response.answers.forEach((answer) => {
+      const question = questionMap.get(answer.questionId);
+      if (!question || question.type !== "SCALE") return;
+      const scored = scoreAnswer(answer, question);
+      if (!scored) return;
+      const totals = driverTotals.get(scored.driverKey) ?? { sum: 0, count: 0 };
+      totals.sum += scored.stressScore;
+      totals.count += 1;
+      driverTotals.set(scored.driverKey, totals);
+      fallbackSum += scored.stressScore;
+      fallbackCount += 1;
     });
   });
-  if (!count) return 0;
-  return normalize(sum / count, scaleMin, scaleMax);
+
+  const stressStats = computeOverallStressFromDrivers(driverTotals);
+  if (stressStats.answerCount === 0 && fallbackCount > 0) {
+    return Number((fallbackSum / fallbackCount).toFixed(2));
+  }
+  return Number(stressStats.avg.toFixed(2));
 }

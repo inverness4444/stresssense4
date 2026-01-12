@@ -7,7 +7,7 @@ import Link from "next/link";
 export default async function ManagerPeoplePage() {
   const user = await getCurrentUser();
   if (!user) return <div className="rounded-2xl border border-slate-200 bg-white p-6">Unauthorized</div>;
-  if (!["ADMIN", "HR", "MANAGER"].includes(user.role)) return <div className="rounded-2xl border border-slate-200 bg-white p-6">Нет доступа</div>;
+  if (!["ADMIN", "HR", "MANAGER", "SUPER_ADMIN"].includes(user.role)) return <div className="rounded-2xl border border-slate-200 bg-white p-6">Нет доступа</div>;
   const enabled = await isFeatureEnabled("people_module_v1", { organizationId: user.organizationId, userId: user.id });
   if (!enabled) return <div className="rounded-2xl border border-slate-200 bg-white p-6">Модуль People выключен</div>;
 

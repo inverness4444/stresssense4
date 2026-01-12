@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { getKioskSession, ensureKioskUser } from "@/lib/kiosk";
 import { prisma } from "@/lib/prisma";
 import { trackProductEvent } from "@/lib/analytics";
+import { notifySurveyReportReady } from "@/lib/surveyNotifications";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id: kioskId } = await params;
@@ -39,5 +40,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     source: "kiosk",
     properties: { surveyId: survey.id, kioskId, responseId: response.id },
   });
+  await notifySurveyReportReady(survey.id);
   return NextResponse.json({ ok: true });
 }

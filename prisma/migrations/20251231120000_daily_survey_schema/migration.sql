@@ -1,0 +1,20 @@
+DO $$
+BEGIN
+  ALTER TYPE "QuestionType" ADD VALUE 'SCALE';
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$
+BEGIN
+  ALTER TYPE "QuestionType" ADD VALUE 'TEXT';
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
+
+ALTER TABLE "SurveyTemplate" ADD COLUMN IF NOT EXISTS "name" TEXT;
+
+ALTER TABLE "SurveyQuestion"
+  ADD COLUMN IF NOT EXISTS "helpText" TEXT,
+  ADD COLUMN IF NOT EXISTS "scaleMin" INTEGER,
+  ADD COLUMN IF NOT EXISTS "scaleMax" INTEGER;

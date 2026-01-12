@@ -16,22 +16,23 @@ export async function canUseFeature(organizationId: string, featureKey: string) 
   const org = await prisma.organization.findUnique({
     where: { id: organizationId },
     include: {
-      subscription: { include: { plan: true } },
+      subscription: true,
       organizationAddOns: { include: { addOn: true } },
     },
   });
   if (!org) return false;
 
   const subs = org.subscription;
-  const planFeatures = subs?.plan?.featureKeys ?? [];
   const addonFeatures = org.organizationAddOns.flatMap((o: any) => o.addOn.featureKeys ?? []);
-  const hasFeature = planFeatures.includes(featureKey) || addonFeatures.includes(featureKey);
+  const hasAddonFeature = addonFeatures.includes(featureKey);
 
   // Trial check
   const now = new Date();
   const trialActive = org.trialEndsAt && org.trialEndsAt > now && subs?.isTrial;
   const subsActive = subs && ["active", "trialing"].includes(subs.status);
-  if (!trialActive && !subsActive && PREMIUM_FEATURES.includes(featureKey)) return false;
+  if (!trialActive && !subsActive && PREMIUM_FEATURES.includes(featureKey) && !hasAddonFeature) return false;
 
-  return hasFeature || trialActive;
+  if (hasAddonFeature) return true;
+  if (!PREMIUM_FEATURES.includes(featureKey)) return true;
+  return Boolean(trialActive || subsActive);
 }

@@ -34,6 +34,7 @@ function buildNudgeInstance(template: NudgeTemplateConfig, team: TeamLike, tags:
     teamId: team.id,
     memberId: null,
     templateId: template.id,
+    templateSlug: template.slug,
     status: "todo",
     createdAt: now,
     dueAt: null,

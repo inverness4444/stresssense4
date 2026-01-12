@@ -14,8 +14,8 @@ export default async function SectionSecurityTrust() {
           <h2 className="text-3xl font-semibold text-slate-900 sm:text-4xl">{isRu ? "Безопасность и приватность по умолчанию" : "Security and privacy by default"}</h2>
           <p className="mx-auto max-w-3xl text-slate-600">
             {isRu
-              ? "Ролевая модель доступа, анонимные агрегаты, минимизация данных и аудит. Никакого “скрытого наблюдения” — только то, что нужно HR и менеджерам."
-              : "Role-based access, anonymous aggregates, data minimization, and audit. No hidden surveillance — only what HR and managers need."}
+              ? "Ролевая модель доступа, анонимные агрегаты, минимизация данных и аудит. Никакого “скрытого наблюдения” — только то, что нужно админам и менеджерам."
+              : "Role-based access, anonymous aggregates, data minimization, and audit. No hidden surveillance — only what admins and managers need."}
           </p>
         </div>
 

@@ -1,3 +1,4 @@
+import "server-only";
 import { NextResponse } from "next/server";
 import { verifyApiKey, hasRequiredScopes } from "./apiKeys";
 import { rateLimit } from "./rateLimit";

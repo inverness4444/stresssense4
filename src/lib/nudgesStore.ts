@@ -36,10 +36,25 @@ export async function createNudgesForTeamFromSurvey(team: any, metrics: TeamMetr
     ...g,
     orgId: team.organizationId as any,
   }));
-  const existing = await prisma.nudgeInstance.findMany({ where: { teamId: team.id, status: "todo" } });
-  const safeExisting = Array.isArray(existing) ? existing : [];
   const safeGenerated = Array.isArray(generated) ? generated : [];
-  const newOnes = safeGenerated.filter((g: any) => !safeExisting.some((e: any) => e?.templateId === g.templateId));
+  const templateSlugs = Array.from(new Set(safeGenerated.map((g: any) => g?.templateSlug).filter(Boolean)));
+  if (!templateSlugs.length) return [];
+  const templates = await prisma.nudgeTemplate.findMany({ where: { slug: { in: templateSlugs } } });
+  if (!templates.length) return [];
+  const templateIdBySlug = new Map(templates.map((t) => [t.slug, t.id]));
+  const existing = await prisma.nudgeInstance.findMany({
+    where: { teamId: team.id, status: "todo", template: { slug: { in: templateSlugs } } },
+    include: { template: true },
+  });
+  const safeExisting = Array.isArray(existing) ? existing : [];
+  const newOnes = safeGenerated
+    .map((g: any) => {
+      const templateId = g?.templateSlug ? templateIdBySlug.get(g.templateSlug) : undefined;
+      if (!templateId) return null;
+      return { ...g, templateId };
+    })
+    .filter(Boolean)
+    .filter((g: any) => !safeExisting.some((e: any) => e?.template?.slug === g.templateSlug));
   if (!newOnes.length) return [];
   await prisma.nudgeInstance.createMany({
     data: newOnes.map((n: any) => ({
@@ -51,10 +66,11 @@ export async function createNudgesForTeamFromSurvey(team: any, metrics: TeamMetr
       source: n.source,
       tags: n.tags,
       notes: n.notes ?? null,
-      createdAt: n.createdAt,
+      createdAt: n.createdAt ?? new Date(),
       dueAt: n.dueAt ?? null,
       resolvedAt: n.resolvedAt ?? null,
     })),
+    skipDuplicates: true,
   });
   return newOnes;
 }

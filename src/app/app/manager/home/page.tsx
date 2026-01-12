@@ -4,11 +4,12 @@ import { prisma } from "@/lib/prisma";
 import { getLocale } from "@/lib/i18n-server";
 import { ManagerHomeClient, type ManagerHomeData } from "./ManagerHomeClient";
 import { getTeamStatus } from "@/lib/statusLogic";
+import { getDisplayStressIndex, getEngagementFromParticipation } from "@/lib/metricDisplay";
 
 export default async function ManagerHomePage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
-  if ((user.role ?? "").toUpperCase() === "ADMIN") redirect("/app/overview");
+  if (["ADMIN", "HR", "SUPER_ADMIN"].includes((user.role ?? "").toUpperCase())) redirect("/app/overview");
   const locale = await getLocale();
 
   const teams = await prisma.team.findMany({ where: { organizationId: user.organizationId }, orderBy: { createdAt: "asc" } });
@@ -20,15 +21,16 @@ export default async function ManagerHomePage() {
 
   const teamCards: ManagerHomeData["teamCards"] = {};
   teams.forEach((team) => {
-    const participationRate = (team.participation ?? 0) / 100;
-    const engagement = team.engagementScore ?? 0;
-    const stress = team.stressIndex ?? 0;
+    const participation = team.participation ?? 0;
+    const participationRate = participation / 100;
+    const engagement = getEngagementFromParticipation(participation, team.engagementScore) ?? 0;
+    const stress = getDisplayStressIndex(team.stressIndex, team.engagementScore) ?? 0;
     const history = metricsHistory.filter((h) => h.teamId === team.id);
     const timeseries = history.map((h) => ({
       date: h.createdAt.toISOString(),
-      score: h.engagementScore ?? 0,
+      score: getEngagementFromParticipation(h.participation ?? null, h.engagementScore ?? null) ?? 0,
     }));
-    const riskLevel = getTeamStatus(stress, engagement, Math.round(participationRate * 100));
+    const riskLevel = getTeamStatus(stress, engagement, Math.round(participation));
     teamCards[team.id] = {
       teamId: team.id,
       name: team.name,

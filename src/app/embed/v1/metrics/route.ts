@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { errorResponse } from "@/lib/publicApi";
-import { normalize } from "@/lib/stressMetrics";
+import { computeOverallStressFromDrivers, scoreAnswer, type DriverKey } from "@/lib/stressScoring";
 
 async function validate(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -23,10 +23,9 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const workspaceId = searchParams.get("workspaceId")!;
 
-  const settings = await prisma.organizationSettings.findUnique({ where: { organizationId: workspaceId } });
   const survey = await prisma.survey.findFirst({
     where: { organizationId: workspaceId },
-    include: { responses: { include: { answers: true, inviteToken: true } }, inviteTokens: true },
+    include: { responses: { include: { answers: true, inviteToken: true } }, inviteTokens: true, questions: true },
     orderBy: { createdAt: "desc" },
   });
   if (!survey) return NextResponse.json({ data: null });
@@ -34,18 +33,31 @@ export async function GET(req: Request) {
   const invites = survey.inviteTokens.length;
   const responses = survey.responses.length;
   const participation = invites ? Math.round((responses / invites) * 100) : 0;
-  let sum = 0;
-  let count = 0;
-  survey.responses.forEach((r: any) =>
-    r.answers.forEach((a: any) => {
-      if (a.scaleValue != null) {
-        sum += a.scaleValue;
-        count += 1;
-      }
-    })
-  );
-  const avg = count ? sum / count : 0;
-  const stressIndex = normalize(avg, settings?.stressScaleMin ?? 1, settings?.stressScaleMax ?? 5);
+  const questionMap = new Map(survey.questions.map((q: any) => [q.id, q]));
+  const driverTotals = new Map<DriverKey, { sum: number; count: number }>();
+  let fallbackSum = 0;
+  let fallbackCount = 0;
+  survey.responses.forEach((response: any) => {
+    response.answers.forEach((answer: any) => {
+      const question = questionMap.get(answer.questionId);
+      if (!question) return;
+      const scored = scoreAnswer(answer, question);
+      if (!scored) return;
+      const totals = driverTotals.get(scored.driverKey) ?? { sum: 0, count: 0 };
+      totals.sum += scored.stressScore;
+      totals.count += 1;
+      driverTotals.set(scored.driverKey, totals);
+      fallbackSum += scored.stressScore;
+      fallbackCount += 1;
+    });
+  });
+  const stressStats = computeOverallStressFromDrivers(driverTotals);
+  const stressIndex =
+    stressStats.answerCount > 0
+      ? stressStats.avg
+      : fallbackCount > 0
+        ? fallbackSum / fallbackCount
+        : 0;
 
   return NextResponse.json({
     data: {

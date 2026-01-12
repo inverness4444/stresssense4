@@ -48,7 +48,7 @@ export default async function SurveysPage({ searchParams }: Props) {
         >
           История прохождений
         </Link>
-        {user.role === "ADMIN" && (
+        {["ADMIN", "HR", "SUPER_ADMIN"].includes(user.role) && (
           <Link
             href="/app/surveys/new"
             className="rounded-full bg-gradient-to-r from-primary to-primary-strong px-4 py-2 text-sm font-semibold text-white shadow-md transition hover:scale-[1.02] hover:shadow-lg"

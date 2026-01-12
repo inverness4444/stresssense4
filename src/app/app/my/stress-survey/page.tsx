@@ -1,13 +1,24 @@
 import { notFound } from "next/navigation";
-import { getCurrentUser } from "@/lib/auth";
-import { getLocale } from "@/lib/i18n-server";
+import { getDailySurveyPageData } from "./actions";
 import StressSurveyPageClient from "./ui/StressSurveyPageClient";
+import { SelfStressSurveyProvider } from "@/components/app/SelfStressSurveyProvider";
 
 export default async function StressSurveyPage() {
-  const user = await getCurrentUser();
-  if (!user) notFound();
-  if (!["EMPLOYEE", "MANAGER", "HR", "ADMIN"].includes((user.role ?? "").toUpperCase())) notFound();
-  const locale = await getLocale();
+  const data = await getDailySurveyPageData();
+  if (!data) notFound();
 
-  return <StressSurveyPageClient userName={user.name ?? ""} userId={user.id} locale={locale} />;
+  return (
+    <SelfStressSurveyProvider locale={data.locale} userId={data.userId} userEmail={data.userEmail}>
+      <StressSurveyPageClient
+        userName={data.userName}
+        locale={data.locale}
+        todaySurvey={data.todaySurvey}
+        todayCompletedAt={data.todayCompletedAt}
+        todayScore={data.todayScore}
+        canStart={data.canStart}
+        aiLocked={data.aiLocked}
+        history={data.history}
+      />
+    </SelfStressSurveyProvider>
+  );
 }

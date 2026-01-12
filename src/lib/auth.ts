@@ -2,6 +2,8 @@ import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/authOptions";
 import { prisma } from "@/lib/prisma";
+import { isAdminLike } from "@/lib/roles";
+import { ensureMemberForUser } from "@/lib/members";
 
 export async function getCurrentUser() {
   const session = await getServerSession(authOptions);
@@ -23,10 +25,11 @@ export async function getCurrentUser() {
     });
   }
   if (!user) return null;
-  const member = await prisma.member.findFirst({
-    where: { userId: user.id },
-    include: { team: true, organization: true },
-  });
+  const member =
+    (await prisma.member.findFirst({
+      where: { userId: user.id },
+      include: { team: true, organization: true },
+    })) ?? (await ensureMemberForUser(user));
   return { ...user, member };
 }
 
@@ -39,5 +42,5 @@ export async function requireUser() {
 }
 
 export function isAdmin(user: { role: string }) {
-  return user.role === "HR";
+  return isAdminLike(user.role);
 }

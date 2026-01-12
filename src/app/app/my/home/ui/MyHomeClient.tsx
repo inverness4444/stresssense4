@@ -1,38 +1,50 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import type { Locale } from "@/lib/i18n";
 import type { TrendPoint } from "@/components/EngagementTrendCard";
 import { SurveyReportWithAiPanel } from "@/components/app/SurveyReportWithAiPanel";
-import { useSelfStressSurvey } from "@/components/app/SelfStressSurveyProvider";
+import { StressDriversGrid } from "@/components/app/StressDriversGrid";
+import { getStressDrivers } from "@/lib/aiStressDrivers";
 
 type HomeData = Awaited<ReturnType<typeof import("../../actions").getMyHomeData>>;
 
-export default function MyHomeClient({ data, userName, userId, locale }: { data: HomeData; userName: string; userId: string; locale: Locale }) {
+export default function MyHomeClient({
+  data,
+  userName,
+  userId,
+  locale,
+  aiEnabled,
+}: {
+  data: HomeData;
+  userName: string;
+  userId: string;
+  locale: Locale;
+  aiEnabled: boolean;
+}) {
   const isRu = locale === "ru";
-  const { openSurvey } = useSelfStressSurvey();
-
   const stressScore = data.personalStatus.stress.score;
-  const engagementScore = data.personalStatus.engagement.score;
   const participation = data.personalStatus.engagement.participation;
-  const surveysCount = 0;
+  const engagementScore = data.personalStatus.engagement.score;
+  const displayStress = stressScore ?? null;
 
-  const trendSource = (data.personalStatus.engagement as any)?.timeseries ?? [];
+  const trendSource =
+    (data.personalStatus.stress as any)?.timeseries ?? (data.personalStatus.engagement as any)?.timeseries ?? [];
   const trendData: TrendPoint[] =
     trendSource.length > 0
       ? trendSource.map((p: any, idx: number) => ({
-          label: p.date ? new Date(p.date).toLocaleDateString("ru-RU", { month: "short", day: "numeric" }) : `W${idx + 1}`,
+          label: p.date
+            ? new Date(p.date).toLocaleDateString(isRu ? "ru-RU" : "en-US", { month: "short", day: "numeric" })
+            : `W${idx + 1}`,
           value: (p as any).score ?? (p as any).value ?? 0,
           date: p.date ?? new Date(Date.now() - (trendSource.length - idx - 1) * 7 * 24 * 60 * 60 * 1000),
         }))
       : [];
 
-  const drivers = [];
-
-  const firstDate = trendData[0]?.date ? new Date(trendData[0].date as any) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-  const lastDate = trendData[trendData.length - 1]?.date ? new Date(trendData[trendData.length - 1].date as any) : new Date();
-  const periodFrom = firstDate.toISOString().slice(0, 10);
-  const periodTo = lastDate.toISOString().slice(0, 10);
+  const drivers = [
+    { name: isRu ? "Вовлечённость" : "Engagement", score: Number(engagementScore ?? 0), delta: 0 },
+    { name: isRu ? "Нагрузка" : "Workload", score: Number(displayStress ?? 0), delta: 0 },
+  ];
 
   const computeWeekdayStreak = (dates: (Date | null | undefined)[]) => {
     const daySet = new Set(
@@ -64,43 +76,30 @@ export default function MyHomeClient({ data, userName, userId, locale }: { data:
     return streak;
   };
 
-  const [history, setHistory] = useState<{ id: string; startedAt: Date; finishedAt: Date; score: number }[]>([]);
-  const storagePrefix = useMemo(() => `stressSurvey:${userId || "local-user"}`, [userId]);
+  const history = useMemo(() => {
+    const source = data.surveyHistory ?? [];
+    return source
+      .map((run: any) => {
+        const startedAt = run.startedAt ? new Date(run.startedAt) : null;
+        const finishedAt = run.finishedAt ? new Date(run.finishedAt) : startedAt;
+        if (!startedAt || !finishedAt) return null;
+        return {
+          id: run.id,
+          startedAt,
+          finishedAt,
+          durationMs:
+            typeof run.durationMs === "number"
+              ? run.durationMs
+              : Math.max(0, finishedAt.getTime() - startedAt.getTime()),
+          score: Number(run.score ?? 0),
+        };
+      })
+      .filter((run: any): run is { id: string; startedAt: Date; finishedAt: Date; durationMs: number; score: number } => Boolean(run));
+  }, [data.surveyHistory]);
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const stored = window.localStorage.getItem(`${storagePrefix}:history`);
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored) as { id: string; startedAt: string; finishedAt: string; score: number }[];
-        const mapped = parsed.map((h) => ({
-          ...h,
-          startedAt: new Date(h.startedAt),
-          finishedAt: new Date(h.finishedAt),
-          score: h.score,
-        }));
-        setHistory(mapped);
-        return;
-      } catch {
-        // fall back to default below
-      }
-    }
-    // no stored history — leave empty
-    setHistory([]);
-  }, [storagePrefix]);
-
-  const streak = useMemo(
-    () => (history.length ? computeWeekdayStreak(history.map((h) => h.startedAt)) : 0),
-    [history]
-  );
-  const hasMetrics =
-    (stressScore !== null && stressScore !== undefined) ||
-    (engagementScore !== null && engagementScore !== undefined) ||
-    trendData.length > 0 ||
-    history.length > 0;
-
+  const streak = useMemo(() => (history.length ? computeWeekdayStreak(history.map((h) => h.startedAt)) : 0), [history]);
   const formatDate = (d: Date) =>
-    d.toLocaleString("ru-RU", {
+    d.toLocaleString(isRu ? "ru-RU" : "en-US", {
       day: "2-digit",
       month: "short",
       hour: "2-digit",
@@ -109,9 +108,41 @@ export default function MyHomeClient({ data, userName, userId, locale }: { data:
   const formatDuration = (ms: number) => {
     const mins = Math.floor(ms / 60000);
     const secs = Math.round((ms % 60000) / 1000);
-    if (mins <= 0) return `${secs} c`;
-    return `${mins} мин ${secs.toString().padStart(2, "0")} c`;
+    if (mins <= 0) return isRu ? `${secs} c` : `${secs} sec`;
+    return isRu ? `${mins} мин ${secs.toString().padStart(2, "0")} c` : `${mins} min ${secs.toString().padStart(2, "0")} sec`;
   };
+
+  const reportTimeseries = useMemo(() => {
+    if (trendData.length > 0) return trendData;
+    if (history.length > 0) {
+      return history.map((run, idx) => ({
+        label: run.startedAt.toLocaleDateString(isRu ? "ru-RU" : "en-US", { month: "short", day: "numeric" }),
+        value: run.score ?? displayStress ?? 0,
+        date: run.startedAt,
+      }));
+    }
+    const base = Number.isFinite(displayStress as number) ? (displayStress ?? 0) : 0;
+    const points = 4;
+    const now = Date.now();
+    return Array.from({ length: points }, (_, idx) => {
+      const date = new Date(now - (points - idx - 1) * 7 * 24 * 60 * 60 * 1000);
+      return {
+        label: date.toLocaleDateString(isRu ? "ru-RU" : "en-US", { month: "short", day: "numeric" }),
+        value: base,
+        date,
+      };
+    });
+  }, [trendData, history, stressScore, isRu]);
+
+  const firstDate = reportTimeseries[0]?.date ? new Date(reportTimeseries[0].date as any) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const lastDate = reportTimeseries[reportTimeseries.length - 1]?.date ? new Date(reportTimeseries[reportTimeseries.length - 1].date as any) : new Date();
+  const periodFrom = firstDate.toISOString().slice(0, 10);
+  const periodTo = lastDate.toISOString().slice(0, 10);
+  const stressDrivers = getStressDrivers({
+    workspaceId: data.orgId,
+    userId,
+    dateRange: { start: new Date(periodFrom), end: new Date(periodTo), locale },
+  }); // TODO: заменить моки на реальные AI-инсайты на основе ответов опросов.
 
   return (
     <div className="space-y-6">
@@ -140,80 +171,45 @@ export default function MyHomeClient({ data, userName, userId, locale }: { data:
               {isRu ? "Это ваши персональные сигналы: стресс, участие и вовлечённость." : "Your personal signals: stress, participation, engagement."}
             </p>
           </div>
-          <div className="grid grid-cols-2 gap-3 text-sm md:grid-cols-4">
-            <Metric label={isRu ? "Мой индекс стресса" : "My stress index"} value={stressScore !== undefined && stressScore !== null ? `${stressScore.toFixed(1)}` : "—"} />
+          <div className="grid grid-cols-2 gap-3 text-sm md:grid-cols-3">
+            <Metric label={isRu ? "Мой индекс стресса" : "My stress index"} value={displayStress !== undefined && displayStress !== null ? `${displayStress.toFixed(1)}` : "—"} />
             <Metric label={isRu ? "Участие" : "Participation"} value={participation !== undefined && participation !== null ? `${participation}%` : "—"} />
             <Metric label={isRu ? "Моя вовлечённость" : "My engagement"} value={engagementScore !== undefined && engagementScore !== null ? `${engagementScore.toFixed(1)}` : "—"} />
-            <Metric label={isRu ? "Активных опросов" : "Active surveys"} value={`${surveysCount}`} />
           </div>
         </div>
       </section>
 
       <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
-        {trendData.length > 0 ? (
-          <SurveyReportWithAiPanel
-            title={isRu ? "Мой отчёт" : "My report"}
-            subtitle={isRu ? "Личный просмотр" : "Personal view"}
-            score={engagementScore ?? 0}
-            delta={0}
-            deltaDirection="flat"
-            periodLabel={isRu ? "Последние недели" : "Recent weeks"}
-            timeseries={trendData}
-            drivers={drivers}
-            ctaLabel={isRu ? "Проанализировать вовлечённость" : "Analyze engagement"}
-            locale={locale}
-            periodFrom={periodFrom}
-            periodTo={periodTo}
-          />
-        ) : (
-          <div className="space-y-2 text-sm text-slate-700">
-            <p className="text-base font-semibold text-slate-900">{isRu ? "Нет персональных данных" : "No personal data yet"}</p>
-            <p className="text-slate-600">
-              {isRu ? "Пройдите опрос, чтобы увидеть личный отчёт и динамику." : "Take a pulse to unlock your personal report and trends."}
-            </p>
-            <button
-              onClick={() => openSurvey()}
-              className="inline-flex rounded-full bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm hover:brightness-105"
-            >
-              {isRu ? "Пройти опрос" : "Start pulse"}
-            </button>
-          </div>
-        )}
+        <SurveyReportWithAiPanel
+          title={isRu ? "Мой отчёт" : "My report"}
+          subtitle={isRu ? "Личный просмотр" : "Personal view"}
+          score={displayStress ?? 0}
+          delta={0}
+          deltaDirection="flat"
+          periodLabel={isRu ? "Последние недели" : "Recent weeks"}
+          timeseries={reportTimeseries}
+          drivers={drivers}
+          ctaLabel={isRu ? "Проанализировать вовлечённость" : "Analyze engagement"}
+          locale={locale}
+          reportContext={{ scope: "user", scopeId: userId, dateRange: { from: periodFrom, to: periodTo } }}
+          aiEnabled={aiEnabled}
+        />
       </section>
 
-      <section className="grid gap-3 lg:grid-cols-2">
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary">
-            {isRu ? "AI инсайт" : "AI insight"}
-          </p>
-          {hasMetrics ? (
-            <>
-              <p className="mt-3 text-sm text-slate-600">
-                {isRu ? "Инсайты появятся, когда накопятся результаты опросов." : "Insights will appear once survey results accumulate."}
-              </p>
-              <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-primary">
-                {isRu ? "AI сгенерировано" : "AI generated"}
-              </p>
-            </>
-          ) : (
-            <p className="mt-3 text-sm text-slate-600">
-              {isRu ? "Пройдите опрос, чтобы получить персональные подсказки." : "Complete a pulse to receive personal suggestions."}
-            </p>
-          )}
-        </div>
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="flex items-center justify-between">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary">
-              {isRu ? "Фокус недели" : "Your focus this week"}
-            </p>
-          </div>
-          <div className="mt-3 space-y-3">
-            <div className="rounded-2xl border border-dashed border-slate-200 bg-white px-3 py-2 text-sm text-slate-600">
-              {isRu ? "Рекомендации появятся через несколько дней активности." : "Recommendations will appear after you start using pulses."}
-            </div>
-          </div>
-        </div>
-      </section>
+      <StressDriversGrid
+        drivers={stressDrivers}
+        title={isRu ? "Драйверы стресса" : "Stress drivers"}
+        subtitle={
+          isRu
+            ? "Сводка по ключевым факторам стресса: как они изменились за выбранный период."
+            : "A summary of key stress factors and how they changed in the selected period."
+        }
+        emptyMessage={
+          isRu
+            ? "AI-инсайты по драйверам появятся после первых опросов."
+            : "AI driver insights will appear after the first surveys."
+        }
+      />
 
       <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex items-center justify-between">
@@ -233,7 +229,7 @@ export default function MyHomeClient({ data, userName, userId, locale }: { data:
             </thead>
             <tbody className="divide-y divide-slate-100">
               {history.map((run) => {
-                const duration = run.finishedAt.getTime() - run.startedAt.getTime();
+                const duration = run.durationMs;
                 return (
                   <tr key={run.id} className="transition hover:bg-slate-50/80">
                     <td className="px-3 py-2 text-sm text-slate-800">{formatDate(run.startedAt)}</td>

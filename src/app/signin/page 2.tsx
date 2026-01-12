@@ -10,9 +10,11 @@ export default function SignInPage() {
         <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-10">
           <div className="max-w-md space-y-4">
             <div className="flex items-center gap-3">
-              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-primary to-primary-strong text-sm font-semibold text-white shadow-md">
-                💜
-              </span>
+              <img
+                src="/branding/quadrantlogo.PNG"
+                alt="StressSense"
+                className="h-12 w-auto"
+              />
               <div>
             <p className="text-base font-semibold text-slate-900">StressSense</p>
             <p className="text-xs font-medium text-slate-500">{t(locale, "signinSubtitle")}</p>

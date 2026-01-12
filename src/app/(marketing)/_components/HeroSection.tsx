@@ -49,8 +49,8 @@ export default function HeroSection() {
           </h1>
           <p className="max-w-2xl text-lg text-slate-600">
             {isRu
-              ? "StressSense соединяет опросы, AI-коуча, People-модули и автоматизацию, чтобы HR и менеджеры снижали стресс и поднимали вовлечённость."
-              : "StressSense combines surveys, AI coaching, people modules, and automation so HR and managers reduce stress and lift engagement."}
+              ? "StressSense соединяет опросы, AI-коуча, People-модули и автоматизацию, чтобы админы и менеджеры снижали стресс и поднимали вовлечённость."
+              : "StressSense combines surveys, AI coaching, people modules, and automation so admins and managers reduce stress and lift engagement."}
           </p>
           <div className="flex flex-wrap gap-3">
             <Link href="/signup" className="rounded-full bg-primary px-6 py-3 text-sm font-semibold text-white shadow-md shadow-primary/30 transition hover:translate-y-[-2px]">

@@ -4,7 +4,7 @@ export default async function OrganizationsList() {
   const orgs = await prisma.organization.findMany({
     orderBy: { createdAt: "desc" },
     include: {
-      subscription: { include: { plan: true } },
+      subscription: true,
       surveys: { include: { responses: true } },
       slackIntegration: true,
       hrisIntegration: true,
@@ -22,7 +22,7 @@ export default async function OrganizationsList() {
             <div>
               <p className="font-semibold text-slate-900">{org.name}</p>
               <p className="text-xs text-slate-500">
-                Plan: {org.subscription?.plan?.name ?? "Free"} · Surveys: {org.surveys.length} · Responses:{" "}
+                Billing: per-seat · Seats: {org.subscription?.seats ?? "—"} · Surveys: {org.surveys.length} · Responses:{" "}
                 {org.surveys.reduce((acc: any, s: any) => acc + s.responses.length, 0)}
               </p>
             </div>

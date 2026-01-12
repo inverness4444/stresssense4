@@ -15,7 +15,7 @@ export default async function BillingTopUpPage({ searchParams }: { searchParams?
   const orgId = user.organizationId;
   const enabled = await isFeatureEnabled("growth_module_v1", { organizationId: orgId, userId: user.id });
   const role = (user.role ?? "").toUpperCase();
-  if (!enabled || !["ADMIN", "HR"].includes(role)) redirect("/app/overview");
+  if (!enabled || !["ADMIN", "HR", "SUPER_ADMIN"].includes(role)) redirect("/app/overview");
 
   const rawAmount = Number(searchParams?.amount ?? "");
   const initialAmount = Number.isFinite(rawAmount) && rawAmount > 0 ? rawAmount : isRu ? 10000 : 100;

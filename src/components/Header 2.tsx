@@ -9,7 +9,7 @@ import { setLocale } from \"@/app/actions/setLocale\";
 const navLinks = (locale: Locale) => [
   { label: locale === "ru" ? "Продукт" : "Product", href: "#product" },
   { label: locale === "ru" ? "Как работает" : "How it works", href: "#how-it-works" },
-  { label: locale === "ru" ? "Для HR-команд" : "For HR teams", href: "#for-hr" },
+  { label: locale === "ru" ? "Для админ-команд" : "For admin teams", href: "#for-hr" },
   { label: locale === "ru" ? "Ресурсы" : "Resources", href: "#resources" },
   { label: locale === "ru" ? "Цены" : "Pricing", href: "#pricing" },
 ];
@@ -44,9 +44,11 @@ export default function Header({ locale = "en" }: { locale?: Locale }) {
     >
       <div className="mx-auto flex h-16 max-w-screen-xl items-center justify-between px-4 sm:px-6 lg:px-10">
         <Link href="/" className="flex items-center gap-3">
-          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-primary via-primary-strong to-indigo-500 text-lg font-semibold text-white shadow-md shadow-indigo-100">
-            💜
-          </span>
+          <img
+            src="/branding/quadrantlogo.PNG"
+            alt="StressSense"
+            className="h-12 w-auto"
+          />
           <div className="leading-tight">
             <p className="text-base font-semibold text-slate-900">StressSense</p>
             <p className="text-xs font-medium text-slate-500">by Quadrant</p>
@@ -74,15 +76,9 @@ export default function Header({ locale = "en" }: { locale?: Locale }) {
           </Link>
           <Link
             href="/demo"
-            className="rounded-full border border-primary/30 bg-primary/5 px-4 py-2 text-sm font-semibold text-primary transition duration-200 hover:-translate-y-0.5 hover:border-primary/50 hover:bg-primary/10 hover:shadow-sm"
+            className="border border-primary/30 bg-primary/5 px-4 py-2 text-sm font-semibold text-primary transition duration-200 hover:-translate-y-0.5 hover:border-primary/50 hover:bg-primary/10 hover:shadow-sm"
           >
             {t(locale, "tryDemo")}
-          </Link>
-          <Link
-            href="#pricing"
-            className="rounded-full bg-gradient-to-r from-primary to-primary-strong px-4 py-2 text-sm font-semibold text-white shadow-md shadow-indigo-200 transition duration-200 hover:scale-[1.02] hover:shadow-lg"
-          >
-            {t(locale, "startFree")}
           </Link>
           <LanguageSwitcher locale={locale} onChange={(lang) => startTransition(async () => {
             await setLocale(lang);
@@ -93,7 +89,7 @@ export default function Header({ locale = "en" }: { locale?: Locale }) {
         <button
           aria-label="Open menu"
           onClick={() => setIsMenuOpen(true)}
-          className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 text-slate-700 transition-colors hover:bg-slate-100 md:hidden"
+          className="inline-flex h-10 w-10 items-center justify-center border border-slate-200 text-slate-700 transition-colors hover:bg-slate-100 md:hidden"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -126,15 +122,17 @@ export default function Header({ locale = "en" }: { locale?: Locale }) {
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-primary to-primary-strong text-sm font-semibold text-white">
-                💜
-              </span>
+              <img
+                src="/branding/quadrantlogo.PNG"
+                alt="StressSense"
+                className="h-12 w-auto"
+              />
               <span className="text-base font-semibold text-slate-900">StressSense</span>
             </div>
             <button
               aria-label="Close menu"
               onClick={() => setIsMenuOpen(false)}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 text-slate-700 transition-colors hover:bg-slate-100"
+              className="inline-flex h-11 w-11 items-center justify-center border border-slate-200 text-slate-700 transition-colors hover:bg-slate-100"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -175,13 +173,6 @@ export default function Header({ locale = "en" }: { locale?: Locale }) {
             >
               {t(locale, "tryDemo")}
             </Link>
-            <Link
-              href="#pricing"
-              onClick={() => setIsMenuOpen(false)}
-              className="rounded-xl bg-gradient-to-r from-primary to-primary-strong px-4 py-3 text-center text-sm font-semibold text-white shadow-md shadow-indigo-200 transition duration-200 hover:scale-[1.01]"
-            >
-              {t(locale, "startFree")}
-            </Link>
             <LanguageSwitcher
               locale={locale}
               pending={pending}
@@ -205,7 +196,7 @@ function LanguageSwitcher({ locale, onChange, pending }: { locale: Locale; onCha
       <button
         type="button"
         disabled={pending}
-        className={`rounded-full px-2 py-1 ${locale === "en" ? "bg-primary/10 text-primary" : "bg-slate-100 text-slate-700"}`}
+        className={`px-2 py-1 ${locale === "en" ? "bg-primary/10 text-primary" : "bg-slate-100 text-slate-700"}`}
         onClick={() => onChange("en")}
       >
         EN
@@ -213,7 +204,7 @@ function LanguageSwitcher({ locale, onChange, pending }: { locale: Locale; onCha
       <button
         type="button"
         disabled={pending}
-        className={`rounded-full px-2 py-1 ${locale === "ru" ? "bg-primary/10 text-primary" : "bg-slate-100 text-slate-700"}`}
+        className={`px-2 py-1 ${locale === "ru" ? "bg-primary/10 text-primary" : "bg-slate-100 text-slate-700"}`}
         onClick={() => onChange("ru")}
       >
         RU

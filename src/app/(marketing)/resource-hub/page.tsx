@@ -11,7 +11,7 @@ export default function ResourcesPage() {
       <div className="mx-auto max-w-5xl px-4 py-12">
         <div className="space-y-2 text-center">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">Resources</p>
-          <h1 className="text-4xl font-bold text-slate-900">Материалы для HR и менеджеров</h1>
+          <h1 className="text-4xl font-bold text-slate-900">Материалы для админов и менеджеров</h1>
           <p className="text-sm text-slate-600">Гайды, шаблоны и вебинары, чтобы быстрее начать работать со StressSense.</p>
         </div>
         <div className="mt-8 grid gap-4 md:grid-cols-2">

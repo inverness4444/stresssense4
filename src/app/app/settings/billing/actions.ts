@@ -4,12 +4,15 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { isFeatureEnabled } from "@/lib/featureFlags";
 import { revalidatePath } from "next/cache";
-import { getTierForSeats } from "@/lib/pricingTiers";
+import { BILLING_MODEL, MIN_SEATS, calculateSeatTotal, normalizeSeats } from "@/config/pricing";
+import { applyWalletTransaction } from "@/lib/wallet";
+import { BASE_CURRENCY } from "@/config/payments";
+import { getBillingOverview } from "@/lib/billingOverview";
 
 export async function applyPromoCode(orgId: string, code: string) {
   const user = await getCurrentUser();
   const role = (user?.role ?? "").toUpperCase();
-  if (!user || user.organizationId !== orgId || !["ADMIN", "HR"].includes(role)) {
+  if (!user || user.organizationId !== orgId || !["ADMIN", "HR", "SUPER_ADMIN"].includes(role)) {
     return { error: "Forbidden" };
   }
   const enabled = await isFeatureEnabled("growth_module_v1", { organizationId: orgId, userId: user.id });
@@ -46,7 +49,7 @@ export async function applyPromoCode(orgId: string, code: string) {
 export async function generateReferralCode(orgId: string) {
   const user = await getCurrentUser();
   const role = (user?.role ?? "").toUpperCase();
-  if (!user || user.organizationId !== orgId || !["ADMIN", "HR"].includes(role)) return { error: "Forbidden" };
+  if (!user || user.organizationId !== orgId || !["ADMIN", "HR", "SUPER_ADMIN"].includes(role)) return { error: "Forbidden" };
   const enabled = await isFeatureEnabled("growth_module_v1", { organizationId: orgId, userId: user.id });
   if (!enabled) return { error: "Feature disabled" };
   const existing = await prisma.referralCode.findFirst({ where: { organizationId: orgId, createdByUserId: user.id } });
@@ -64,10 +67,62 @@ export async function generateReferralCode(orgId: string) {
   return rc;
 }
 
+export async function setSubscriptionActive(orgId: string, active: boolean) {
+  const user = await getCurrentUser();
+  const role = (user?.role ?? "").toUpperCase();
+  if (!user || user.organizationId !== orgId || !["ADMIN", "HR", "SUPER_ADMIN"].includes(role)) return { error: "Forbidden" };
+  const enabled = await isFeatureEnabled("growth_module_v1", { organizationId: orgId, userId: user.id });
+  if (!enabled) return { error: "Feature disabled" };
+
+  const settings = await prisma.organizationSettings.findUnique({
+    where: { organizationId: orgId },
+    select: { featureFlags: true },
+  });
+  const flags = settings?.featureFlags;
+  const flagsObj = flags && typeof flags === "object" && !Array.isArray(flags) ? (flags as Record<string, unknown>) : {};
+  const nextFlags: Record<string, unknown> = { ...flagsObj, billingModel: BILLING_MODEL };
+  const now = new Date();
+
+  if (active) {
+    nextFlags.billingSubscriptionActive = true;
+    delete nextFlags.billingSubscriptionCancelAt;
+  } else {
+    const overview = await getBillingOverview(orgId, user.id);
+    const subscriptionEnd =
+      overview.subscription?.currentPeriodEnd instanceof Date
+        ? overview.subscription.currentPeriodEnd
+        : overview.subscription?.currentPeriodEnd
+          ? new Date(overview.subscription.currentPeriodEnd as any)
+          : null;
+    const paidInvoiceEnd = overview.invoices
+      .filter((inv: any) => inv?.status === "paid" && inv?.amountCents > 0 && inv?.periodEnd)
+      .map((inv: any) => new Date(inv.periodEnd))
+      .filter((date: Date) => !Number.isNaN(date.getTime()))
+      .sort((a: Date, b: Date) => b.getTime() - a.getTime())[0] ?? null;
+    const cancelAt = subscriptionEnd ?? paidInvoiceEnd ?? null;
+    if (cancelAt && cancelAt.getTime() > now.getTime()) {
+      nextFlags.billingSubscriptionActive = true;
+      nextFlags.billingSubscriptionCancelAt = cancelAt.toISOString();
+    } else {
+      nextFlags.billingSubscriptionActive = false;
+      nextFlags.billingSubscriptionCancelAt = now.toISOString();
+    }
+  }
+
+  await prisma.organizationSettings.upsert({
+    where: { organizationId: orgId },
+    create: { organizationId: orgId, featureFlags: nextFlags },
+    update: { featureFlags: nextFlags },
+  });
+
+  revalidatePath("/app/settings/billing");
+  return { success: true };
+}
+
 export async function updateSubscriptionSeats(orgId: string, seats: number) {
   const user = await getCurrentUser();
   const role = (user?.role ?? "").toUpperCase();
-  if (!user || user.organizationId !== orgId || !["ADMIN", "HR"].includes(role)) return { error: "Forbidden" };
+  if (!user || user.organizationId !== orgId || !["ADMIN", "HR", "SUPER_ADMIN"].includes(role)) return { error: "Forbidden" };
   const enabled = await isFeatureEnabled("growth_module_v1", { organizationId: orgId, userId: user.id });
   if (!enabled) return { error: "Feature disabled" };
 
@@ -78,8 +133,9 @@ export async function updateSubscriptionSeats(orgId: string, seats: number) {
     seatsUsed = await prisma.user.count({ where: { organizationId: orgId } });
   }
 
-  const requestedSeats = Math.max(seatsUsed, Math.floor(seats));
-  if (!Number.isFinite(requestedSeats) || requestedSeats <= 0) return { error: "Invalid seats" };
+  const normalizedSeats = normalizeSeats(Number(seats));
+  const requestedSeats = Math.max(normalizedSeats, seatsUsed);
+  if (!Number.isFinite(requestedSeats) || requestedSeats < MIN_SEATS) return { error: "Invalid seats" };
 
   const settings = await prisma.organizationSettings.findUnique({
     where: { organizationId: orgId },
@@ -89,6 +145,14 @@ export async function updateSubscriptionSeats(orgId: string, seats: number) {
   const flagsObj = flags && typeof flags === "object" && !Array.isArray(flags) ? (flags as Record<string, unknown>) : {};
   const nextFlags: Record<string, unknown> = { ...flagsObj };
   let shouldSaveFlags = false;
+  if ("billingPlanKey" in nextFlags) {
+    delete nextFlags.billingPlanKey;
+    shouldSaveFlags = true;
+  }
+  if ("billingPendingPlanKey" in nextFlags) {
+    delete nextFlags.billingPendingPlanKey;
+    shouldSaveFlags = true;
+  }
 
   const pendingSeats = typeof flagsObj.billingPendingSeats === "number" ? flagsObj.billingPendingSeats : null;
   const pendingInvoiceId = typeof flagsObj.billingPendingInvoiceId === "string" ? flagsObj.billingPendingInvoiceId : null;
@@ -110,8 +174,12 @@ export async function updateSubscriptionSeats(orgId: string, seats: number) {
     }
   };
 
-  const tier = getTierForSeats(requestedSeats);
-  if (tier.priceUsd <= 0) {
+  const pricingTotal = calculateSeatTotal(requestedSeats, BASE_CURRENCY === "USD" ? "USD" : "RUB");
+  nextFlags.billingModel = BILLING_MODEL;
+  if (flagsObj.billingModel !== BILLING_MODEL) {
+    shouldSaveFlags = true;
+  }
+  if (!Number.isFinite(pricingTotal) || pricingTotal <= 0) {
     await voidPendingInvoice();
     const updateResult = await prisma.subscription.updateMany({ where: { organizationId: orgId }, data: { seats: requestedSeats } });
     if (!updateResult || typeof (updateResult as any).count !== "number" || (updateResult as any).count === 0) {
@@ -130,6 +198,13 @@ export async function updateSubscriptionSeats(orgId: string, seats: number) {
     }
   } else {
     if (pendingSeats === requestedSeats && pendingInvoiceId) {
+      if (shouldSaveFlags) {
+        await prisma.organizationSettings.upsert({
+          where: { organizationId: orgId },
+          create: { organizationId: orgId, featureFlags: nextFlags },
+          update: { featureFlags: nextFlags },
+        });
+      }
       revalidatePath("/app/settings/billing");
       return { success: true };
     }
@@ -138,12 +213,13 @@ export async function updateSubscriptionSeats(orgId: string, seats: number) {
     const now = new Date();
     const periodEnd = new Date(now);
     periodEnd.setMonth(periodEnd.getMonth() + 1);
-    const invoiceAmount = Math.round(tier.priceUsd * 100);
+    const invoiceAmount = Math.round(pricingTotal * 100);
     const invoiceData = {
       organizationId: orgId,
       periodStart: now,
       periodEnd,
       amountCents: invoiceAmount,
+      currency: BASE_CURRENCY,
       status: "open",
     } as const;
 
@@ -160,6 +236,7 @@ export async function updateSubscriptionSeats(orgId: string, seats: number) {
         id: `inv_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`,
         organizationId: orgId,
         amountCents: invoiceAmount,
+        currency: BASE_CURRENCY,
         status: "open",
         periodStart: invoiceData.periodStart.toISOString(),
         periodEnd: invoiceData.periodEnd.toISOString(),
@@ -194,7 +271,7 @@ export async function updateSubscriptionSeats(orgId: string, seats: number) {
 export async function topUpBalance(orgId: string, amount: number) {
   const user = await getCurrentUser();
   const role = (user?.role ?? "").toUpperCase();
-  if (!user || user.organizationId !== orgId || !["ADMIN", "HR"].includes(role)) return { error: "Forbidden" };
+  if (!user || user.organizationId !== orgId || !["ADMIN", "HR", "SUPER_ADMIN"].includes(role)) return { error: "Forbidden" };
   const enabled = await isFeatureEnabled("growth_module_v1", { organizationId: orgId, userId: user.id });
   if (!enabled) return { error: "Feature disabled" };
 
@@ -223,7 +300,7 @@ export async function topUpBalance(orgId: string, amount: number) {
 export async function payLatestInvoice(orgId: string) {
   const user = await getCurrentUser();
   const role = (user?.role ?? "").toUpperCase();
-  if (!user || user.organizationId !== orgId || !["ADMIN", "HR"].includes(role)) return { error: "Forbidden" };
+  if (!user || user.organizationId !== orgId || !["ADMIN", "HR", "SUPER_ADMIN"].includes(role)) return { error: "Forbidden" };
   const enabled = await isFeatureEnabled("growth_module_v1", { organizationId: orgId, userId: user.id });
   if (!enabled) return { error: "Feature disabled" };
 
@@ -233,11 +310,24 @@ export async function payLatestInvoice(orgId: string) {
   });
   const flags = settings?.featureFlags;
   const flagsObj = flags && typeof flags === "object" && !Array.isArray(flags) ? (flags as Record<string, unknown>) : {};
-  const currentBalance = typeof flagsObj.billingBalanceCents === "number" ? flagsObj.billingBalanceCents : 0;
   const pendingSeats = typeof flagsObj.billingPendingSeats === "number" ? flagsObj.billingPendingSeats : null;
   const pendingInvoiceId = typeof flagsObj.billingPendingInvoiceId === "string" ? flagsObj.billingPendingInvoiceId : null;
   let shouldSaveFlags = false;
   const nextFlags: Record<string, unknown> = { ...flagsObj };
+  if ("billingPlanKey" in nextFlags) {
+    delete nextFlags.billingPlanKey;
+    shouldSaveFlags = true;
+  }
+  if ("billingPendingPlanKey" in nextFlags) {
+    delete nextFlags.billingPendingPlanKey;
+    shouldSaveFlags = true;
+  }
+
+  const userBalance = await prisma.user.findUnique({
+    where: { id: user.id },
+    select: { balance: true },
+  });
+  const currentBalance = Number(userBalance?.balance ?? 0);
 
   let dbInvoice: any = null;
   if (pendingInvoiceId) {
@@ -255,29 +345,46 @@ export async function payLatestInvoice(orgId: string) {
     });
   }
   if (dbInvoice) {
-    const amount = dbInvoice.amountCents ?? 0;
-    const nextBalance = Math.max(0, currentBalance - amount);
-    await prisma.invoice.update({ where: { id: dbInvoice.id }, data: { status: "paid" } });
-    nextFlags.billingBalanceCents = nextBalance;
-    shouldSaveFlags = true;
-    if (pendingSeats != null) {
-      const updateResult = await prisma.subscription.updateMany({ where: { organizationId: orgId }, data: { seats: pendingSeats } });
-      if (!updateResult || typeof (updateResult as any).count !== "number" || (updateResult as any).count === 0) {
-        nextFlags.billingSeats = pendingSeats;
+    const amountCents = Number(dbInvoice.amountCents ?? 0);
+    const amountRub = amountCents / 100;
+    if (!Number.isFinite(amountRub) || amountRub <= 0) return { error: "Invalid amount" };
+    if (currentBalance < amountRub) return { error: "Insufficient balance" };
+
+    await prisma.$transaction(async (tx) => {
+      await tx.invoice.update({ where: { id: dbInvoice.id }, data: { status: "paid" } });
+
+      await applyWalletTransaction(
+        {
+          userId: user.id,
+          amount: amountRub,
+          type: "manual_withdraw",
+          currency: BASE_CURRENCY,
+          comment: `Subscription payment ${dbInvoice.id}`,
+          createdByAdminId: null,
+        },
+        tx as typeof prisma
+      );
+
+      if (pendingSeats != null) {
+        const updateResult = await tx.subscription.updateMany({ where: { organizationId: orgId }, data: { seats: pendingSeats } });
+        if (!updateResult || typeof (updateResult as any).count !== "number" || (updateResult as any).count === 0) {
+          nextFlags.billingSeats = pendingSeats;
+          shouldSaveFlags = true;
+        }
+        delete nextFlags.billingPendingSeats;
+        delete nextFlags.billingPendingInvoiceId;
+        delete nextFlags.billingPendingAmountCents;
         shouldSaveFlags = true;
       }
-      delete nextFlags.billingPendingSeats;
-      delete nextFlags.billingPendingInvoiceId;
-      delete nextFlags.billingPendingAmountCents;
-      shouldSaveFlags = true;
-    }
-    if (shouldSaveFlags) {
-      await prisma.organizationSettings.upsert({
-        where: { organizationId: orgId },
-        create: { organizationId: orgId, featureFlags: nextFlags },
-        update: { featureFlags: nextFlags },
-      });
-    }
+      if (shouldSaveFlags) {
+        await tx.organizationSettings.upsert({
+          where: { organizationId: orgId },
+          create: { organizationId: orgId, featureFlags: nextFlags },
+          update: { featureFlags: nextFlags },
+        });
+      }
+    });
+
     revalidatePath("/app/settings/billing");
     return { success: true };
   }
@@ -292,11 +399,13 @@ export async function payLatestInvoice(orgId: string) {
   if (openIndex === -1) return { error: "No open invoice" };
 
   const invoice = fallbackInvoices[openIndex];
-  const amount = Number(invoice?.amountCents ?? 0);
-  const nextBalance = Math.max(0, currentBalance - amount);
+  const amountCents = Number(invoice?.amountCents ?? 0);
+  const amountRub = amountCents / 100;
+  if (!Number.isFinite(amountRub) || amountRub <= 0) return { error: "Invalid amount" };
+  if (currentBalance < amountRub) return { error: "Insufficient balance" };
+
   const nextInvoices = [...fallbackInvoices];
   nextInvoices[openIndex] = { ...invoice, status: "paid", paidAt: new Date().toISOString() };
-  nextFlags.billingBalanceCents = nextBalance;
   nextFlags.billingInvoices = nextInvoices;
   shouldSaveFlags = true;
   if (pendingSeats != null) {
@@ -311,13 +420,26 @@ export async function payLatestInvoice(orgId: string) {
     shouldSaveFlags = true;
   }
 
-  if (shouldSaveFlags) {
-    await prisma.organizationSettings.upsert({
-      where: { organizationId: orgId },
-      create: { organizationId: orgId, featureFlags: nextFlags },
-      update: { featureFlags: nextFlags },
-    });
-  }
+  await prisma.$transaction(async (tx) => {
+    await applyWalletTransaction(
+      {
+        userId: user.id,
+        amount: amountRub,
+        type: "manual_withdraw",
+        currency: BASE_CURRENCY,
+        comment: `Subscription payment ${invoice?.id ?? ""}`.trim(),
+        createdByAdminId: null,
+      },
+      tx as typeof prisma
+    );
+    if (shouldSaveFlags) {
+      await tx.organizationSettings.upsert({
+        where: { organizationId: orgId },
+        create: { organizationId: orgId, featureFlags: nextFlags },
+        update: { featureFlags: nextFlags },
+      });
+    }
+  });
 
   revalidatePath("/app/settings/billing");
   return { success: true };

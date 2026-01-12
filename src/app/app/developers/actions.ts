@@ -8,7 +8,7 @@ import { generateApiKey } from "@/lib/apiKeys";
 
 export async function createApiKeyAction(input: { name: string; scopes: string[] }) {
   const user = await getCurrentUser();
-  if (!user || user.role !== "ADMIN") return { error: "Unauthorized" };
+  if (!user || !["ADMIN", "SUPER_ADMIN"].includes(user.role)) return { error: "Unauthorized" };
   if (!input.name || !input.scopes?.length) return { error: "Name and scopes are required" };
   const { token } = await generateApiKey({
     organizationId: user.organizationId,
@@ -22,7 +22,7 @@ export async function createApiKeyAction(input: { name: string; scopes: string[]
 
 export async function revokeApiKeyAction(id: string) {
   const user = await getCurrentUser();
-  if (!user || user.role !== "ADMIN") return { error: "Unauthorized" };
+  if (!user || !["ADMIN", "SUPER_ADMIN"].includes(user.role)) return { error: "Unauthorized" };
   await prisma.apiKey.updateMany({
     where: { id, organizationId: user.organizationId },
     data: { isActive: false },
@@ -33,7 +33,7 @@ export async function revokeApiKeyAction(id: string) {
 
 export async function createWebhookEndpointAction(input: { url: string; description?: string; eventTypes: string[] }) {
   const user = await getCurrentUser();
-  if (!user || user.role !== "ADMIN") return { error: "Unauthorized" };
+  if (!user || !["ADMIN", "SUPER_ADMIN"].includes(user.role)) return { error: "Unauthorized" };
   if (!input.url || !input.eventTypes?.length) return { error: "URL and events are required" };
   const secret = randomBytes(24).toString("hex");
   await prisma.webhookEndpoint.create({
@@ -51,7 +51,7 @@ export async function createWebhookEndpointAction(input: { url: string; descript
 
 export async function deactivateWebhookAction(id: string) {
   const user = await getCurrentUser();
-  if (!user || user.role !== "ADMIN") return { error: "Unauthorized" };
+  if (!user || !["ADMIN", "SUPER_ADMIN"].includes(user.role)) return { error: "Unauthorized" };
   await prisma.webhookEndpoint.updateMany({
     where: { id, organizationId: user.organizationId },
     data: { isActive: false },
@@ -62,7 +62,7 @@ export async function deactivateWebhookAction(id: string) {
 
 export async function updateEmbedConfigAction(input: { allowedOrigins: string; regenerate?: boolean }) {
   const user = await getCurrentUser();
-  if (!user || user.role !== "ADMIN") return { error: "Unauthorized" };
+  if (!user || !["ADMIN", "SUPER_ADMIN"].includes(user.role)) return { error: "Unauthorized" };
   const origins = input.allowedOrigins
     .split(",")
     .map((o) => o.trim())

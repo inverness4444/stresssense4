@@ -4,7 +4,6 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { logAuditEvent } from "@/lib/audit";
-import { getOrgSubscription, checkLimit } from "@/lib/subscription";
 
 type CreateTeamInput = {
   name: string;
@@ -22,7 +21,8 @@ type UpdateTeamInput = {
 export async function createTeam(input: CreateTeamInput) {
   const currentUser = await getCurrentUser();
   if (!currentUser) return { error: "You must be signed in." };
-  if (!["ADMIN", "HR", "MANAGER"].includes((currentUser.role ?? "").toUpperCase())) return { error: "You don't have access to create teams." };
+  if (!["ADMIN", "HR", "MANAGER", "SUPER_ADMIN"].includes((currentUser.role ?? "").toUpperCase())) return { error: "You don't have access to create teams." };
+  const hiddenRole = "SUPER_ADMIN";
 
   const trimmedName = input.name.trim();
   if (!trimmedName) return { error: "Team name is required." };
@@ -31,12 +31,6 @@ export async function createTeam(input: CreateTeamInput) {
     where: { organizationId: currentUser.organizationId, name: trimmedName },
   });
   if (existing) return { error: "A team with this name already exists." };
-
-  const sub = await getOrgSubscription(currentUser.organizationId);
-  const teamCount = await prisma.team.count({ where: { organizationId: currentUser.organizationId } });
-  if (!checkLimit(teamCount, sub?.plan?.maxTeams ?? null)) {
-    return { error: "You’ve reached the team limit on your current plan. Upgrade to add more." };
-  }
 
   const team = await prisma.team.create({
     data: {
@@ -50,12 +44,13 @@ export async function createTeam(input: CreateTeamInput) {
 
   if (uniqueMembers.length) {
     const users = await prisma.user.findMany({
-      where: { id: { in: uniqueMembers }, organizationId: currentUser.organizationId },
+      where: { id: { in: uniqueMembers }, organizationId: currentUser.organizationId, role: { not: hiddenRole } },
       select: { id: true },
     });
     if (users.length) {
       await prisma.userTeam.createMany({
         data: users.map((u: any) => ({ userId: u.id, teamId: team.id })),
+        skipDuplicates: true,
       });
     }
   }
@@ -76,7 +71,8 @@ export async function createTeam(input: CreateTeamInput) {
 export async function updateTeam(input: UpdateTeamInput) {
   const currentUser = await getCurrentUser();
   if (!currentUser) return { error: "You must be signed in." };
-  if (!["ADMIN", "HR", "MANAGER"].includes((currentUser.role ?? "").toUpperCase())) return { error: "You don't have access to edit teams." };
+  if (!["ADMIN", "HR", "MANAGER", "SUPER_ADMIN"].includes((currentUser.role ?? "").toUpperCase())) return { error: "You don't have access to edit teams." };
+  const hiddenRole = "SUPER_ADMIN";
 
   const team = await prisma.team.findFirst({
     where: { id: input.teamId, organizationId: currentUser.organizationId },
@@ -88,6 +84,13 @@ export async function updateTeam(input: UpdateTeamInput) {
   if (!trimmedName) return { error: "Team name is required." };
 
   const uniqueMembers = Array.from(new Set(input.memberIds ?? []));
+  const allowedMembers = uniqueMembers.length
+    ? await prisma.user.findMany({
+        where: { id: { in: uniqueMembers }, organizationId: currentUser.organizationId, role: { not: hiddenRole } },
+        select: { id: true },
+      })
+    : [];
+  const allowedMemberIds = allowedMembers.map((u) => u.id);
 
   await prisma.$transaction([
     prisma.team.update({
@@ -100,11 +103,12 @@ export async function updateTeam(input: UpdateTeamInput) {
     prisma.userTeam.deleteMany({
       where: {
         teamId: team.id,
-        userId: { notIn: uniqueMembers },
+        userId: { notIn: allowedMemberIds },
       },
     }),
     prisma.userTeam.createMany({
-      data: uniqueMembers.map((id) => ({ teamId: team.id, userId: id })),
+      data: allowedMemberIds.map((id) => ({ teamId: team.id, userId: id })),
+      skipDuplicates: true,
     }),
   ]);
 

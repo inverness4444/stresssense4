@@ -2,93 +2,84 @@ import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { startCheckout } from "./actions";
 import { ensureOrgSettings } from "@/lib/access";
 import { PageTitle } from "@/components/ui/PageTitle";
 import { SectionHeader } from "@/components/ui/SectionHeader";
+import { SeatPricingSelector } from "@/components/pricing/SeatPricingSelector";
+import { MIN_SEATS, calculateSeatTotal, getPricePerSeat, resolveCurrency } from "@/config/pricing";
+import { formatMoney } from "@/lib/formatMoney";
+import { getLocale } from "@/lib/i18n-server";
 
 export default async function BillingPage({ searchParams }: { searchParams?: { status?: string } }) {
   const user = await getCurrentUser();
   if (!user) notFound();
-  if (user.role !== "ADMIN") redirect("/app/overview");
+  if (!["ADMIN", "SUPER_ADMIN"].includes(user.role)) redirect("/app/overview");
+  const locale = await getLocale();
+  const isRu = locale === "ru";
 
-  const [plans, subscription, org, settings] = await Promise.all([
-    prisma.plan.findMany({ orderBy: { monthlyPriceCents: "asc" } }),
-    prisma.subscription.findUnique({ where: { organizationId: user.organizationId }, include: { plan: true } }),
+  const [subscription, org, _settings] = await Promise.all([
+    prisma.subscription.findUnique({ where: { organizationId: user.organizationId } }),
     prisma.organization.findUnique({ where: { id: user.organizationId }, include: { users: true, teams: true } }),
     ensureOrgSettings(user.organizationId),
   ]);
 
   const status = searchParams?.status;
-  const activePlan = subscription?.plan;
   const employeesCount = org?.users.length ?? 0;
   const teamsCount = org?.teams.length ?? 0;
-  const warnEmployees = activePlan?.maxEmployees != null && employeesCount >= activePlan.maxEmployees;
-  const warnTeams = activePlan?.maxTeams != null && teamsCount >= activePlan.maxTeams;
+  const currentSeatsRaw = (subscription as any)?.seats ?? employeesCount;
+  const currentSeats = Math.max(currentSeatsRaw, MIN_SEATS);
+  const currency = resolveCurrency(locale);
+  const formatPrice = (value: number) => formatMoney(value, locale, currency);
+  const pricePerSeat = getPricePerSeat(currency);
+  const monthlyTotal = calculateSeatTotal(currentSeats, currency);
 
   return (
     <div className="space-y-6">
-      <PageTitle title="Billing" subtitle="Manage your plan and subscription." />
+      <PageTitle title={isRu ? "Биллинг" : "Billing"} subtitle={isRu ? "Управление местами и подпиской." : "Manage seats and subscription."} />
 
       {status === "success" && (
         <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-emerald-800">
-          Подписка обновлена. Добро пожаловать на {activePlan?.name ?? "Pro"}.
+          {isRu ? "Места обновлены." : "Seats updated."}
         </div>
       )}
 
       <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h3 className="text-lg font-semibold text-slate-900">Current plan</h3>
+        <h3 className="text-lg font-semibold text-slate-900">{isRu ? "Подписка per seat" : "Per-seat subscription"}</h3>
         <p className="text-sm text-slate-700">
-          {activePlan ? activePlan.name : "Free"} · Status: {subscription?.status ?? "none"}
+          {isRu ? "Цена за место" : "Price per seat"} · {isRu ? "Статус" : "Status"}: {subscription?.status ?? "none"}
         </p>
         <p className="text-xs text-slate-600">
-          Seats: {subscription?.usedSeats ?? employeesCount}/{subscription?.seats ?? activePlan?.baseSeats ?? "∞"} · Employees {employeesCount} · Teams {teamsCount}
+          {isRu ? "Мест" : "Seats"}: {currentSeats} · {isRu ? "Сотрудники" : "Employees"} {employeesCount} · {isRu ? "Команды" : "Teams"} {teamsCount}
         </p>
-        {(warnEmployees || warnTeams) && (
-          <p className="mt-2 inline-flex items-center gap-2 rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700 ring-1 ring-amber-100">
-            {warnEmployees && <>Лимит сотрудников исчерпан.</>} {warnTeams && <>Лимит команд исчерпан.</>}
-            <Link href="/app/billing" className="text-primary hover:underline">
-              Обновить план
-            </Link>
-          </p>
-        )}
+        <div className="mt-4 flex flex-wrap items-center gap-4 text-sm text-slate-700">
+          <span>
+            {isRu ? "Цена за место" : "Price per seat"}: <strong>{formatPrice(pricePerSeat)}</strong> {isRu ? "/ мес" : "/ mo"}
+          </span>
+          <span>
+            {isRu ? "Итого" : "Total"}: <strong>{formatPrice(monthlyTotal)}</strong> {isRu ? "/ мес" : "/ mo"}
+          </span>
+        </div>
       </div>
 
-      <SectionHeader title="Choose your plan" subtitle="Тарифы для разных размеров команд." />
-      <div className="grid gap-4 md:grid-cols-3">
-        {plans.map((plan: any) => (
-          <form
-            key={plan.id}
-            action={async () => {
-              "use server";
-              const res = await startCheckout(plan.id);
-              if (res?.url) redirect(res.url);
-            }}
-            className="flex flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
+      <SectionHeader title={isRu ? "Места" : "Seats"} subtitle={isRu ? "Минимум 10 мест и прозрачная стоимость." : "Minimum 10 seats with a clear monthly total."} />
+      <SeatPricingSelector
+        locale={locale}
+        defaultSeats={currentSeats}
+        title={isRu ? "Цена за место" : "Price per seat"}
+        description={isRu ? "Минимум 10 мест. Месячная оплата." : "Minimum 10 seats. Billed monthly."}
+        minSeatsHint={isRu ? "Минимум 10 мест" : "Minimum 10 seats"}
+        seatsLabel={isRu ? "Количество мест" : "Seats"}
+        totalLabel={isRu ? "Итого" : "Total"}
+        perSeatLabel={isRu ? "за место" : "per seat"}
+        cta={
+          <Link
+            href="/app/settings/billing"
+            className="inline-flex rounded-full bg-primary px-6 py-2 text-sm font-semibold text-white shadow-sm"
           >
-            <div className="flex items-center justify-between">
-              <h4 className="text-lg font-semibold text-slate-900">{plan.name}</h4>
-              {plan.name === "Free" && <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700">Current</span>}
-            </div>
-            <p className="text-sm text-slate-600 mt-1">{plan.description ?? ""}</p>
-            <p className="mt-4 text-3xl font-semibold text-slate-900">
-              {plan.monthlyPriceCents === 0 ? "$0" : `$${plan.monthlyPriceCents / 100}`}
-              <span className="text-base font-normal text-slate-600"> / month</span>
-            </p>
-            <ul className="mt-3 space-y-1 text-sm text-slate-700">
-              <li>До {plan.maxEmployees ?? "∞"} сотрудников</li>
-              <li>Активные опросы: {plan.maxActiveSurveys ?? "∞"}</li>
-              <li>Команды: {plan.maxTeams ?? "∞"}</li>
-            </ul>
-            <button
-              type="submit"
-              className="mt-auto rounded-full bg-gradient-to-r from-primary to-primary-strong px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:scale-[1.02]"
-            >
-              {plan.name === activePlan?.name ? "Текущий план" : "Выбрать план"}
-            </button>
-          </form>
-        ))}
-      </div>
+            {isRu ? "Управлять местами" : "Manage seats"}
+          </Link>
+        }
+      />
 
       <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
         <h3 className="text-lg font-semibold text-slate-900">Usage this period</h3>
@@ -143,7 +134,12 @@ async function InvoicesList({ organizationId }: { organizationId: string }) {
           <div>
             <p className="font-semibold text-slate-900">{inv.number ?? inv.stripeInvoiceId ?? inv.id}</p>
             <p className="text-xs text-slate-500">
-              {new Date(inv.createdAt).toLocaleDateString()} · {inv.status} · ${(inv.amountCents / 100).toFixed(2)}
+              {(() => {
+                const currency = typeof inv.currency === "string" ? inv.currency.toUpperCase() : "RUB";
+                const amount = (inv.amountCents ?? 0) / 100;
+                const formatted = new Intl.NumberFormat("ru-RU", { style: "currency", currency }).format(amount);
+                return `${new Date(inv.createdAt).toLocaleDateString()} · ${inv.status} · ${formatted}`;
+              })()}
             </p>
           </div>
           {inv.pdfUrl && (

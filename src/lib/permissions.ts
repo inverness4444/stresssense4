@@ -34,6 +34,7 @@ export const PERMISSIONS = [
 
 const roleDefaults: Record<string, string[]> = {
   ADMIN: [...PERMISSIONS],
+  SUPER_ADMIN: [...PERMISSIONS],
   MANAGER: ["surveys.read", "surveys.respond", "analytics.read", "teams.read", "employees.read", "ai.use"],
   EMPLOYEE: ["surveys.respond"],
 };

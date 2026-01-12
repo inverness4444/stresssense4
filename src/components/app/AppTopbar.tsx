@@ -7,10 +7,13 @@ import type { Notification, User } from "@prisma/client";
 import { NotificationsBell } from "./NotificationsBell";
 import { HelpLauncher } from "./HelpLauncher";
 import { t, type Locale } from "@/lib/i18n";
+import { getRoleLabel } from "@/lib/roles";
 import { setLocale } from "@/app/actions/setLocale";
 import { useRouter } from "next/navigation";
 
-export function AppTopbar({ user, notifications, unreadCount, demoMode, locale }: { user: User; notifications: Notification[]; unreadCount: number; demoMode?: boolean; locale: Locale }) {
+type TopbarUser = Pick<User, "name" | "role"> & { id?: string; organizationId?: string };
+
+export function AppTopbar({ user, notifications, unreadCount, demoMode, locale }: { user: TopbarUser; notifications: Notification[]; unreadCount: number; demoMode?: boolean; locale: Locale }) {
   const pathname = usePathname();
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -20,8 +23,11 @@ export function AppTopbar({ user, notifications, unreadCount, demoMode, locale }
     if (pathname.startsWith("/app/employees")) return t(locale, "navEmployees");
     if (pathname.startsWith("/app/teams") && pathname.includes("/stress")) return t(locale, "navTeamStress");
     if (pathname.startsWith("/app/teams")) return t(locale, "navTeams");
+    if (pathname.startsWith("/app/feedback/inbox")) return t(locale, "navFeedbackInbox");
+    if (pathname.startsWith("/app/feedback")) return t(locale, "navFeedback");
     if (pathname.startsWith("/app/surveys")) return t(locale, "navSurveys");
     if (pathname.startsWith("/app/notifications")) return t(locale, "navNotifications");
+    if (pathname.startsWith("/app/balance")) return t(locale, "navBalance");
     if (pathname.startsWith("/app/settings")) return t(locale, "navSettings");
     return user.role === "MANAGER" ? t(locale, "navMyTeams") : t(locale, "navOverview");
   }, [pathname, user.role, locale]);
@@ -43,7 +49,7 @@ export function AppTopbar({ user, notifications, unreadCount, demoMode, locale }
           </div>
           <div className="leading-tight">
             <p className="font-semibold text-slate-900">{user.name}</p>
-            <p className="text-xs text-slate-500">{user.role}</p>
+            <p className="text-xs text-slate-500">{getRoleLabel(user.role, locale)}</p>
           </div>
           <Link
             href="/signout"

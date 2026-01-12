@@ -15,7 +15,14 @@ export async function GET(req: Request) {
     if (!email) throw new Error("No email in userinfo");
     const user = await findOrCreateUser(email, orgId, userInfo?.name);
     const store = await cookies();
-    store.set("ss_user_id", user.id, { httpOnly: true, path: "/", maxAge: 60 * 60 * 24 * 7 });
+    const secureCookies = process.env.NODE_ENV === "production";
+    store.set("ss_user_id", user.id, {
+      httpOnly: true,
+      sameSite: "strict",
+      secure: secureCookies,
+      path: "/",
+      maxAge: 60 * 60 * 24 * 7,
+    });
     return NextResponse.redirect("/app/overview");
   } catch (e) {
     console.error("OIDC callback failed", e);
@@ -34,7 +41,14 @@ export async function POST(req: Request) {
     if (!email) throw new Error("No email in SAML");
     const user = await findOrCreateUser(email, orgId, name);
     const store = await cookies();
-    store.set("ss_user_id", user.id, { httpOnly: true, path: "/", maxAge: 60 * 60 * 24 * 7 });
+    const secureCookies = process.env.NODE_ENV === "production";
+    store.set("ss_user_id", user.id, {
+      httpOnly: true,
+      sameSite: "strict",
+      secure: secureCookies,
+      path: "/",
+      maxAge: 60 * 60 * 24 * 7,
+    });
     return NextResponse.redirect("/app/overview");
   } catch (e) {
     console.error("SAML callback failed", e);

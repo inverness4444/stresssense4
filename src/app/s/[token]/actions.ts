@@ -1,8 +1,10 @@
 'use server';
 
 import { prisma } from "@/lib/prisma";
+import { getCurrentUser } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { updateTeamMetricsFromSurvey } from "@/lib/orgData";
+import { computeOverallStressFromDrivers, scoreAnswer, type DriverKey } from "@/lib/stressScoring";
 
 type AnswerInput = {
   questionId: string;
@@ -11,13 +13,6 @@ type AnswerInput = {
   textValue?: string;
 };
 
-function normalizeValue(type: string, value: number) {
-  if (type === "Scale1_5") {
-    return Math.max(0, Math.min(10, ((value - 1) / 4) * 10));
-  }
-  return Math.max(0, Math.min(10, value));
-}
-
 export async function submitSurveyResponse(runId: string, answers: AnswerInput[]) {
   const run = await prisma.surveyRun.findUnique({
     where: { id: runId },
@@ -25,12 +20,18 @@ export async function submitSurveyResponse(runId: string, answers: AnswerInput[]
   });
   if (!run) return { error: "Survey link is invalid." };
 
+  const user = await getCurrentUser();
+  const canAttachMember =
+    Boolean(user?.member?.id) && user?.organizationId === run.orgId;
+
   const answerMap: Record<string, AnswerInput> = {};
   answers.forEach((a) => (answerMap[a.questionId] = a));
 
   await prisma.surveyResponse.create({
     data: {
       runId,
+      memberId: canAttachMember ? user!.member!.id : null,
+      respondentEmail: canAttachMember ? user!.email ?? null : null,
       answers: answerMap as any,
     },
   });
@@ -38,11 +39,24 @@ export async function submitSurveyResponse(runId: string, answers: AnswerInput[]
   // Recalculate metrics for the run
   const responses = await prisma.surveyResponse.findMany({ where: { runId } });
   const questions = run.template.questions;
-  let stressSum = 0;
-  let stressCount = 0;
+  const driverTotals = new Map<DriverKey, { sum: number; count: number }>();
+  let fallbackSum = 0;
+  let fallbackCount = 0;
   let engagementSum = 0;
   let engagementCount = 0;
   const tags: string[] = [];
+  const stressDimensions = new Set(["stress", "workload", "load", "balance", "processes", "long_term"]);
+  const engagementDimensions = new Set([
+    "engagement",
+    "clarity",
+    "manager_support",
+    "meetings_focus",
+    "safety",
+    "control",
+    "recognition",
+    "psych_safety",
+    "atmosphere",
+  ]);
 
   responses.forEach((resp: any) => {
     const ans = resp.answers as Record<string, any>;
@@ -50,20 +64,32 @@ export async function submitSurveyResponse(runId: string, answers: AnswerInput[]
       const v = ans[q.id];
       if (v == null) return;
       if (q.type === "Scale1_5" || q.type === "Scale0_10") {
-        const val = normalizeValue(q.type, Number(v));
-        if (q.dimension === "stress" || q.dimension === "workload") {
-          stressSum += val;
-          stressCount += 1;
-          if (!tags.includes(q.dimension)) tags.push(q.dimension);
-        } else if (q.dimension === "engagement") {
-          engagementSum += val;
+        const scored = scoreAnswer(v, q);
+        if (!scored) return;
+        const dimension = String(q.dimension ?? "").toLowerCase();
+        const totals = driverTotals.get(scored.driverKey) ?? { sum: 0, count: 0 };
+        totals.sum += scored.stressScore;
+        totals.count += 1;
+        driverTotals.set(scored.driverKey, totals);
+        fallbackSum += scored.stressScore;
+        fallbackCount += 1;
+        if (stressDimensions.has(dimension) && !tags.includes(dimension)) {
+          tags.push(dimension);
+        } else if (engagementDimensions.has(dimension)) {
+          engagementSum += scored.engagementScore;
           engagementCount += 1;
         }
       }
     });
   });
 
-  const stressIndex = stressCount ? stressSum / stressCount : 0;
+  const stressStats = computeOverallStressFromDrivers(driverTotals);
+  const stressIndex =
+    stressStats.answerCount > 0
+      ? stressStats.avg
+      : fallbackCount > 0
+        ? fallbackSum / fallbackCount
+        : 0;
   const engagementScore = engagementCount ? engagementSum / engagementCount : 0;
 
   await prisma.surveyRun.update({

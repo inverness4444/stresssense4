@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { Providers } from "@/components/Providers";
+import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
 import { getLocale } from "@/lib/i18n-server";
 
 const geistSans = { variable: "" };
@@ -24,11 +25,7 @@ export default async function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-[var(--background)] text-slate-900`}
       >
         <Providers>{children}</Providers>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: "if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js').catch(()=>{});}",
-          }}
-        />
+        <ServiceWorkerRegister />
       </body>
     </html>
   );

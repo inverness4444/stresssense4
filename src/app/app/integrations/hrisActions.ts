@@ -7,7 +7,7 @@ import { runHrisSync } from "@/lib/hrisSync";
 
 export async function connectHRIS(formData: FormData) {
   const user = await getCurrentUser();
-  if (!user || user.role !== "ADMIN") redirect("/signin");
+  if (!user || !["ADMIN", "SUPER_ADMIN"].includes(user.role)) redirect("/signin");
   const organizationId = formData.get("organizationId") as string;
   if (organizationId !== user.organizationId) redirect("/signin");
   const provider = (formData.get("provider") as string) ?? "generic";
@@ -23,7 +23,7 @@ export async function connectHRIS(formData: FormData) {
 
 export async function runHRISSync(formData: FormData) {
   const user = await getCurrentUser();
-  if (!user || user.role !== "ADMIN") redirect("/signin");
+  if (!user || !["ADMIN", "SUPER_ADMIN"].includes(user.role)) redirect("/signin");
   const organizationId = formData.get("organizationId") as string;
   if (organizationId !== user.organizationId) redirect("/signin");
   const connection = await prisma.hRISIntegration.findUnique({ where: { organizationId } });

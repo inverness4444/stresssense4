@@ -2,9 +2,11 @@ import Link from "next/link";
 import { CreateTeamModal } from "@/components/app/CreateTeamModal";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getLocale } from "@/lib/i18n-server";
 
 export default async function TeamsPage() {
   const currentUser = await getCurrentUser();
+  const locale = await getLocale();
   const role = (currentUser?.role ?? "").toUpperCase();
 
   if (!currentUser) {
@@ -14,7 +16,7 @@ export default async function TeamsPage() {
       </div>
     );
   }
-  if (!["ADMIN", "MANAGER", "HR"].includes(role)) {
+  if (!["ADMIN", "MANAGER", "HR", "SUPER_ADMIN"].includes(role)) {
     return (
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <p className="text-sm text-slate-700">No access.</p>
@@ -22,6 +24,7 @@ export default async function TeamsPage() {
     );
   }
 
+  const hiddenRole = "SUPER_ADMIN";
   const [teams, users, myTeams] = await Promise.all([
     prisma.team.findMany({
       where: { organizationId: currentUser.organizationId },
@@ -35,15 +38,21 @@ export default async function TeamsPage() {
       orderBy: { name: "asc" },
     }),
     prisma.user.findMany({
-      where: { organizationId: currentUser.organizationId },
+      where: { organizationId: currentUser.organizationId, role: { not: hiddenRole } },
       orderBy: { name: "asc" },
       select: { id: true, name: true, email: true, role: true },
     }),
     prisma.userTeam.findMany({ where: { userId: currentUser.id } }),
   ]);
 
-  const isAdmin = role === "ADMIN" || role === "HR" || role === "MANAGER";
-  const visibleTeams = isAdmin ? teams : teams.filter((t: any) => myTeams.some((mt: any) => mt.teamId === t.id));
+  const isAdmin = role === "ADMIN" || role === "HR" || role === "MANAGER" || role === "SUPER_ADMIN";
+  const filteredTeams = teams.map((team: any) => ({
+    ...team,
+    users: (team.users ?? []).filter(
+      (tu: any) => (tu?.user?.role ?? "").toUpperCase() !== hiddenRole
+    ),
+  }));
+  const visibleTeams = isAdmin ? filteredTeams : filteredTeams.filter((t: any) => myTeams.some((mt: any) => mt.teamId === t.id));
 
   return (
     <div className="space-y-6">
@@ -54,7 +63,7 @@ export default async function TeamsPage() {
             Organize your workspace into teams so stress insights stay relevant and actionable.
           </p>
         </div>
-        {isAdmin && <CreateTeamModal users={users} />}
+        {isAdmin && <CreateTeamModal users={users} locale={locale} />}
       </div>
 
       {visibleTeams.length === 0 && (
@@ -88,8 +97,7 @@ export default async function TeamsPage() {
                   )}
                   <div className="space-y-1 text-sm text-slate-600">
                     <p>
-                      Managers:{" "}
-                      {managers.length ? managers.join(", ") : "None yet"}
+                      Managers: {managers.length ? managers.join(", ") : "None yet"}
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-2 pt-2">
@@ -123,7 +131,7 @@ export default async function TeamsPage() {
               </div>
             );
           })}
-          {teams.length === 0 && (
+          {filteredTeams.length === 0 && (
             <div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-600 shadow-sm">
               No teams yet. Create your first team to group employees.
             </div>

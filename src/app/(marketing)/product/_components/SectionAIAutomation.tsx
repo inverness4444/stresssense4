@@ -7,13 +7,13 @@ export default async function SectionAIAutomation() {
     ? [
         { title: "AI coach для сотрудников", text: "Личные подсказки, привычки и обучение без раскрытия личных данных. Ответы идут через privacy слой и анонимизацию." },
         { title: "AI lens для менеджеров", text: "Summary рисков, сильных сторон и действий по команде. Action center с готовыми шагами и playbooks." },
-        { title: "AI для HR/People", text: "Подсказки для 1:1, целей, onboarding-шагов и комп-циклов. Никаких решений за людей — только предложения." },
+        { title: "AI для админов/People", text: "Подсказки для 1:1, целей, onboarding-шагов и комп-циклов. Никаких решений за людей — только предложения." },
         { title: "Privacy-first", text: "Анонимизация, min responses, data minimization. Никаких сырых PII в моделях, только агрегаты и безопасные фичи." },
       ]
     : [
         { title: "AI coach for employees", text: "Personal tips, habits, and learning without exposing personal data. Answers pass through a privacy layer and anonymization." },
         { title: "AI lens for managers", text: "Summaries of risks, strengths, and actions for the team. Action center with ready steps and playbooks." },
-        { title: "AI for HR/People", text: "Guidance for 1:1s, goals, onboarding steps, and comp cycles. No decisions for people — only suggestions." },
+        { title: "AI for admins/People", text: "Guidance for 1:1s, goals, onboarding steps, and comp cycles. No decisions for people — only suggestions." },
         { title: "Privacy-first", text: "Anonymization, min responses, data minimization. No raw PII in models, only aggregates and safe features." },
       ];
 

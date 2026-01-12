@@ -1,13 +1,13 @@
 import { prisma } from "./prisma";
 import { logAuditEvent } from "./audit";
 import { randomBytes } from "crypto";
+import bcrypt from "bcryptjs";
 
 export async function exportUserData(userId: string, organizationId: string) {
   const user = await prisma.user.findFirst({
     where: { id: userId, organizationId },
     include: {
-      teams: { include: { team: true } },
-      attributes: { include: { attribute: true } },
+      userTeams: { include: { team: true } },
     },
   });
   if (!user) throw new Error("User not found");
@@ -21,28 +21,31 @@ export async function exportUserData(userId: string, organizationId: string) {
 export async function anonymizeUser(userId: string, organizationId: string, actorId: string) {
   const user = await prisma.user.findFirst({ where: { id: userId, organizationId } });
   if (!user) throw new Error("User not found");
-  const adminCount = await prisma.user.count({ where: { organizationId, role: "ADMIN", isDeleted: false } });
-  if (user.role === "ADMIN" && adminCount <= 1) throw new Error("Need at least one active admin.");
+  const adminRoles = ["ADMIN", "HR", "SUPER_ADMIN"];
+  let adminCount = 0;
+  try {
+    adminCount = await prisma.user.count({
+      where: { organizationId, role: { in: adminRoles }, isDeleted: false },
+    });
+  } catch {
+    adminCount = await prisma.user.count({
+      where: { organizationId, role: { in: adminRoles } },
+    });
+  }
+  if (adminRoles.includes((user.role ?? "").toUpperCase()) && adminCount <= 1) {
+    throw new Error("Need at least one active admin.");
+  }
 
   const replacement = `deleted-user-${randomBytes(6).toString("hex")}`;
-  await prisma.$transaction([
-    prisma.employeeAttributeValue.deleteMany({ where: { userId } }),
-    prisma.user.update({
-      where: { id: userId },
-      data: {
-        email: `${replacement}@deleted.local`,
-        name: replacement,
-        jobTitle: null,
-        department: null,
-        location: null,
-        employeeId: null,
-        slackUserId: null,
-        preferredLanguage: null,
-        managerId: null,
-        isDeleted: true,
-      },
-    }),
-  ]);
+  const replacementHash = await bcrypt.hash(randomBytes(12).toString("hex"), 10);
+  await prisma.user.update({
+    where: { id: userId },
+    data: {
+      email: `${replacement}@deleted.local`,
+      name: replacement,
+      passwordHash: replacementHash,
+    },
+  });
 
   await logAuditEvent({
     organizationId,

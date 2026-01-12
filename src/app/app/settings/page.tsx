@@ -5,20 +5,15 @@ import { updateSettings } from "./actions";
 import { InfoTooltip } from "@/components/ui/InfoTooltip";
 import { prisma } from "@/lib/prisma";
 import { saveSSOConfig } from "./ssoActions";
-import { ensureInviteToken } from "@/lib/orgData";
-import { InviteLinkBlock } from "./InviteLinkBlock";
 
 export default async function SettingsPage() {
   const user = await getCurrentUser();
   const role = (user?.role ?? "").toUpperCase();
-  if (!user || !["ADMIN", "HR", "MANAGER"].includes(role)) redirect("/app/overview");
-  const canEdit = ["ADMIN", "HR"].includes(role);
+  if (!user || !["ADMIN", "HR", "MANAGER", "SUPER_ADMIN"].includes(role)) redirect("/app/overview");
+  const canEdit = ["ADMIN", "HR", "SUPER_ADMIN"].includes(role);
 
   const settings = await ensureOrgSettings(user.organizationId);
   const sso = await prisma.sSOConfig.findUnique({ where: { organizationId: user.organizationId } });
-  const org = await prisma.organization.findUnique({ where: { id: user.organizationId } });
-  const inviteToken = org?.inviteToken || (await ensureInviteToken(user.organizationId));
-  const linkSlug = org?.slug && org.slug.trim().length > 0 ? org.slug : org?.id ?? "workspace";
 
   return (
     <div className="space-y-6">
@@ -135,21 +130,9 @@ export default async function SettingsPage() {
         )}
       </form>
 
-      {org && (
-        <InviteLinkBlock
-          slug={linkSlug}
-          inviteToken={inviteToken}
-          canRegenerate={canEdit}
-          baseUrl={process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}
-        />
-      )}
-
       <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex items-center gap-2">
           <h3 className="text-lg font-semibold text-slate-900">Single sign-on (SSO)</h3>
-          <span className="rounded-full bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-700 ring-1 ring-amber-100">
-            Enterprise
-          </span>
         </div>
         <p className="text-sm text-slate-600">Let your employees sign in with your identity provider.</p>
         <form action={saveSSOConfig} className="mt-4 space-y-3">

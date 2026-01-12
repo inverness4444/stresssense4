@@ -7,7 +7,7 @@ import { upsertCompRecommendation, requestCompAiSuggestion } from "./actions";
 
 export default async function ManagerCompensationPage() {
   const user = await getCurrentUser();
-  if (!user || (user.role !== "MANAGER" && user.role !== "ADMIN")) redirect("/app/overview");
+  if (!user || (user.role !== "MANAGER" && user.role !== "ADMIN" && user.role !== "SUPER_ADMIN")) redirect("/app/overview");
   const enabled = await isFeatureEnabled("compensation_module_v1", { organizationId: user.organizationId });
   if (!enabled) redirect("/app/overview");
 

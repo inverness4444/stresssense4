@@ -16,31 +16,56 @@ export default async function JoinWorkspacePage({ params }: { params: Promise<Pa
   }
 
   const user = await getCurrentUser();
-  const workspace =
-    (await prisma.organization.findFirst({
-      where: {
-        inviteToken,
-        OR: [{ slug: workspaceSlug }, { id: workspaceSlug }],
-      },
-      select: { id: true, name: true, slug: true, inviteToken: true },
-    })) ||
-    (await prisma.organization.findFirst({
-      where: { inviteToken },
-      select: { id: true, name: true, slug: true, inviteToken: true },
-    }));
+  const invite = await prisma.joinInvite.findUnique({
+    where: { token: inviteToken },
+    include: { organization: { select: { id: true, name: true, slug: true } } },
+  });
 
-  if (!workspace) {
+  if (invite) {
+    const expired = invite.expiresAt.getTime() < Date.now();
+    if (invite.usedAt || expired) return invalidLink();
+    if (invite.organization.slug !== workspaceSlug && invite.organization.id !== workspaceSlug) {
+      return invalidLink();
+    }
+    const inviteRole = invite.role.toLowerCase() as RoleParam;
+    if (inviteRole !== roleParam) return invalidLink();
+
+    const isOwner = user && user.organizationId === invite.organization.id && (user.role ?? "").toUpperCase() === "HR";
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-50 px-4 py-14">
+        <JoinWorkspaceClient
+          workspaceName={invite.organization.name}
+          workspaceSlug={invite.organization.slug}
+          inviteToken={invite.token}
+          role={inviteRole}
+          isAuthenticated={!!user}
+          userEmail={(user as any)?.email ?? null}
+          isOwner={isOwner}
+        />
+      </div>
+    );
+  }
+
+  const legacy = await prisma.organization.findFirst({
+    where: {
+      inviteToken,
+      OR: [{ slug: workspaceSlug }, { id: workspaceSlug }],
+    },
+    select: { id: true, name: true, slug: true, inviteToken: true },
+  });
+
+  if (!legacy) {
     return invalidLink();
   }
 
-  const isOwner = user && user.organizationId === workspace.id && (user.role ?? "").toUpperCase() === "HR";
+  const isOwner = user && user.organizationId === legacy.id && (user.role ?? "").toUpperCase() === "HR";
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-50 px-4 py-14">
       <JoinWorkspaceClient
-        workspaceName={workspace.name}
-        workspaceSlug={workspace.slug}
-        inviteToken={workspace.inviteToken ?? ""}
+        workspaceName={legacy.name}
+        workspaceSlug={legacy.slug}
+        inviteToken={legacy.inviteToken ?? ""}
         role={roleParam}
         isAuthenticated={!!user}
         userEmail={(user as any)?.email ?? null}

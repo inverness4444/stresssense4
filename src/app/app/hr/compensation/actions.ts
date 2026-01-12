@@ -6,7 +6,7 @@ import { addJob } from "@/lib/queue";
 
 export async function createCompensationBand(formData: FormData) {
   const user = await getCurrentUser();
-  if (!user || user.role !== "ADMIN") throw new Error("Forbidden");
+  if (!user || !["ADMIN", "SUPER_ADMIN"].includes(user.role)) throw new Error("Forbidden");
   const enabled = await isFeatureEnabled("compensation_module_v1", { organizationId: user.organizationId });
   if (!enabled) throw new Error("Feature disabled");
   await prisma.compensationBand.create({
@@ -30,7 +30,7 @@ export async function createCompensationBand(formData: FormData) {
 
 export async function createCompensationReviewCycle(formData: FormData) {
   const user = await getCurrentUser();
-  if (!user || user.role !== "ADMIN") throw new Error("Forbidden");
+  if (!user || !["ADMIN", "SUPER_ADMIN"].includes(user.role)) throw new Error("Forbidden");
   const enabled = await isFeatureEnabled("compensation_module_v1", { organizationId: user.organizationId });
   if (!enabled) throw new Error("Feature disabled");
   await prisma.compensationReviewCycle.create({
@@ -51,7 +51,7 @@ export async function createCompensationReviewCycle(formData: FormData) {
 
 export async function configureCycleParticipants(cycleId: string, participantIds: string[]) {
   const user = await getCurrentUser();
-  if (!user || user.role !== "ADMIN") throw new Error("Forbidden");
+  if (!user || !["ADMIN", "SUPER_ADMIN"].includes(user.role)) throw new Error("Forbidden");
   const enabled = await isFeatureEnabled("compensation_module_v1", { organizationId: user.organizationId });
   if (!enabled) throw new Error("Feature disabled");
   const participants = participantIds.map((id) => ({
@@ -67,7 +67,7 @@ export async function configureCycleParticipants(cycleId: string, participantIds
 
 export async function changeCompCycleStatus(cycleId: string, status: string) {
   const user = await getCurrentUser();
-  if (!user || user.role !== "ADMIN") throw new Error("Forbidden");
+  if (!user || !["ADMIN", "SUPER_ADMIN"].includes(user.role)) throw new Error("Forbidden");
   const enabled = await isFeatureEnabled("compensation_module_v1", { organizationId: user.organizationId });
   if (!enabled) throw new Error("Feature disabled");
   await prisma.compensationReviewCycle.update({ where: { id: cycleId }, data: { status } });
@@ -79,7 +79,7 @@ export async function changeCompCycleStatus(cycleId: string, status: string) {
 
 export async function lockCompCycle(cycleId: string, lockDate?: Date) {
   const user = await getCurrentUser();
-  if (!user || user.role !== "ADMIN") throw new Error("Forbidden");
+  if (!user || !["ADMIN", "SUPER_ADMIN"].includes(user.role)) throw new Error("Forbidden");
   const enabled = await isFeatureEnabled("compensation_module_v1", { organizationId: user.organizationId });
   if (!enabled) throw new Error("Feature disabled");
   await prisma.compensationReviewCycle.update({

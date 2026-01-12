@@ -1,10 +1,11 @@
 import { prisma } from "@/lib/prisma";
+import { getRoleLabel } from "@/lib/roles";
 
 export default async function OrgDetail({ params }: { params: { id: string } }) {
   const org = await prisma.organization.findUnique({
     where: { id: params.id },
     include: {
-      subscription: { include: { plan: true } },
+      subscription: true,
       users: { take: 5, select: { id: true, name: true, email: true, role: true } },
       surveys: { include: { responses: true } },
       slackIntegration: true,
@@ -16,7 +17,7 @@ export default async function OrgDetail({ params }: { params: { id: string } }) 
     <div className="space-y-4">
       <div>
         <h1 className="text-2xl font-semibold text-slate-900">{org.name}</h1>
-        <p className="text-sm text-slate-600">Plan: {org.subscription?.plan?.name ?? "Free"}</p>
+        <p className="text-sm text-slate-600">Billing: per-seat · Seats: {org.subscription?.seats ?? "—"}</p>
       </div>
       <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
         <h2 className="text-lg font-semibold text-slate-900">Usage</h2>
@@ -33,7 +34,7 @@ export default async function OrgDetail({ params }: { params: { id: string } }) 
         <ul className="mt-2 space-y-1 text-sm text-slate-700">
           {org.users.map((u: any) => (
             <li key={u.id}>
-              {u.name} ({u.email}) — {u.role}
+              {u.name} ({u.email}) — {getRoleLabel(u.role)}
             </li>
           ))}
         </ul>

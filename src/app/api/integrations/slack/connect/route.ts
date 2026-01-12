@@ -6,7 +6,7 @@ import { cookies } from "next/headers";
 
 export async function GET() {
   const user = await getCurrentUser();
-  if (!user || user.role !== "ADMIN") return NextResponse.redirect("/signin");
+  if (!user || !["ADMIN", "SUPER_ADMIN"].includes(user.role)) return NextResponse.redirect("/signin");
 
   const nonce = crypto.randomBytes(12).toString("hex");
   const store = await cookies();

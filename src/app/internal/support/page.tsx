@@ -5,7 +5,7 @@ export default async function InternalSupport() {
   const orgs = await prisma.organization.findMany({
     take: 10,
     orderBy: { updatedAt: "desc" },
-    include: { subscription: { include: { plan: true } }, dunningState: true },
+    include: { subscription: true, dunningState: true },
   });
   return (
     <div className="space-y-4">
@@ -16,7 +16,7 @@ export default async function InternalSupport() {
             <div>
               <p className="font-semibold text-slate-900">{o.name}</p>
               <p className="text-xs text-slate-500">
-                Stage: {o.lifecycleStage ?? "n/a"} · Plan: {o.subscription?.plan?.name ?? "Free"} · Status: {o.subscription?.status ?? "none"}
+                Stage: {o.lifecycleStage ?? "n/a"} · Billing: per-seat · Seats: {o.subscription?.seats ?? "—"} · Status: {o.subscription?.status ?? "none"}
               </p>
               {o.dunningState && <p className="text-xs text-amber-700">Dunning: {o.dunningState.status}</p>}
             </div>

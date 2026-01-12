@@ -2,8 +2,8 @@ import { useMemo } from "react";
 
 const solutions = (isRu: boolean) => [
   {
-    badge: "HR",
-    title: isRu ? "Для HR-команд" : "For HR teams",
+    badge: "Admin",
+    title: isRu ? "Для админ-команд" : "For admin teams",
     points: [
       isRu ? "Единая картина стресса и вовлечённости" : "Unified view of stress and engagement",
       isRu ? "Готовые playbooks и nudges" : "Ready playbooks and nudges",
@@ -46,7 +46,7 @@ export default function SolutionsSection() {
             {isRu ? "Команды, для которых StressSense даёт максимум эффекта" : "Teams where StressSense delivers the most impact"}
           </h2>
           <p className="mt-3 text-base text-slate-600">
-            {isRu ? "HR, менеджеры и сотрудники видят ровно то, что им нужно, в одном продукте." : "HR, managers, and employees see exactly what they need in one product."}
+            {isRu ? "Админы, менеджеры и сотрудники видят ровно то, что им нужно, в одном продукте." : "Admins, managers, and employees see exactly what they need in one product."}
           </p>
         </div>
         <div className="mt-10 grid gap-4 md:grid-cols-3">

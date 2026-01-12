@@ -10,7 +10,7 @@ const scopes = ["read:organization", "read:employees", "read:surveys", "read:com
 
 export default async function DevelopersPage() {
   const user = await getCurrentUser();
-  if (!user || user.role !== "ADMIN") {
+  if (!user || !["ADMIN", "SUPER_ADMIN"].includes(user.role)) {
     return (
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <p className="text-sm text-slate-700">You don&apos;t have access to this area.</p>

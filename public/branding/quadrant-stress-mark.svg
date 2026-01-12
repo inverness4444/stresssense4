@@ -1,0 +1,19 @@
+<svg width="220" height="220" viewBox="0 0 220 220" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Quadrant Stress logo</title>
+  <desc id="desc">Monochrome QS monogram inside a double circle with Quadrant Stress wordmark</desc>
+  <style>
+    .ring { fill: none; stroke: #1c1c1c; stroke-width: 8; }
+    .monogram { fill: #1c1c1c; font-family: "Inter", "Helvetica Neue", Arial, sans-serif; font-weight: 700; letter-spacing: -0.06em; }
+    .wordmark { fill: #1c1c1c; font-family: "Inter", "Helvetica Neue", Arial, sans-serif; font-weight: 700; font-size: 26px; letter-spacing: 0.01em; }
+  </style>
+
+  <!-- double ring -->
+  <circle class="ring" cx="110" cy="100" r="78" stroke-opacity="0.85" />
+  <circle class="ring" cx="110" cy="100" r="68" stroke-opacity="0.85" />
+
+  <!-- monogram -->
+  <text x="110" y="114" text-anchor="middle" font-size="92" class="monogram">QS</text>
+
+  <!-- wordmark -->
+  <text x="110" y="192" text-anchor="middle" class="wordmark">Quadrant Stress</text>
+</svg>

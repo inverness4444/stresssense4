@@ -46,12 +46,6 @@ export default function ProductSubnav() {
             {link.label}
           </Link>
         ))}
-        <Link
-          href="/signup"
-          className="ml-auto hidden rounded-full bg-primary px-4 py-2 text-white shadow-sm transition hover:shadow-md sm:inline-flex"
-        >
-          Начать бесплатно
-        </Link>
       </div>
     </div>
   );

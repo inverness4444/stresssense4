@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { InsightTag } from "@/lib/statusLogic";
 import { EngagementTrendCard, TrendPoint } from "@/components/EngagementTrendCard";
 import { t, type Locale } from "@/lib/i18n";
+import { formatMoney } from "@/lib/formatMoney";
+import { MIN_SEATS, calculateSeatTotal, getPricePerSeat, normalizeSeats, resolveCurrency } from "@/config/pricing";
 
 type Mode = "landing" | "employee" | "manager";
 type Variant = "inline" | "floating";
@@ -309,49 +311,43 @@ export function StressSenseAiWidget({
       },
     },
     {
-      id: "plan",
-      title: locale === "ru" ? "Подобрать план" : "Pick a plan",
+      id: "pricing",
+      title: locale === "ru" ? "Рассчитать стоимость" : "Calculate pricing",
       questions: [
         {
-          id: "headcount",
-          text: locale === "ru" ? "Сколько человек в компании?" : "How many people are in the company?",
+          id: "seats",
+          text: locale === "ru" ? "Сколько мест нужно?" : "How many seats do you need?",
           options: [
-            { label: locale === "ru" ? "До 50" : "Up to 50", value: "50" },
-            { label: locale === "ru" ? "50-200" : "50-200", value: "200" },
-            { label: locale === "ru" ? "200+" : "200+", value: "500" },
-          ],
-        },
-        {
-          id: "modules",
-          text: locale === "ru" ? "Что нужно?" : "What do you need?",
-          options: [
-            { label: locale === "ru" ? "Опросы стресса" : "Stress surveys", value: "pulse" },
-            { label: locale === "ru" ? "Опросы + отчёты менеджерам" : "Surveys + manager reports", value: "cockpit" },
-            { label: locale === "ru" ? "Все модули + AI" : "All modules + AI", value: "full" },
+            { label: locale === "ru" ? "10 (минимум)" : "10 (minimum)", value: "10" },
+            { label: "25", value: "25" },
+            { label: "50", value: "50" },
+            { label: "100", value: "100" },
+            { label: "200", value: "200" },
           ],
         },
       ],
       onComplete: (answers) => {
-        const headcount = answers.headcount;
-        const modules = answers.modules;
-        let plan = "Starter";
-        let price = locale === "ru" ? "99$/мес" : "$99/mo";
-        if (headcount === "200" || modules === "cockpit") {
-          plan = "Growth";
-          price = locale === "ru" ? "299$/мес" : "$299/mo";
-        }
-        if (headcount === "500" || modules === "full") {
-          plan = "Scale";
-          price = locale === "ru" ? "899$/мес" : "$899/mo";
-        }
+        const currency = resolveCurrency(locale);
+        const seats = normalizeSeats(Number(answers.seats ?? MIN_SEATS));
+        const perSeat = getPricePerSeat(currency);
+        const total = calculateSeatTotal(seats, currency);
+        const suffix = locale === "ru" ? " / мес" : " / mo";
+        const perSeatLabel = `${formatMoney(perSeat, locale, currency)}${suffix}`;
+        const totalLabel = `${formatMoney(total, locale, currency)}${suffix}`;
+        const minNote =
+          seats === MIN_SEATS
+            ? locale === "ru"
+              ? "Минимум 10 мест."
+              : "Minimum 10 seats."
+            : null;
         return [
           {
-            id: "plan-res",
+            id: "pricing-res",
             role: "ai",
             text:
               locale === "ru"
-                ? `Рекомендованный план: ${plan}. Он включает нужные модули и подходит на ваш размер. Примерная цена — ${price}. Можно показать, как это будет выглядеть на ваших данных.`
-                : `Recommended plan: ${plan}. It includes the needed modules and fits your size. Approx price — ${price}. We can show how it looks on your data.`,
+                ? `Цена за место — ${perSeatLabel}. Для ${seats} мест итог — ${totalLabel}.${minNote ? ` ${minNote}` : ""} Могу помочь подобрать количество мест или рассказать, что входит.`
+                : `Price per seat is ${perSeatLabel}. For ${seats} seats the total is ${totalLabel}.${minNote ? ` ${minNote}` : ""} I can help pick a seat count or share what's included.`,
           },
         ];
       },
@@ -536,7 +532,7 @@ export function StressSenseAiWidget({
     { id: "report", label: locale === "ru" ? "Показать отчёт по стрессу" : "Show stress report" },
     { id: "simulate", label: locale === "ru" ? "Смоделировать стресс в команде" : "Simulate team stress" },
     { id: "privacy", label: locale === "ru" ? "Как мы работаем с данными" : "How we handle data" },
-    { id: "plan", label: locale === "ru" ? "Подобрать план и цену" : "Pick a plan and price" },
+    { id: "pricing", label: locale === "ru" ? "Рассчитать цену" : "Calculate pricing" },
   ];
 
   const managerQuickActions = [

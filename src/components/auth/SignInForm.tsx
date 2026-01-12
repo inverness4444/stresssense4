@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import clsx from "clsx";
@@ -52,7 +53,7 @@ export function SignInForm({ locale = "en" }: { locale?: Locale }) {
             onChange={(e) => setEmail(e.target.value)}
             type="email"
             className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
-            placeholder="admin@stresssense.demo"
+            placeholder="you@company.com"
           />
         </label>
         <label className="block space-y-1">
@@ -77,9 +78,12 @@ export function SignInForm({ locale = "en" }: { locale?: Locale }) {
         >
           {pending ? (locale === "ru" ? "Входим..." : "Signing in...") : t(locale, "signinButton")}
         </button>
-        <p className="text-xs text-slate-500">
-          {locale === "ru" ? "Демо-аккаунт после сидинга:" : "Demo credentials after seeding:"} <strong>admin@stresssense.demo / admin1234</strong>
-        </p>
+        <Link
+          href="/signup"
+          className="block w-full rounded-xl border border-slate-200 bg-white px-4 py-2 text-center text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+        >
+          {locale === "ru" ? "Зарегистрироваться" : "Create account"}
+        </Link>
       </form>
     </div>
   );

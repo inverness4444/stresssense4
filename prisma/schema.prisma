@@ -9,8 +9,10 @@ datasource db {
 
 enum UserRole {
   HR
-  Manager
-  Employee
+  ADMIN
+  MANAGER
+  EMPLOYEE
+  SUPER_ADMIN
 }
 
 enum TeamStatus {
@@ -21,9 +23,29 @@ enum TeamStatus {
 }
 
 enum QuestionType {
+  SCALE
+  TEXT
   Scale1_5
   Scale0_10
   SingleChoice
+  MultiChoice
+  Text
+}
+
+enum SurveyTemplateSource {
+  seed
+  ai
+  manual
+}
+
+enum SurveyRunType {
+  pulse
+  daily
+}
+
+enum SurveyGenerationStatus {
+  success
+  failed
 }
 
 enum QuestionDimension {
@@ -34,6 +56,11 @@ enum QuestionDimension {
   recognition
   clarity
   other
+}
+
+enum QuestionPolarity {
+  NEGATIVE
+  POSITIVE
 }
 
 enum Audience {
@@ -61,6 +88,7 @@ model User {
   passwordHash String
   name         String
   role         UserRole
+  balance      Decimal  @default(0) @db.Decimal(12, 2)
   organization Organization @relation(fields: [organizationId], references: [id])
   organizationId String
   createdAt    DateTime @default(now())
@@ -68,6 +96,15 @@ model User {
   members      Member[]
   surveyRuns   SurveyRun[] @relation("SurveyRunLaunchedBy")
   userTeams    UserTeam[]
+  walletTransactions WalletTransaction[]
+  walletTransactionsCreated WalletTransaction[] @relation("WalletTransactionCreatedBy")
+  topupRequests TopupRequest[]
+  topupRequestsProcessed TopupRequest[] @relation("TopupRequestProcessedBy")
+  anonymousFeedbackSent AnonymousFeedback[] @relation("AnonymousFeedbackSender")
+  anonymousFeedbackReceived AnonymousFeedback[] @relation("AnonymousFeedbackRecipient")
+  abuseReports AbuseReport[] @relation("AbuseReportReporter")
+  joinInvitesCreated JoinInvite[] @relation("JoinInviteCreatedBy")
+  aiChatStates AiChatState[]
 }
 
 model Organization {
@@ -80,10 +117,27 @@ model Organization {
   users     User[]
   teams     Team[]
   members   Member[]
+  joinInvites JoinInvite[]
   surveyTemplates SurveyTemplate[]
   surveyRuns SurveyRun[]
   nudges    NudgeInstance[]
   settings  OrganizationSettings?
+  anonymousFeedback AnonymousFeedback[]
+  anonymousThreads AnonymousThread[]
+  aiChatStates AiChatState[]
+}
+
+model JoinInvite {
+  id               String   @id @default(cuid())
+  token            String   @unique
+  role             UserRole
+  organization     Organization @relation(fields: [organizationId], references: [id])
+  organizationId   String
+  createdByUser    User?    @relation("JoinInviteCreatedBy", fields: [createdByUserId], references: [id])
+  createdByUserId  String?
+  expiresAt        DateTime
+  usedAt           DateTime?
+  createdAt        DateTime @default(now())
 }
 
 model Team {
@@ -104,6 +158,7 @@ model Team {
   metricsHistory  TeamMetricsHistory[]
   nudges          NudgeInstance[]
   users           UserTeam[]
+  anonymousFeedback AnonymousFeedback[]
 }
 
 model Member {
@@ -120,6 +175,7 @@ model Member {
   user        User?    @relation(fields: [userId], references: [id])
   userId      String?
   surveyResponses SurveyResponse[]
+  surveyRuns     SurveyRun[]
   metrics     EmployeeMetrics?
   nudges      NudgeInstance[]
 }
@@ -128,8 +184,13 @@ model SurveyTemplate {
   id          String   @id @default(cuid())
   orgId       String?
   organization Organization? @relation(fields: [orgId], references: [id])
+  name        String?
   title       String
   description String?
+  language    String?  @default("en")
+  source      SurveyTemplateSource? @default(manual)
+  dayIndex    Int?
+  createdForMemberId String?
   isDefault   Boolean  @default(false)
   createdAt   DateTime @default(now())
   questions   SurveyQuestion[]
@@ -142,9 +203,19 @@ model SurveyQuestion {
   templateId String
   order      Int
   text       String
+  description String?
+  helpText   String?
   type       QuestionType
+  scaleMin   Int?
+  scaleMax   Int?
   dimension  QuestionDimension
   choices    Json?
+  driverTag  String?
+  driverKey  String   @default("unknown")
+  polarity   QuestionPolarity @default(NEGATIVE)
+  needsReview Boolean @default(false)
+  aiReason   String?
+  required   Boolean @default(true)
 }
 
 model SurveyRun {
@@ -153,18 +224,29 @@ model SurveyRun {
   organization     Organization @relation(fields: [orgId], references: [id])
   team             Team?    @relation(fields: [teamId], references: [id])
   teamId           String?
+  member           Member?  @relation(fields: [memberId], references: [id])
+  memberId         String?
   template         SurveyTemplate @relation(fields: [templateId], references: [id])
   templateId       String
   title            String
   launchedBy       User     @relation("SurveyRunLaunchedBy", fields: [launchedByUserId], references: [id])
   launchedByUserId String
   launchedAt       DateTime @default(now())
+  runDate          DateTime?
+  runType          SurveyRunType @default(pulse)
+  source           SurveyTemplateSource? @default(manual)
+  dayIndex         Int?
   targetCount      Int      @default(0)
   completedCount   Int      @default(0)
   avgStressIndex   Float?
   avgEngagementScore Float?
   tags             Json?
   responses        SurveyResponse[]
+
+  @@index([memberId])
+  @@index([runDate])
+  @@index([runType])
+  @@unique([memberId, runDate])
 }
 
 model SurveyResponse {
@@ -176,6 +258,23 @@ model SurveyResponse {
   respondentEmail String?
   submittedAt    DateTime @default(now())
   answers        Json
+}
+
+model SurveyGenerationLog {
+  id          String   @id @default(cuid())
+  orgId       String
+  memberId    String
+  runDate     DateTime
+  source      SurveyTemplateSource
+  dayIndex    Int?
+  status      SurveyGenerationStatus
+  error       String?
+  surveyRunId String?
+  templateId  String?
+  createdAt   DateTime @default(now())
+
+  @@index([orgId, runDate])
+  @@index([memberId, runDate])
 }
 
 model EmployeeMetrics {
@@ -272,4 +371,171 @@ model OrganizationSettings {
   slackAlertsChannelId       String?
   defaultLanguage            String   @default("en")
   dataRetentionDays          Int?
+}
+
+enum WalletTransactionType {
+  manual_deposit
+  manual_withdraw
+  adjustment
+}
+
+enum WalletTransactionStatus {
+  pending
+  confirmed
+  cancelled
+}
+
+enum TopupRequestStatus {
+  pending
+  approved
+  rejected
+}
+
+enum AnonymousFeedbackStatus {
+  new
+  in_progress
+  resolved
+}
+
+enum AnonymousFeedbackCategory {
+  communication
+  workload
+  process
+  culture
+  conflict
+  ideas
+}
+
+enum AnonymousThreadDirection {
+  sender_to_leader
+  leader_to_sender
+}
+
+enum AbuseReportStatus {
+  open
+  reviewed
+}
+
+model WalletTransaction {
+  id               String   @id @default(cuid())
+  userId           String
+  user             User     @relation(fields: [userId], references: [id])
+  type             WalletTransactionType
+  amount           Decimal  @db.Decimal(12, 2)
+  currency         String
+  status           WalletTransactionStatus @default(confirmed)
+  comment          String?
+  createdByAdminId String?
+  createdByAdmin   User?    @relation("WalletTransactionCreatedBy", fields: [createdByAdminId], references: [id])
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([userId])
+  @@index([createdByAdminId])
+}
+
+model TopupRequest {
+  id                 String   @id @default(cuid())
+  userId             String
+  user               User     @relation(fields: [userId], references: [id])
+  amount             Decimal  @db.Decimal(12, 2)
+  currency           String
+  paymentMethod      String
+  details            Json?
+  status             TopupRequestStatus @default(pending)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  processedByAdminId String?
+  processedByAdmin   User?    @relation("TopupRequestProcessedBy", fields: [processedByAdminId], references: [id])
+  processedAt        DateTime?
+
+  @@index([userId])
+  @@index([processedByAdminId])
+  @@index([status])
+}
+
+model AnonymousFeedback {
+  id                String   @id @default(cuid())
+  orgId             String   @map("org_id")
+  org               Organization @relation(fields: [orgId], references: [id])
+  senderUserId      String   @map("sender_user_id")
+  senderUser        User     @relation("AnonymousFeedbackSender", fields: [senderUserId], references: [id])
+  recipientLeaderId String   @map("recipient_leader_id")
+  recipientLeader   User     @relation("AnonymousFeedbackRecipient", fields: [recipientLeaderId], references: [id])
+  teamId            String?  @map("team_id")
+  team              Team?    @relation(fields: [teamId], references: [id])
+  category          AnonymousFeedbackCategory
+  tags              Json?
+  message           String
+  allowFollowup     Boolean  @default(false) @map("allow_followup")
+  status            AnonymousFeedbackStatus @default(new)
+  createdAt         DateTime @default(now()) @map("created_at")
+  thread            AnonymousThread?
+  abuseReports      AbuseReport[]
+
+  @@index([orgId])
+  @@index([recipientLeaderId])
+  @@index([teamId])
+  @@index([category])
+  @@index([status])
+  @@map("anonymous_feedback")
+}
+
+model AnonymousThread {
+  id              String   @id @default(cuid())
+  orgId           String   @map("org_id")
+  org             Organization @relation(fields: [orgId], references: [id])
+  feedbackId      String   @unique @map("feedback_id")
+  feedback        AnonymousFeedback @relation(fields: [feedbackId], references: [id])
+  anonHandle      String   @map("anon_handle")
+  rotationBucket  String   @map("rotation_bucket")
+  createdAt       DateTime @default(now()) @map("created_at")
+  messages        AnonymousThreadMessage[]
+
+  @@index([orgId])
+  @@index([rotationBucket])
+  @@map("anonymous_threads")
+}
+
+model AnonymousThreadMessage {
+  id         String   @id @default(cuid())
+  threadId   String   @map("thread_id")
+  thread     AnonymousThread @relation(fields: [threadId], references: [id])
+  direction  AnonymousThreadDirection
+  body       String
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([threadId])
+  @@map("anonymous_thread_messages")
+}
+
+model AbuseReport {
+  id               String   @id @default(cuid())
+  feedbackId       String   @map("feedback_id")
+  feedback         AnonymousFeedback @relation(fields: [feedbackId], references: [id])
+  reportedByUserId String   @map("reported_by_user_id")
+  reportedByUser   User     @relation("AbuseReportReporter", fields: [reportedByUserId], references: [id])
+  reason           String
+  status           AbuseReportStatus @default(open)
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  @@index([feedbackId])
+  @@index([reportedByUserId])
+  @@index([status])
+  @@map("abuse_reports")
+}
+
+model AiChatState {
+  id             String   @id @default(cuid())
+  userId         String   @map("user_id")
+  organizationId String   @map("organization_id")
+  user           User     @relation(fields: [userId], references: [id])
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  sessions       Json
+  activeSessionId String? @map("active_session_id")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@unique([userId, organizationId])
+  @@map("ai_chat_states")
 }

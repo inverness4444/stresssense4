@@ -21,13 +21,13 @@ async function main() {
   });
   const managerUser = await prisma.user.upsert({
     where: { email: "manager@demo.local" },
-    update: { passwordHash, name: "Demo Manager", role: "Manager", organizationId: org.id },
-    create: { email: "manager@demo.local", passwordHash, name: "Demo Manager", role: "Manager", organizationId: org.id },
+    update: { passwordHash, name: "Demo Manager", role: "MANAGER", organizationId: org.id },
+    create: { email: "manager@demo.local", passwordHash, name: "Demo Manager", role: "MANAGER", organizationId: org.id },
   });
   const employeeUser = await prisma.user.upsert({
     where: { email: "employee@demo.local" },
-    update: { passwordHash, name: "Demo Employee", role: "Employee", organizationId: org.id },
-    create: { email: "employee@demo.local", passwordHash, name: "Demo Employee", role: "Employee", organizationId: org.id },
+    update: { passwordHash, name: "Demo Employee", role: "EMPLOYEE", organizationId: org.id },
+    create: { email: "employee@demo.local", passwordHash, name: "Demo Employee", role: "EMPLOYEE", organizationId: org.id },
   });
 
   const productTeam = await prisma.team.upsert({
@@ -80,7 +80,7 @@ async function main() {
     create: {
       id: "member-manager-demo",
       displayName: "Demo Manager",
-      role: "Manager",
+      role: "MANAGER",
       email: managerUser.email,
       organizationId: org.id,
       teamId: productTeam.id,
@@ -93,7 +93,7 @@ async function main() {
     create: {
       id: "member-employee-demo",
       displayName: "Demo Employee",
-      role: "Employee",
+      role: "EMPLOYEE",
       email: employeeUser.email,
       organizationId: org.id,
       teamId: marketingTeam.id,

@@ -6,7 +6,7 @@ import { isFeatureEnabled } from "@/lib/featureFlags";
 import { revalidatePath } from "next/cache";
 
 function ensurePeopleAccess(user: { role: string; organizationId: string }) {
-  if (!["ADMIN", "HR", "MANAGER"].includes(user.role)) throw new Error("Forbidden");
+  if (!["ADMIN", "HR", "MANAGER", "SUPER_ADMIN"].includes(user.role)) throw new Error("Forbidden");
 }
 
 export async function createOrUpdateOneOnOneRelationship(input: {
@@ -150,7 +150,7 @@ export async function updateGoalProgress(input: { goalId: string; value?: number
   if (!user) throw new Error("Unauthorized");
   const goal = await prisma.goal.findUnique({ where: { id: input.goalId } });
   if (!goal || goal.organizationId !== user.organizationId) throw new Error("Not found");
-  if (goal.ownerUserId !== user.id && !["ADMIN", "HR", "MANAGER"].includes(user.role)) throw new Error("Forbidden");
+  if (goal.ownerUserId !== user.id && !["ADMIN", "HR", "MANAGER", "SUPER_ADMIN"].includes(user.role)) throw new Error("Forbidden");
   await prisma.goalCheckin.create({
     data: {
       goalId: goal.id,
@@ -178,7 +178,7 @@ export async function changeGoalStatus(input: { goalId: string; status: string }
   if (!user) throw new Error("Unauthorized");
   const goal = await prisma.goal.findUnique({ where: { id: input.goalId } });
   if (!goal || goal.organizationId !== user.organizationId) throw new Error("Not found");
-  if (goal.ownerUserId !== user.id && !["ADMIN", "HR", "MANAGER"].includes(user.role)) throw new Error("Forbidden");
+  if (goal.ownerUserId !== user.id && !["ADMIN", "HR", "MANAGER", "SUPER_ADMIN"].includes(user.role)) throw new Error("Forbidden");
   await prisma.goal.update({ where: { id: goal.id }, data: { status: input.status } });
   revalidatePath("/app/my/home");
   revalidatePath("/app/manager/home");

@@ -21,7 +21,7 @@ type CreateScheduleInput = {
 
 export async function createSchedule(input: CreateScheduleInput) {
   const user = await getCurrentUser();
-  if (!user || user.role !== "ADMIN") return { error: "You don't have access." };
+  if (!user || !["ADMIN", "SUPER_ADMIN"].includes(user.role)) return { error: "You don't have access." };
 
   const template = await ensureDefaultSurveyTemplate();
   const teams = await prisma.team.findMany({
@@ -68,7 +68,7 @@ export async function createSchedule(input: CreateScheduleInput) {
 
 export async function runSchedulesNow() {
   const user = await getCurrentUser();
-  if (!user || user.role !== "ADMIN") return { error: "You don't have access." };
+  if (!user || !["ADMIN", "SUPER_ADMIN"].includes(user.role)) return { error: "You don't have access." };
   await runSurveySchedules();
   revalidatePath("/app/schedules");
   return { success: true };

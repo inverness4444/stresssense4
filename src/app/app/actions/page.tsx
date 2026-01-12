@@ -1,19 +1,17 @@
 import { getCurrentUser } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
-import { ActionCenterClient } from "@/components/app/ActionCenterClient";
-import { seedDemoNudgesForTeams } from "@/lib/nudgesStore";
 import { getLocale } from "@/lib/i18n-server";
 import { t } from "@/lib/i18n";
+import Link from "next/link";
 
-export default async function ActionsPage({ searchParams }: { searchParams?: Record<string, string | undefined> }) {
+export default async function ActionsPage() {
   const user = await getCurrentUser();
   if (!user) {
     redirect("/login");
   }
   const role = (user.role ?? "").toUpperCase();
   const locale = await getLocale();
-  if (!["HR", "MANAGER", "ADMIN"].includes(role)) {
+  if (!["HR", "MANAGER", "ADMIN", "SUPER_ADMIN"].includes(role)) {
     return (
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <p className="text-sm text-slate-700">{t(locale, "accessDeniedBody")}</p>
@@ -21,42 +19,18 @@ export default async function ActionsPage({ searchParams }: { searchParams?: Rec
     );
   }
 
-  let teams =
-    role === "ADMIN"
-      ? await prisma.team.findMany({ where: { organizationId: user.organizationId } })
-      : await prisma.member
-          .findMany({ where: { userId: user.id }, include: { team: true } })
-          .then((rows: any[] | null | undefined) => (Array.isArray(rows) ? rows.map((r: any) => r?.team).filter(Boolean) : []));
-
-  // Fallback: if manager has no direct memberships yet, show org teams to avoid empty/null state
-  if (teams.length === 0) {
-    teams = await prisma.team.findMany({ where: { organizationId: user.organizationId } });
-  }
-
-  const isDemo = Boolean((user as any)?.organization?.isDemo);
-
-  // Seed demo nudges only for demo workspaces
-  if (isDemo) {
-    seedDemoNudgesForTeams(
-      teams.map((t: any) => ({
-        id: t.id,
-        orgId: user.organizationId,
-        name: t.name,
-        stressIndex: 6,
-        engagementScore: 6.5,
-        participation: 70,
-        memberCount: 0,
-        status: "Watch",
-        topTags: [],
-      })) as any[]
-    );
-  }
-
-  const defaultTeamId = typeof searchParams?.team === "string" ? searchParams.team : undefined;
-
   return (
     <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-      <ActionCenterClient locale={locale} teams={teams.map((t: any) => ({ id: t.id, name: t.name }))} defaultTeamId={defaultTeamId} isDemo={isDemo} />
+      <div className="mx-auto flex min-h-[320px] max-w-2xl flex-col items-center justify-center text-center">
+        <p className="text-2xl font-semibold text-slate-900">{t(locale, "actionDisabledTitle")}</p>
+        <p className="mt-2 text-sm text-slate-600">{t(locale, "actionDisabledSubtitle")}</p>
+        <Link
+          href="/app/surveys"
+          className="mt-6 inline-flex rounded-full bg-primary px-5 py-2 text-sm font-semibold text-white shadow-sm transition hover:brightness-105"
+        >
+          {t(locale, "actionDisabledCta")}
+        </Link>
+      </div>
     </div>
   );
 }

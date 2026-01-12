@@ -5,12 +5,15 @@ import type { User } from "@prisma/client";
 import clsx from "clsx";
 import { createTeam } from "@/app/app/teams/actions";
 import { useRouter } from "next/navigation";
+import { getRoleLabel } from "@/lib/roles";
+import { type Locale } from "@/lib/i18n";
 
 type Props = {
   users: Pick<User, "id" | "name" | "email" | "role">[];
+  locale: Locale;
 };
 
-export function CreateTeamModal({ users }: Props) {
+export function CreateTeamModal({ users, locale }: Props) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
@@ -123,7 +126,7 @@ export function CreateTeamModal({ users }: Props) {
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold uppercase text-slate-700">
-                          {user.role}
+                          {getRoleLabel(user.role, locale)}
                         </span>
                         <input
                           type="checkbox"

@@ -16,6 +16,7 @@ export async function GET(req: Request) {
     where: {
       organizationId: auth.key!.organizationId,
       isDeleted: false,
+      role: { not: "SUPER_ADMIN" },
       ...(department ? { department } : {}),
       ...(location ? { location } : {}),
     },

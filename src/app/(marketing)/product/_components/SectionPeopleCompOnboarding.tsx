@@ -7,7 +7,7 @@ export default async function SectionPeopleCompOnboarding() {
     ? [
         {
           title: "People management",
-          text: "1:1, цели, feedback и recognition в одном потоке. Менеджер и HR видят прогресс и риски без микроменеджмента.",
+          text: "1:1, цели, feedback и recognition в одном потоке. Менеджер и админ видят прогресс и риски без микроменеджмента.",
           cta: "Посмотреть, как работает",
           href: "#manager",
         },
@@ -27,7 +27,7 @@ export default async function SectionPeopleCompOnboarding() {
     : [
         {
           title: "People management",
-          text: "1:1s, goals, feedback, and recognition in one flow. Managers and HR see progress and risks without micromanagement.",
+          text: "1:1s, goals, feedback, and recognition in one flow. Managers and admins see progress and risks without micromanagement.",
           cta: "See how it works",
           href: "#manager",
         },

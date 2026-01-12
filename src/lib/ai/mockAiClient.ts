@@ -5,11 +5,14 @@ export type AiContextType = "workspace_overview" | "manager_view" | "employee_ho
 export type AiContextData = {
   role?: string;
   locale?: Locale;
+  userId?: string;
+  organizationId?: string;
   stress?: number;
   engagement?: number;
   atRiskTeams?: number;
   lastSurvey?: string;
   teamName?: string;
+  contextTag?: string;
 };
 
 type AiResponse = { text: string; suggested?: string[] };

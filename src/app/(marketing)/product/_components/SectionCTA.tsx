@@ -13,8 +13,8 @@ export default async function SectionCTA() {
         </h2>
         <p className="mt-3 text-lg text-slate-600">
           {isRu
-            ? "Запустите бесплатный trial или забронируйте демо. Мы покажем, как StressSense поможет HR и менеджерам действовать уверенно."
-            : "Start a free trial or book a demo. We'll show how StressSense helps HR and managers act confidently."}
+            ? "Запустите бесплатный trial или забронируйте демо. Мы покажем, как StressSense поможет админам и менеджерам действовать уверенно."
+            : "Start a free trial or book a demo. We'll show how StressSense helps admins and managers act confidently."}
         </p>
         <div className="mt-6 flex flex-wrap justify-center gap-3">
           <Link

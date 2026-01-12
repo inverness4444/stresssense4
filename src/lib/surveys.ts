@@ -1,5 +1,6 @@
 import { prisma } from "./prisma";
 import { getCache, setCache } from "./cache";
+import { computeOverallStressFromDrivers, scoreAnswer, type DriverKey } from "@/lib/stressScoring";
 
 export type SurveyStats = {
   participation: number;
@@ -79,7 +80,17 @@ export async function getSurveyWithMetrics(
         totalAnswers === 0
           ? 0
           : Object.entries(counts).reduce((acc, [k, v]) => acc + Number(k) * v, 0) / totalAnswers;
-      const stressIndex = normalizeScale(avg, scaleMin, scaleMax);
+      let stressSum = 0;
+      let stressCount = 0;
+      filteredResponses.forEach((r: any) => {
+        const answer = r.answers.find((a: any) => a.questionId === q.id);
+        if (answer?.scaleValue == null) return;
+        const scored = scoreAnswer(answer, q);
+        if (!scored) return;
+        stressSum += scored.stressScore;
+        stressCount += 1;
+      });
+      const stressIndex = stressCount ? Number((stressSum / stressCount).toFixed(2)) : 0;
       return { question: q, counts, average: avg, stressIndex };
     }
     const comments = filteredResponses
@@ -100,9 +111,9 @@ export async function getSurveyWithMetrics(
       const responses = filteredResponses.filter((r: any) => r.inviteToken.user.teams.some((ut: any) => ut.teamId === t.teamId));
       const inviteCount = filteredInvites.filter((it: any) => it.user.teams.some((ut: any) => ut.teamId === t.teamId)).length;
       const avg = computeAverageStressForResponses(responses, survey.questions);
-      const stressIndex = normalizeScale(avg, scaleMin, scaleMax);
+      const stressIndex = avg;
       const participation = inviteCount ? Math.round((responses.length / inviteCount) * 100) : 0;
-      const status = stressIndex >= 70 ? "High" : stressIndex >= 40 ? "Moderate" : "Healthy";
+      const status = stressIndex >= 7 ? "High" : stressIndex >= 4 ? "Moderate" : "Healthy";
       return {
         team: t.team,
         responses: responses.length,
@@ -130,12 +141,11 @@ export function computeSurveyStats(
 ): SurveyStats {
   const participation = inviteCount ? Math.round((responsesCount / inviteCount) * 100) : 0;
   const avg = computeAverageStressForResponses(responses, questions);
-  const stressIndex = normalizeScale(avg, scaleMin, scaleMax);
   return {
     participation,
     responsesCount,
     inviteCount,
-    averageStressIndex: stressIndex,
+    averageStressIndex: avg,
     teamCounts: 0,
   };
 }
@@ -144,26 +154,37 @@ function computeAverageStressForResponses(
   responses: { answers: { questionId: string; scaleValue: number | null }[] }[],
   questions: { id: string; type: string; scaleMin: number | null; scaleMax: number | null }[]
 ) {
-  let sum = 0;
-  let count = 0;
-  questions
-    .filter((q) => q.type === "SCALE")
-    .forEach((q) => {
-      responses.forEach((r) => {
-        const ans = r.answers.find((a) => a.questionId === q.id);
-        if (ans?.scaleValue != null) {
-          sum += ans.scaleValue;
-          count += 1;
-        }
-      });
+  const questionMap = new Map(questions.map((q) => [q.id, q]));
+  const driverTotals = new Map<DriverKey, { sum: number; count: number }>();
+  let fallbackSum = 0;
+  let fallbackCount = 0;
+
+  responses.forEach((response) => {
+    response.answers.forEach((answer) => {
+      const question = questionMap.get(answer.questionId);
+      if (!question || question.type !== "SCALE") return;
+      const scored = scoreAnswer(answer, question as any);
+      if (!scored) return;
+      const totals = driverTotals.get(scored.driverKey) ?? { sum: 0, count: 0 };
+      totals.sum += scored.stressScore;
+      totals.count += 1;
+      driverTotals.set(scored.driverKey, totals);
+      fallbackSum += scored.stressScore;
+      fallbackCount += 1;
     });
-  return count === 0 ? 0 : sum / count;
+  });
+
+  const stressStats = computeOverallStressFromDrivers(driverTotals);
+  if (stressStats.answerCount === 0 && fallbackCount > 0) {
+    return Number((fallbackSum / fallbackCount).toFixed(2));
+  }
+  return Number(stressStats.avg.toFixed(2));
 }
 
 export function normalizeScale(value: number, min = 1, max = 5) {
   if (value === 0) return 0;
-  const normalized = ((value - min) / (max - min)) * 100;
-  return Math.max(0, Math.min(100, Math.round(normalized)));
+  const normalized = ((value - min) / (max - min)) * 10;
+  return Math.max(0, Math.min(10, Number(normalized.toFixed(2))));
 }
 
 export async function latestSurveyForOrg(orgId: string) {

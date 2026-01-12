@@ -27,7 +27,7 @@ export default async function InternalAnalytics({ searchParams }: { searchParams
     take: 5,
     orderBy: { updatedAt: "desc" },
     include: {
-      subscription: { include: { plan: true } },
+      subscription: true,
       surveys: { include: { responses: true } },
     },
   });
@@ -102,7 +102,7 @@ export default async function InternalAnalytics({ searchParams }: { searchParams
               <div>
                 <p className="font-semibold text-slate-900">{org.name}</p>
                 <p className="text-xs text-slate-500">
-                  Plan: {org.subscription?.plan?.name ?? "Free"} · Surveys: {org.surveys.length} · Responses:{" "}
+                  Billing: per-seat · Seats: {org.subscription?.seats ?? "—"} · Surveys: {org.surveys.length} · Responses:{" "}
                   {org.surveys.reduce((acc: any, s: any) => acc + s.responses.length, 0)}
                 </p>
               </div>

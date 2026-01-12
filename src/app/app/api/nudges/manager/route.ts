@@ -1,14 +1,16 @@
 import { NextResponse } from "next/server";
-import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getNudgesForOrg, listPlaybooks, updateNudgeStatus } from "@/lib/nudgesStore";
+import { assertSameOrigin, requireApiUser } from "@/lib/apiAuth";
 
 export async function GET() {
-  const user = await getCurrentUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const auth = await requireApiUser();
+  if ("error" in auth) return auth.error;
+  const user = auth.user;
 
+  const isAdmin = ["ADMIN", "HR", "SUPER_ADMIN"].includes(user.role);
   const teamLinks =
-    user.role === "HR"
+    isAdmin
       ? await prisma.team.findMany({ where: { organizationId: user.organizationId } })
       : await prisma.member
           .findMany({ where: { userId: user.id }, include: { team: true } })
@@ -17,7 +19,7 @@ export async function GET() {
   const teamIds = teamLinks.map((t: any) => t.id);
 
   const nudges = await getNudgesForOrg(user.organizationId);
-  const filtered = nudges.filter((n: any) => (user.role === "HR" ? true : teamIds.includes(n.teamId)));
+  const filtered = nudges.filter((n: any) => (isAdmin ? true : teamIds.includes(n.teamId)));
   const enriched = filtered.map((n: any) => ({
     ...n,
     createdAt: n.createdAt.toISOString(),
@@ -40,10 +42,32 @@ export async function GET() {
 }
 
 export async function PATCH(req: Request) {
-  const user = await getCurrentUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const originError = assertSameOrigin(req);
+  if (originError) return originError;
+  const auth = await requireApiUser();
+  if ("error" in auth) return auth.error;
+  const user = auth.user;
   const body = await req.json();
   const { id, status } = body ?? {};
+  const nudge = await prisma.nudgeInstance.findFirst({
+    where: { id, orgId: user.organizationId },
+    select: { id: true, teamId: true },
+  });
+  if (!nudge) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  const role = (user.role ?? "").toUpperCase();
+  if (!["ADMIN", "HR", "SUPER_ADMIN"].includes(role)) {
+    const teamIds = (
+      await prisma.userTeam.findMany({
+        where: { userId: user.id },
+        select: { teamId: true },
+      })
+    ).map((t: any) => t.teamId);
+    if (!teamIds.includes(nudge.teamId)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+  }
+
   const updated = await updateNudgeStatus(id, status);
   if (!updated) return NextResponse.json({ error: "Not found" }, { status: 404 });
   return NextResponse.json({

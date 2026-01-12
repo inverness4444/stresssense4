@@ -29,27 +29,49 @@ export function ActionCenterClient({ teams, defaultTeamId, locale, isDemo = fals
   const [expandedFocus, setExpandedFocus] = useState<Record<string, boolean>>({});
   const [driverFilter, setDriverFilter] = useState<"all" | "workload" | "meetings" | "clarity" | "support">("all");
   const [priorityFilter, setPriorityFilter] = useState<"all" | "High" | "Medium" | "Low">("all");
+  const priorityRank = { High: 0, Medium: 1, Low: 2 } as const;
+  const emptyAiQuestion = tr(
+    "actionEmptyStateQuestion",
+    locale === "ru" ? "С чего начать снижение рабочего стресса в моих командах?" : "What are the first steps to reduce work stress in my teams?"
+  );
+
+  const openAiAssistant = () => {
+    if (typeof window === "undefined") return;
+    window.dispatchEvent(
+      new CustomEvent("stresssense-ai-open", {
+        detail: {
+          prompt: emptyAiQuestion,
+          contextTag: "actions_empty_state",
+        },
+      })
+    );
+  };
 
   if (!isDemo && actions.length === 0) {
     return (
-      <div className="rounded-3xl border border-slate-200 bg-white p-6 text-sm text-slate-700 shadow-sm">
-        <p className="text-base font-semibold text-slate-900">{tr("actionEmptyTitle", "No actions yet")}</p>
-        <p className="mt-1 text-slate-600">
-          {tr("actionEmptyBody", "Run your first survey or ask StressSense AI which steps to start with.")}
-        </p>
-        <div className="mt-4 flex flex-wrap gap-3">
-          <Link
-            href="/app/surveys/new"
-            className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:brightness-105"
-          >
-            {tr("actionEmptyCtaSurvey", "Launch first survey")}
-          </Link>
-          <Link
-            href="/app/actions"
-            className="rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-800 transition hover:border-primary/40 hover:text-primary"
-          >
-            {tr("actionEmptyCtaAi", "Ask StressSense AI")}
-          </Link>
+      <div className="flex min-h-[360px] items-center justify-center">
+        <div className="w-full max-w-2xl rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">StressSense</p>
+          <p className="mt-3 text-2xl font-semibold text-slate-900">
+            {tr("actionEmptyStateTitle", "No active stress actions yet")}
+          </p>
+          <p className="mt-2 text-sm text-slate-600">
+            {tr("actionEmptyStateSubtitle", "StressSense AI will suggest next steps once you have some survey results.")}
+          </p>
+          <div className="mt-6 flex flex-wrap justify-center gap-3">
+            <button
+              onClick={openAiAssistant}
+              className="rounded-full bg-primary px-5 py-2 text-sm font-semibold text-white shadow-sm transition hover:brightness-105"
+            >
+              {tr("actionEmptyStateCtaAi", "Ask StressSense AI")}
+            </button>
+            <Link
+              href="/app/surveys"
+              className="rounded-full border border-slate-200 px-5 py-2 text-sm font-semibold text-slate-800 transition hover:border-primary/40 hover:text-primary"
+            >
+              {tr("actionEmptyStateCtaSurveys", "Go to surveys")}
+            </Link>
+          </div>
         </div>
       </div>
     );
@@ -73,12 +95,17 @@ export function ActionCenterClient({ teams, defaultTeamId, locale, isDemo = fals
   }, [actions, levelFilter, selectedTeam, driverFilter, priorityFilter]);
 
   const focusActions = useMemo(() => {
-    return actions
+    const candidates = actions
       .filter((a) => a.status !== "done")
-      .filter((a) => (selectedTeam === "all" ? true : a.teamId === selectedTeam))
-      .sort((a, b) => (a.priority === "High" ? -1 : 1))
+      .filter((a) => (selectedTeam === "all" ? true : a.teamId === selectedTeam));
+    if (isDemo) {
+      return candidates.sort((a, b) => (a.priority === "High" ? -1 : 1)).slice(0, 3);
+    }
+    return candidates
+      .filter((a) => a.priority === "High")
+      .sort((a, b) => priorityRank[a.priority] - priorityRank[b.priority])
       .slice(0, 3);
-  }, [actions, selectedTeam]);
+  }, [actions, selectedTeam, isDemo]);
 
   const filteredActions = useMemo(() => {
     return actions.filter((a) => {
@@ -191,7 +218,6 @@ export function ActionCenterClient({ teams, defaultTeamId, locale, isDemo = fals
   const avgStressAtRisk = 7.3; // демо значение
   const topDriver = "workload";
   const lastUpdate = "12.12.2025";
-  const priorityRank = { High: 0, Medium: 1, Low: 2 } as const;
   const riskLabel = (r: RiskLevel) =>
     r === "AtRisk" ? t(locale, "riskLabelAtRisk") : r === "UnderPressure" ? t(locale, "riskLabelUnderPressure") : t(locale, "riskLabelWatch");
   const statusLabel = (s: ActionStatus) =>
@@ -364,52 +390,53 @@ export function ActionCenterClient({ teams, defaultTeamId, locale, isDemo = fals
         {t(locale, "actionHint")}
       </p>
 
-      <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="flex flex-col gap-1">
-            <div className="flex items-center gap-2">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">{t(locale, "focusTitle")}</p>
-              <span className="rounded-full bg-indigo-50 px-2 py-1 text-[11px] font-semibold text-indigo-700 ring-1 ring-indigo-200">{t(locale, "focusBadgeAi")}</span>
-            </div>
-            <p className="text-sm text-slate-600">{t(locale, "focusSubtitle")}</p>
-          </div>
-        </div>
-        <div className="mt-3 grid gap-3 md:grid-cols-2">
-          {focusActions
-            .sort((a, b) => priorityRank[a.priority] - priorityRank[b.priority])
-            .slice(0, 3)
-            .map((a) => (
-              <div key={a.id} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 shadow-sm">
-                <div className="flex items-center justify-between">{ownerBadge(a)}</div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className={`rounded-full px-2 py-1 text-[11px] font-semibold ring-1 ${riskTone(a.riskLevel)}`}>{riskLabel(a.riskLevel)}</span>
-                  <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-700 ring-1 ring-slate-200">{a.teamName} {t(locale, "actionOwnerRoleSep")} {a.owner.role}</span>
-                  <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-700 ring-1 ring-slate-200">{priorityLabel(a.priority)}</span>
-                  <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-700 ring-1 ring-slate-200">
-                    {t(locale, "actionCardDue")} {dueLabel(a.dueInDays)}
-                  </span>
-                </div>
-                <div className="mt-2">{impactBadges(a)}</div>
-                <p className="mt-2 text-sm font-semibold text-slate-900">{a.title}</p>
-                <p className="text-xs text-slate-600">{a.description}</p>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {a.tags.map((t) => (
-                    <span key={t} className="rounded-full bg-white px-2 py-1 text-[11px] font-semibold text-slate-700 ring-1 ring-slate-200">
-                      {t}
-                    </span>
-                  ))}
-                </div>
-                <button
-                  onClick={() => markDone(a.id)}
-                  className="mt-3 rounded-full bg-emerald-500 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:brightness-105"
-                >
-                  {t(locale, "actionButtonDone")}
-                </button>
+      {focusActions.length > 0 && (
+        <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center gap-2">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">{t(locale, "focusTitle")}</p>
+                <span className="rounded-full bg-indigo-50 px-2 py-1 text-[11px] font-semibold text-indigo-700 ring-1 ring-indigo-200">{t(locale, "focusBadgeAi")}</span>
               </div>
-            ))}
-          {focusActions.length === 0 && <p className="text-sm text-slate-600">{t(locale, "focusNone")}</p>}
-        </div>
-      </section>
+              <p className="text-sm text-slate-600">{t(locale, "focusSubtitle")}</p>
+            </div>
+          </div>
+          <div className="mt-3 grid gap-3 md:grid-cols-2">
+            {focusActions
+              .sort((a, b) => priorityRank[a.priority] - priorityRank[b.priority])
+              .slice(0, 3)
+              .map((a) => (
+                <div key={a.id} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 shadow-sm">
+                  <div className="flex items-center justify-between">{ownerBadge(a)}</div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className={`rounded-full px-2 py-1 text-[11px] font-semibold ring-1 ${riskTone(a.riskLevel)}`}>{riskLabel(a.riskLevel)}</span>
+                    <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-700 ring-1 ring-slate-200">{a.teamName} {t(locale, "actionOwnerRoleSep")} {a.owner.role}</span>
+                    <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-700 ring-1 ring-slate-200">{priorityLabel(a.priority)}</span>
+                    <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-700 ring-1 ring-slate-200">
+                      {t(locale, "actionCardDue")} {dueLabel(a.dueInDays)}
+                    </span>
+                  </div>
+                  <div className="mt-2">{impactBadges(a)}</div>
+                  <p className="mt-2 text-sm font-semibold text-slate-900">{a.title}</p>
+                  <p className="text-xs text-slate-600">{a.description}</p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {a.tags.map((t) => (
+                      <span key={t} className="rounded-full bg-white px-2 py-1 text-[11px] font-semibold text-slate-700 ring-1 ring-slate-200">
+                        {t}
+                      </span>
+                    ))}
+                  </div>
+                  <button
+                    onClick={() => markDone(a.id)}
+                    className="mt-3 rounded-full bg-emerald-500 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:brightness-105"
+                  >
+                    {t(locale, "actionButtonDone")}
+                  </button>
+                </div>
+              ))}
+          </div>
+        </section>
+      )}
 
       <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">

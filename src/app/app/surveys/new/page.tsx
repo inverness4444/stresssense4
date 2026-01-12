@@ -32,7 +32,7 @@ async function createSurveyAction(formData: FormData) {
 export default async function NewSurveyPage() {
   const user = await getCurrentUser();
   const role = (user?.role ?? "").toUpperCase();
-  if (!user || !["ADMIN", "HR", "MANAGER"].includes(role)) {
+  if (!user || !["ADMIN", "HR", "MANAGER", "SUPER_ADMIN"].includes(role)) {
     redirect("/app/surveys");
   }
 
@@ -99,7 +99,7 @@ function NewSurveyForm({
               name="description"
               rows={2}
               className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
-              placeholder="Optional summary for HR and managers"
+              placeholder="Optional summary for admins and managers"
             />
           </label>
           <label className="block space-y-1">

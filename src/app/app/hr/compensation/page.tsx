@@ -8,7 +8,7 @@ import { createCompensationBand, createCompensationReviewCycle } from "./actions
 
 export default async function HrCompensationPage() {
   const user = await getCurrentUser();
-  if (!user || user.role !== "ADMIN") redirect("/app/overview");
+  if (!user || !["ADMIN", "SUPER_ADMIN"].includes(user.role)) redirect("/app/overview");
   const enabled = await isFeatureEnabled("compensation_module_v1", { organizationId: user.organizationId });
   if (!enabled) redirect("/app/overview");
 
@@ -26,7 +26,7 @@ export default async function HrCompensationPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">HR · Compensation</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Admin · Compensation</p>
           <h1 className="text-2xl font-semibold text-slate-900">Compensation hub</h1>
           <p className="text-sm text-slate-600">Manage pay bands and review cycles.</p>
         </div>

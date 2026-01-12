@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 
 export async function saveSSOConfig(formData: FormData) {
   const user = await getCurrentUser();
-  if (!user || user.role !== "ADMIN") redirect("/signin");
+  if (!user || !["ADMIN", "SUPER_ADMIN"].includes(user.role)) redirect("/signin");
 
   const organizationId = formData.get("organizationId") as string;
   if (organizationId !== user.organizationId) redirect("/signin");

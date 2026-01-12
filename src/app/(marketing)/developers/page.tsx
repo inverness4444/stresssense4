@@ -13,7 +13,7 @@ export default function DevelopersDocsPage() {
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">Developers</p>
         <h1 className="text-3xl font-semibold text-slate-900">StressSense API & webhooks</h1>
         <p className="text-lg text-slate-600">
-          Connect stress insights to your HR stack, dashboards, and internal tools. Create API keys, listen to webhooks, or embed read-only
+          Connect stress insights to your admin stack, dashboards, and internal tools. Create API keys, listen to webhooks, or embed read-only
           widgets in your portal.
         </p>
       </header>

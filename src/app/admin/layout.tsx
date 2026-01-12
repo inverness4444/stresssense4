@@ -1,45 +1,48 @@
-"use client";
-
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { PropsWithChildren } from "react";
+import { requireSuperAdmin } from "@/lib/superAdmin";
+import { getLocale } from "@/lib/i18n-server";
 
-const nav = [
-  { href: "/admin", label: "Команды" },
-  { href: "/admin/surveys", label: "Опросы" },
-  { href: "/admin/teams", label: "Все команды" },
-];
+export default async function AdminLayout({ children }: { children: React.ReactNode }) {
+  await requireSuperAdmin();
+  const locale = await getLocale();
+  const isRu = locale === "ru";
 
-export default function AdminLayout({ children }: PropsWithChildren) {
-  const pathname = usePathname();
+  const nav = [
+    { href: "/admin/users", label: isRu ? "Пользователи" : "Users" },
+    { href: "/admin/topups", label: isRu ? "Заявки на пополнение" : "Top-up requests" },
+    { href: "/admin/transactions", label: isRu ? "Транзакции" : "Transactions" },
+  ];
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/90 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
-          <div className="space-y-1">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">Admin</p>
-            <h1 className="text-lg font-semibold text-slate-900">Console</h1>
+      <header className="border-b border-slate-200 bg-white">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">StressSense</p>
+            <h1 className="text-xl font-semibold text-slate-900">{isRu ? "Супер-админ" : "Super admin"}</h1>
           </div>
-          <nav className="flex items-center gap-2">
-            {nav.map((item) => {
-              const active = pathname === item.href;
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`rounded-full px-3 py-2 text-sm font-semibold transition ${
-                    active ? "bg-primary text-white shadow" : "text-slate-700 hover:bg-slate-100"
-                  }`}
-                >
-                  {item.label}
-                </Link>
-              );
-            })}
-          </nav>
+          <Link
+            href="/app/overview"
+            className="rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+          >
+            {isRu ? "Вернуться в приложение" : "Back to app"}
+          </Link>
         </div>
       </header>
-      <main className="mx-auto max-w-6xl px-4 py-8">{children}</main>
+      <div className="mx-auto flex max-w-6xl gap-6 px-6 py-6">
+        <aside className="w-56 space-y-2">
+          {nav.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className="block rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+            >
+              {item.label}
+            </Link>
+          ))}
+        </aside>
+        <main className="min-w-0 flex-1">{children}</main>
+      </div>
     </div>
   );
 }

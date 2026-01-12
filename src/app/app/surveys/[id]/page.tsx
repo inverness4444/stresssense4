@@ -8,6 +8,7 @@ import { ensureOrgSettings } from "@/lib/access";
 import { isFeatureEnabled } from "@/lib/features";
 import { env } from "@/config/env";
 import { generateSurveyInsight } from "@/lib/surveyInsights";
+import { getBillingGateStatus } from "@/lib/billingGate";
 import { getAccessibleUserIdsForManager } from "@/lib/managerAccess";
 import { filterResponsesBySegments } from "@/lib/segments";
 import { cookies } from "next/headers";
@@ -18,8 +19,9 @@ type Props = { params: { id: string }; searchParams?: Record<string, string | st
 export default async function SurveyDashboardPage({ params, searchParams }: Props) {
   const user = await getCurrentUser();
   if (!user) notFound();
-  const isAdmin = user.role === "HR";
-  const isManager = user.role === "Manager";
+  const normalizedRole = (user.role ?? "").toUpperCase();
+  const isAdmin = ["HR", "ADMIN", "SUPER_ADMIN"].includes(normalizedRole);
+  const isManager = normalizedRole === "MANAGER";
 
   const teamIds = (
     await prisma.userTeam.findMany({ where: { userId: user.id }, select: { teamId: true } })
@@ -79,7 +81,9 @@ export default async function SurveyDashboardPage({ params, searchParams }: Prop
   const minBreakdown = survey.minResponsesForBreakdown ?? settings.minResponsesForBreakdown;
   const overlap = survey.targets.some((t: any) => teamIds.includes(t.teamId));
   const canExport = isAdmin || (isManager && overlap && settings.allowManagerAccessToAllSurveys);
-  const aiSummaryEnabled = isFeatureEnabled("aiSummary", settings);
+  const orgCreatedAt = (user as any)?.organization?.createdAt ? new Date((user as any).organization.createdAt) : new Date();
+  const gateStatus = await getBillingGateStatus(user.organizationId, orgCreatedAt);
+  const aiSummaryEnabled = isFeatureEnabled("aiSummary", settings) && gateStatus.hasPaidAccess;
   let insight = null;
   if (aiSummaryEnabled && env.AI_PROVIDER !== "none") {
     try {
@@ -193,7 +197,7 @@ export default async function SurveyDashboardPage({ params, searchParams }: Prop
 
       <div className="grid gap-4 md:grid-cols-4">
         <MetricCard label="Participation" value={`${stats.participation}%`} helper={`${stats.responsesCount} of ${stats.inviteCount}`} />
-        <MetricCard label="Average stress index" value={`${stats.averageStressIndex}`} helper="0-100 scale" />
+        <MetricCard label="Average stress index" value={`${stats.averageStressIndex}`} helper="0-10 scale" />
         <MetricCard label="Responses" value={`${stats.responsesCount}`} />
         <MetricCard label="Teams included" value={`${survey.targets.length}`} />
       </div>

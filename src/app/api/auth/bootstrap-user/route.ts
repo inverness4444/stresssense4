@@ -1,12 +1,35 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
+import { BILLING_MODEL, MIN_SEATS } from "@/config/pricing";
 import crypto from "crypto";
+import { env } from "@/config/env";
+import { rateLimit } from "@/lib/rateLimit";
+import { headers } from "next/headers";
+import { assertSameOrigin } from "@/lib/apiAuth";
 
 export const runtime = "nodejs";
 
 export async function POST(req: Request) {
   try {
+    const originError = assertSameOrigin(req);
+    if (originError) return originError;
+    const bootstrapToken = env.BOOTSTRAP_TOKEN;
+    const provided = (await headers()).get("x-bootstrap-token");
+    if (bootstrapToken) {
+      if (provided !== bootstrapToken) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+    } else if (!env.isDev) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const ip = (await headers()).get("x-forwarded-for") ?? "unknown";
+    const limiter = rateLimit(`bootstrap:${ip}`, { limit: 10, windowMs: 60_000 });
+    if (!limiter.allowed) {
+      return NextResponse.json({ error: "Too many attempts" }, { status: 429 });
+    }
+
     const body = await req.json();
     const email = typeof body?.email === "string" ? body.email.trim().toLowerCase() : "";
     const password = typeof body?.password === "string" ? body.password : "";
@@ -29,6 +52,11 @@ export async function POST(req: Request) {
       }
       const org = await prisma.organization.create({
         data: { name: company, slug, inviteToken: crypto.randomBytes(24).toString("hex"), isDemo: false },
+      });
+      await prisma.organizationSettings.upsert({
+        where: { organizationId: org.id },
+        create: { organizationId: org.id, featureFlags: { billingModel: BILLING_MODEL, billingSeats: MIN_SEATS } },
+        update: { featureFlags: { billingModel: BILLING_MODEL, billingSeats: MIN_SEATS } },
       });
       const hash = await bcrypt.hash(password, 10);
       user = await prisma.user.create({

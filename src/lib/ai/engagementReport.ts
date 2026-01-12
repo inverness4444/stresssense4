@@ -29,10 +29,12 @@ export type FocusItem = {
 export type NudgeItem = {
   text: string;
   tags?: string[];
+  steps?: string[];
 };
 
 export type AiEngagementReport = {
   period: { from: string; to: string };
+  isEmpty?: boolean;
   summary: string;
   snapshotNote: string;
   avgStress: number;
@@ -51,6 +53,34 @@ export type AiEngagementReport = {
   nudges: NudgeItem[];
   disclaimer: string;
 };
+
+export function createEmptyAiEngagementReport(
+  period: { from: string; to: string },
+  locale: Locale = "en"
+): AiEngagementReport {
+  void locale;
+  return {
+    period,
+    isEmpty: true,
+    summary: "",
+    snapshotNote: "",
+    avgStress: 0,
+    avgEngagement: 0,
+    deltaStress: 0,
+    deltaEngagement: 0,
+    trends: [],
+    trendInsight: "",
+    driversPositive: [],
+    driversRisk: [],
+    driversSummary: "",
+    teamsFocus: [],
+    participationRate: 0,
+    participationNote: "",
+    managerFocus: [],
+    nudges: [],
+    disclaimer: "",
+  };
+}
 
 export function generateAiEngagementReport(
   period: { from: string; to: string },
@@ -245,6 +275,7 @@ export function generateAiEngagementReport(
 
   return {
     period,
+    isEmpty: false,
     summary: localized.summary,
     snapshotNote: localized.snapshotNote,
     avgStress: 6.8,

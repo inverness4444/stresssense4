@@ -30,14 +30,14 @@ export function AIAssistant() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ messages: [...messages, userMsg] }),
       });
+      const data = (await res.json().catch(() => null)) as { text?: string; disabled?: boolean; error?: string } | null;
       if (!res.ok) {
-        if (res.status === 503) setDisabled(true);
-        const text = await res.text();
-        throw new Error(text || "Request failed");
+        if ([402, 403, 503].includes(res.status)) setDisabled(true);
+        const reason = res.status === 402 ? "AI will be available after payment." : data?.error;
+        throw new Error(reason || "Request failed");
       }
-      const data = (await res.json()) as { text: string; disabled?: boolean };
-      if (data.disabled) setDisabled(true);
-      setMessages((prev) => [...prev, { role: "assistant", content: data.text }]);
+      if (data?.disabled) setDisabled(true);
+      setMessages((prev) => [...prev, { role: "assistant", content: data?.text ?? "" }]);
     } catch (e: any) {
       setMessages((prev) => [
         ...prev,
@@ -87,14 +87,14 @@ export function AIAssistant() {
                 </div>
               ))}
               {loading && <p className="text-xs text-slate-500">AI is thinking…</p>}
-              {disabled && <p className="text-xs text-amber-600">AI assistant is disabled in this environment.</p>}
+              {disabled && <p className="text-xs text-amber-600">AI assistant is currently unavailable.</p>}
               <div ref={endRef} />
             </div>
             <div className="border-t border-slate-200 p-3">
               <div className="flex items-center gap-2">
                 <textarea
                   className="h-14 flex-1 resize-none rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
-                  placeholder={disabled ? "AI assistant disabled" : "Ask about stress trends, at-risk teams, talking points..."}
+                  placeholder={disabled ? "AI assistant unavailable" : "Ask about stress trends, at-risk teams, talking points..."}
                   value={input}
                   disabled={disabled}
                   onChange={(e) => setInput(e.target.value)}

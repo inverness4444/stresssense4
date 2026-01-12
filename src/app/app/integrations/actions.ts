@@ -9,7 +9,7 @@ import { ensureOrgSettings } from "@/lib/access";
 
 export async function disconnectSlack() {
   const user = await getCurrentUser();
-  if (!user || user.role !== "ADMIN") {
+  if (!user || !["ADMIN", "SUPER_ADMIN"].includes(user.role)) {
     redirect("/signin");
   }
   await prisma.slackIntegration.deleteMany({ where: { organizationId: user.organizationId } });
@@ -22,14 +22,14 @@ export async function disconnectSlack() {
 
 export async function getSlackConnectUrl() {
   const user = await getCurrentUser();
-  if (!user || user.role !== "ADMIN") return { error: "No access" };
+  if (!user || !["ADMIN", "SUPER_ADMIN"].includes(user.role)) return { error: "No access" };
   const state = crypto.randomBytes(16).toString("hex");
   return { url: getSlackAuthUrl(user.organizationId, state) };
 }
 
 export async function saveSlackChannel(channelId: string) {
   const user = await getCurrentUser();
-  if (!user || user.role !== "ADMIN") return { error: "No access" };
+  if (!user || !["ADMIN", "SUPER_ADMIN"].includes(user.role)) return { error: "No access" };
   await ensureOrgSettings(user.organizationId);
   await prisma.organizationSettings.update({
     where: { organizationId: user.organizationId },

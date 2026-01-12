@@ -11,7 +11,7 @@ import { connectHRIS, runHRISSync } from "./hrisActions";
 export default async function IntegrationsPage() {
   const user = await getCurrentUser();
   if (!user) notFound();
-  if (user.role !== "ADMIN") redirect("/app/overview");
+  if (!["ADMIN", "SUPER_ADMIN"].includes(user.role)) redirect("/app/overview");
 
   const [settings, slack, hris] = await Promise.all([
     ensureOrgSettings(user.organizationId),
@@ -26,10 +26,7 @@ export default async function IntegrationsPage() {
       <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <h3 className="text-lg font-semibold text-slate-900">HR systems</h3>
-            <span className="rounded-full bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-700 ring-1 ring-amber-100">
-              Enterprise
-            </span>
+            <h3 className="text-lg font-semibold text-slate-900">Admin systems</h3>
           </div>
           <p className="text-sm text-slate-600">Sync employees from your HRIS provider.</p>
         </div>

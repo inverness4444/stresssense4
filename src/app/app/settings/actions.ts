@@ -6,12 +6,12 @@ import { getCurrentUser } from "@/lib/auth";
 import { ensureOrgSettings } from "@/lib/access";
 import { prisma } from "@/lib/prisma";
 import { logAuditEvent } from "@/lib/audit";
-import crypto from "crypto";
+import { createJoinInvite } from "@/lib/joinInvites";
 
 export async function updateSettings(formData: FormData) {
   const user = await getCurrentUser();
   const role = (user?.role ?? "").toUpperCase();
-  if (!user || !["ADMIN", "HR"].includes(role)) {
+  if (!user || !["ADMIN", "HR", "SUPER_ADMIN"].includes(role)) {
     redirect("/signin");
   }
 
@@ -48,17 +48,19 @@ export async function updateSettings(formData: FormData) {
   return;
 }
 
-export async function regenerateInviteToken() {
+export async function createJoinInviteToken(inviteRoleRaw: string) {
   const user = await getCurrentUser();
-  const role = (user?.role ?? "").toUpperCase();
-  if (!user || !["ADMIN", "HR", "MANAGER"].includes(role)) {
+  const userRole = (user?.role ?? "").toUpperCase();
+  if (!user || !["ADMIN", "HR", "MANAGER", "SUPER_ADMIN"].includes(userRole)) {
     redirect("/signin");
   }
-  const token = crypto.randomBytes(24).toString("hex");
-  await prisma.organization.update({
-    where: { id: user.organizationId },
-    data: { inviteToken: token },
+  const normalized = (inviteRoleRaw ?? "").toString().toUpperCase();
+  const inviteRole = ["EMPLOYEE", "MANAGER", "ADMIN"].includes(normalized) ? normalized : "EMPLOYEE";
+  const invite = await createJoinInvite({
+    organizationId: user.organizationId,
+    role: inviteRole,
+    createdByUserId: user.id,
   });
   revalidatePath("/app/settings");
-  return token;
+  return invite.token;
 }

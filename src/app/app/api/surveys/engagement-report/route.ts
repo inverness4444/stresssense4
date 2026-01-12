@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getEngagementReport } from "@/lib/engagementScore";
+import { assertSameOrigin, requireApiUser } from "@/lib/apiAuth";
 
 const sample = {
   score: 8.4,
@@ -26,20 +27,44 @@ const sample = {
 };
 
 export async function POST(req: Request) {
+  const originError = assertSameOrigin(req);
+  if (originError) return originError;
+
   try {
-    const body = await req.json();
-    const { orgId, teamId, surveyId } = body ?? {};
-    if (!orgId) {
-      return NextResponse.json({ error: "orgId required" }, { status: 400 });
+    const auth = await requireApiUser();
+    if ("error" in auth) return auth.error;
+    const user = auth.user;
+    const role = (user.role ?? "").toUpperCase();
+    if (!["ADMIN", "HR", "MANAGER", "SUPER_ADMIN"].includes(role)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
-    const org = await prisma.organization.findUnique({ where: { id: orgId }, select: { isDemo: true } });
-    const report = await getEngagementReport({ orgId, teamId, surveyId });
+
+    const body = await req.json();
+    const { teamId, surveyId } = body ?? {};
+    const org = await prisma.organization.findUnique({ where: { id: user.organizationId }, select: { isDemo: true } });
+
+    if (teamId) {
+      const teamExists = await prisma.team.findFirst({
+        where: { id: teamId, organizationId: user.organizationId },
+        select: { id: true },
+      });
+      if (!teamExists) return NextResponse.json({ error: "Team not found" }, { status: 404 });
+    }
+    if (surveyId) {
+      const surveyExists = await prisma.survey.findFirst({
+        where: { id: surveyId, organizationId: user.organizationId },
+        select: { id: true },
+      });
+      if (!surveyExists) return NextResponse.json({ error: "Survey not found" }, { status: 404 });
+    }
+
+    const report = await getEngagementReport({ orgId: user.organizationId, teamId, surveyId });
     if (report?.insufficientSample || !report) {
       if (org?.isDemo) return NextResponse.json({ data: sample });
       return NextResponse.json({ data: { insufficientSample: true } });
     }
     return NextResponse.json({ data: report });
-  } catch (e) {
+  } catch {
     return NextResponse.json({ data: { insufficientSample: true } });
   }
 }

@@ -1,11 +1,14 @@
-import Link from "next/link";
-import { AddEmployeeModal } from "@/components/app/AddEmployeeModal";
 import { AccessDenied } from "@/components/app/AccessDenied";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { USER_ROLES } from "@/lib/roles";
 import { t, type Locale } from "@/lib/i18n";
 import { getLocale } from "@/lib/i18n-server";
+import { createJoinInvite } from "@/lib/joinInvites";
+import { InviteLinkBlock } from "@/app/app/settings/InviteLinkBlock";
+import { getBillingOverview } from "@/lib/billingOverview";
+import { MIN_SEATS } from "@/config/pricing";
+import Link from "next/link";
 
 type Props = {
   searchParams?: {
@@ -14,9 +17,13 @@ type Props = {
   };
 };
 
+export const dynamic = "force-dynamic";
+
 export default async function EmployeesPage({ searchParams }: Props) {
+  const resolvedSearchParams = await Promise.resolve(searchParams);
   const currentUser = await getCurrentUser();
   const locale = await getLocale();
+  const isRu = locale === "ru";
   if (!currentUser) {
     return (
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -25,8 +32,9 @@ export default async function EmployeesPage({ searchParams }: Props) {
     );
   }
   const role = (currentUser.role ?? "").toUpperCase();
-  const canViewEmployees = ["ADMIN", "HR", "MANAGER"].includes(role);
-  const canManageEmployees = ["ADMIN", "HR"].includes(role);
+  const canViewEmployees = ["ADMIN", "HR", "MANAGER", "SUPER_ADMIN"].includes(role);
+  const canManageEmployees = ["ADMIN", "HR", "SUPER_ADMIN"].includes(role);
+  const canEditEmployeeTeams = ["ADMIN", "HR", "MANAGER", "SUPER_ADMIN"].includes(role);
   if (!canViewEmployees) {
     return (
       <div className="space-y-4">
@@ -39,14 +47,34 @@ export default async function EmployeesPage({ searchParams }: Props) {
     );
   }
 
-  const query = (searchParams?.q ?? "").trim();
-  const roleFilterRaw = (searchParams?.role ?? "all").toUpperCase();
-  const allowedRoles = new Set([...USER_ROLES, "HR"]);
+  const query = (resolvedSearchParams?.q ?? "").trim();
+  const roleFilterRaw = (resolvedSearchParams?.role ?? "all").toUpperCase();
+  const allowedRoles = new Set([...USER_ROLES, "HR", "SUPER_ADMIN"]);
   const roleFilter = allowedRoles.has(roleFilterRaw) ? roleFilterRaw : null;
 
+  const org = await prisma.organization.findUnique({ where: { id: currentUser.organizationId } });
+  let inviteToken = "";
+  if (canManageEmployees && org) {
+    try {
+      const invite = await createJoinInvite({
+        organizationId: currentUser.organizationId,
+        role: "EMPLOYEE",
+        createdByUserId: currentUser.id,
+      });
+      inviteToken = invite?.token ?? "";
+    } catch {
+      inviteToken = "";
+    }
+  }
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+
+  const hiddenRole = "SUPER_ADMIN";
   const where = {
     organizationId: currentUser.organizationId,
-    ...(roleFilter ? { role: roleFilter } : {}),
+    AND: [
+      { role: { not: hiddenRole } },
+      ...(roleFilter ? [{ role: roleFilter }] : []),
+    ],
     ...(query
       ? {
           OR: [
@@ -61,6 +89,10 @@ export default async function EmployeesPage({ searchParams }: Props) {
     where,
     orderBy: { createdAt: "desc" },
   });
+  const billing = await getBillingOverview(currentUser.organizationId, currentUser.id);
+  const seatsConfigured = typeof billing.seatsConfigured === "number" ? billing.seatsConfigured : MIN_SEATS;
+  const seatsUsed = typeof billing.seatsUsed === "number" ? billing.seatsUsed : users.length;
+  const seatsOverLimit = seatsUsed > seatsConfigured;
 
   const userIds = users.map((user) => user.id);
   const userTeamsPromise = userIds.length
@@ -69,21 +101,12 @@ export default async function EmployeesPage({ searchParams }: Props) {
         include: { team: true },
       })
     : Promise.resolve([]);
-  const teamsPromise = canManageEmployees
-    ? prisma.team.findMany({
-        where: { organizationId: currentUser.organizationId },
-        orderBy: { name: "asc" },
-        select: { id: true, name: true },
-      })
-    : Promise.resolve([]);
-  const [userTeams, teams] = await Promise.all([userTeamsPromise, teamsPromise]);
+  const userTeams = await userTeamsPromise;
   const teamsByUserId = userTeams.reduce<Record<string, { id: string; name: string }[]>>((acc, entry: any) => {
     if (!acc[entry.userId]) acc[entry.userId] = [];
     acc[entry.userId].push(entry.team);
     return acc;
   }, {});
-
-  const isAdmin = canManageEmployees;
 
   return (
     <div className="space-y-6">
@@ -93,6 +116,34 @@ export default async function EmployeesPage({ searchParams }: Props) {
           {t(locale, "employeesSubtitle")}
         </p>
       </div>
+
+      {org && canManageEmployees && (
+        <InviteLinkBlock
+          slug={org.slug ?? ""}
+          organizationId={org.id}
+          inviteToken={inviteToken}
+          canRegenerate={canManageEmployees}
+          baseUrl={baseUrl}
+        />
+      )}
+
+      {seatsOverLimit && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <span>
+              {isRu
+                ? `Используется ${seatsUsed} мест при лимите ${seatsConfigured}. Увеличьте количество мест.`
+                : `You are using ${seatsUsed} seats with ${seatsConfigured} configured. Increase seats.`}
+            </span>
+            <Link
+              href="/app/settings/billing"
+              className="rounded-full bg-amber-600 px-4 py-2 text-xs font-semibold text-white shadow-sm"
+            >
+              {isRu ? "Увеличить места" : "Increase seats"}
+            </Link>
+          </div>
+        </div>
+      )}
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <form className="flex w-full max-w-xl items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 shadow-sm sm:w-auto">
@@ -119,17 +170,6 @@ export default async function EmployeesPage({ searchParams }: Props) {
             {t(locale, "employeesFilterButton")}
           </button>
         </form>
-
-        <div className="flex items-center gap-2">
-          {isAdmin && (
-            <>
-              <button className="rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-100">
-                {t(locale, "employeesImportCsv")}
-              </button>
-              <AddEmployeeModal locale={locale} teams={teams} />
-            </>
-          )}
-        </div>
       </div>
 
       <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -147,32 +187,32 @@ export default async function EmployeesPage({ searchParams }: Props) {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {users.map((user: any) => (
+            {users.map((employee: any) => (
               <tr
-                key={user.id}
+                key={employee.id}
                 className="transition hover:bg-slate-50/80"
               >
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-3">
                     <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
-                      {user.name.charAt(0)}
+                      {employee.name.charAt(0)}
                     </div>
                     <div>
-                      <p className="text-sm font-semibold text-slate-900">{user.name}</p>
-                      <p className="text-xs text-slate-500">{user.email}</p>
-                      {user.slackUserId && <p className="text-[11px] text-slate-500">Slack: {user.slackUserId}</p>}
+                      <p className="text-sm font-semibold text-slate-900">{employee.name}</p>
+                      <p className="text-xs text-slate-500">{employee.email}</p>
+                      {employee.slackUserId && <p className="text-[11px] text-slate-500">Slack: {employee.slackUserId}</p>}
                     </div>
                   </div>
                 </td>
                 <td className="px-4 py-3">
-                  <RoleBadge locale={locale} role={String(user.role ?? "")} />
+                  <RoleBadge locale={locale} role={String(employee.role ?? "")} />
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex flex-wrap gap-2">
-                    {(teamsByUserId[user.id] ?? []).length === 0 && (
+                    {(teamsByUserId[employee.id] ?? []).length === 0 && (
                       <span className="text-xs text-slate-500">—</span>
                     )}
-                    {(teamsByUserId[user.id] ?? []).map((team) => (
+                    {(teamsByUserId[employee.id] ?? []).map((team) => (
                       <span
                         key={team.id}
                         className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700"
@@ -183,16 +223,21 @@ export default async function EmployeesPage({ searchParams }: Props) {
                   </div>
                 </td>
                 <td className="px-4 py-3">
-                  <StatusBadge locale={locale} createdAt={user.createdAt} updatedAt={user.updatedAt} />
+                  <StatusBadge locale={locale} createdAt={employee.createdAt} updatedAt={employee.updatedAt} />
                 </td>
                 <td className="px-4 py-3">
-                  {isAdmin ? (
-                    <Link
-                      href={`/app/employees/${user.id}`}
-                      className="text-sm font-semibold text-primary hover:underline"
-                    >
-                      {t(locale, "employeesActionManage")}
-                    </Link>
+                  {canEditEmployeeTeams ? (
+                    employee.id === currentUser.id ||
+                    (employee.email && currentUser.email && employee.email.toLowerCase() === currentUser.email.toLowerCase()) ? (
+                      <span className="text-sm font-semibold text-slate-400">{isRu ? "Это вы" : "This is you"}</span>
+                    ) : (
+                      <a
+                        href={`/app/employees/${employee.id}?email=${encodeURIComponent(employee.email)}`}
+                        className="text-sm font-semibold text-primary hover:underline"
+                      >
+                        {t(locale, "employeesActionManage")}
+                      </a>
+                    )
                   ) : (
                     <span className="text-sm text-slate-400">—</span>
                   )}
@@ -220,12 +265,13 @@ function RoleBadge({ role, locale }: { role: string; locale: Locale }) {
   const colors: Record<string, string> = {
     ADMIN: "bg-rose-50 text-rose-700 ring-rose-100",
     HR: "bg-rose-50 text-rose-700 ring-rose-100",
+    SUPER_ADMIN: "bg-rose-50 text-rose-700 ring-rose-100",
     MANAGER: "bg-amber-50 text-amber-700 ring-amber-100",
     EMPLOYEE: "bg-slate-100 text-slate-700 ring-slate-200",
   };
   const normalizedRole = role.toUpperCase();
   const label =
-    normalizedRole === "ADMIN"
+    normalizedRole === "ADMIN" || normalizedRole === "SUPER_ADMIN"
       ? t(locale, "employeesRoleAdmin")
       : normalizedRole === "HR"
         ? t(locale, "employeesRoleHr")

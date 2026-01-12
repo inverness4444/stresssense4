@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { notFound } from "next/navigation";
 import { getArticleBySlug } from "@/lib/resources";
+import { sanitizeHtml } from "@/lib/sanitize";
 
 type Props = { params: { slug: string } };
 
@@ -21,7 +22,7 @@ export default async function ArticlePage({ params }: Props) {
         <p className="text-sm text-slate-600">{article.description}</p>
         {article.publishedAt && <p className="text-xs text-slate-500">{new Date(article.publishedAt).toLocaleDateString()}</p>}
       </div>
-      <article className="prose max-w-none prose-slate" dangerouslySetInnerHTML={{ __html: article.content }} />
+      <article className="prose max-w-none prose-slate" dangerouslySetInnerHTML={{ __html: sanitizeHtml(article.content ?? "") }} />
       <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
         <h3 className="text-lg font-semibold text-slate-900">See it in action</h3>
         <p className="text-sm text-slate-600">Запустите стресс-пульс за пару минут и покажите данные команде.</p>

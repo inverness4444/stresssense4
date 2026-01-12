@@ -2,9 +2,9 @@ import { describe, it, expect } from "vitest";
 import { computeSurveyStats, normalizeScale } from "@/lib/surveys";
 
 describe("stress metrics", () => {
-  it("normalizes average scale to 0-100", () => {
-    expect(normalizeScale(3, 1, 5)).toBe(50);
-    expect(normalizeScale(5, 1, 5)).toBe(100);
+  it("normalizes average scale to 0-10", () => {
+    expect(normalizeScale(3, 1, 5)).toBe(5);
+    expect(normalizeScale(5, 1, 5)).toBe(10);
     expect(normalizeScale(1, 1, 5)).toBe(0);
   });
 
@@ -24,6 +24,6 @@ describe("stress metrics", () => {
       5
     );
     expect(stats.participation).toBe(50);
-    expect(stats.averageStressIndex).toBeGreaterThan(60);
+    expect(stats.averageStressIndex).toBeGreaterThan(7);
   });
 });

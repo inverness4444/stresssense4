@@ -1,5 +1,6 @@
 import { prisma } from "./prisma";
 import { env } from "@/config/env";
+import { ADMIN_LIKE_ROLES } from "@/lib/roles";
 
 type CreateNotificationInput = {
   organizationId: string;
@@ -9,6 +10,8 @@ type CreateNotificationInput = {
   link?: string | null;
   userId?: string | null;
 };
+
+type AdminNotificationInput = Omit<CreateNotificationInput, "userId"> & { dedupe?: boolean };
 
 export function notificationWhereForUser(userId: string, organizationId: string) {
   return {
@@ -29,6 +32,33 @@ export async function createNotification(input: CreateNotificationInput) {
       userId: input.userId ?? null,
     },
   });
+}
+
+export async function createNotificationsForAdmins(input: AdminNotificationInput) {
+  const admins = await prisma.user.findMany({
+    where: { organizationId: input.organizationId, role: { in: ADMIN_LIKE_ROLES as unknown as string[] } },
+    select: { id: true },
+  });
+  if (!admins.length) return [];
+  const link = input.link ?? null;
+  const type = input.type;
+
+  return Promise.all(
+    admins.map(async (admin) => {
+      if (input.dedupe) {
+        const existing = await prisma.notification.findFirst({
+          where: {
+            organizationId: input.organizationId,
+            userId: admin.id,
+            type,
+            link,
+          },
+        });
+        if (existing) return existing;
+      }
+      return createNotification({ ...input, userId: admin.id });
+    })
+  );
 }
 
 export async function unreadCount(userId: string, organizationId: string) {

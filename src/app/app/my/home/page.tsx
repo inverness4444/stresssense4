@@ -1,8 +1,9 @@
 import { getCurrentUser } from "@/lib/auth";
-import { isFeatureEnabled } from "@/lib/featureFlags";
 import { getMyHomeData } from "../actions";
 import MyHomeClient from "./ui/MyHomeClient";
 import { getLocale } from "@/lib/i18n-server";
+import { getBillingGateStatus } from "@/lib/billingGate";
+import { env } from "@/config/env";
 
 export default async function MyHomePage() {
   const user = await getCurrentUser();
@@ -11,5 +12,15 @@ export default async function MyHomePage() {
   }
   const data = await getMyHomeData();
   const locale = await getLocale();
-  return <MyHomeClient data={data} userName={user.name ?? ""} userId={user.id} locale={locale} />;
+  const orgCreatedAt = (user as any)?.organization?.createdAt ? new Date((user as any).organization.createdAt) : new Date();
+  const gateStatus = await getBillingGateStatus(user.organizationId, orgCreatedAt);
+  return (
+    <MyHomeClient
+      data={data}
+      userName={user.name ?? ""}
+      userId={user.id}
+      locale={locale}
+      aiEnabled={gateStatus.hasPaidAccess || env.isDev}
+    />
+  );
 }

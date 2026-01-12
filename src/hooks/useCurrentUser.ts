@@ -4,7 +4,7 @@ export type CurrentUser = {
   id: string;
   email: string;
   name?: string | null;
-  role: "HR" | "Manager" | "Employee";
+  role: "HR" | "ADMIN" | "MANAGER" | "EMPLOYEE" | "SUPER_ADMIN";
   organizationId?: string;
 };
 

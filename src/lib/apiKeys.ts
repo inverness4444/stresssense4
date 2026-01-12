@@ -1,3 +1,4 @@
+import "server-only";
 import { randomBytes } from "crypto";
 import bcrypt from "bcryptjs";
 import { prisma } from "./prisma";

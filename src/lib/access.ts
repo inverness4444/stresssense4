@@ -1,12 +1,13 @@
 import { prisma } from "./prisma";
 import { getCurrentUser } from "./auth";
+import { isAdminLike, isManagerLike } from "./roles";
 
 export function isAdmin(user?: { role?: string }) {
-  return user?.role === "ADMIN";
+  return isAdminLike(user?.role);
 }
 
 export function isManager(user?: { role?: string }) {
-  return user?.role === "MANAGER";
+  return isManagerLike(user?.role);
 }
 
 export async function getUserWithTeams() {

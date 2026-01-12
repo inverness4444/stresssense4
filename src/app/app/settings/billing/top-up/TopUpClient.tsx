@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useActionState, useEffect, useMemo, useState } from "react";
 import { createTopUpRequest } from "./actions";
+import { PAYMENT_DETAILS } from "@/config/payments";
 import type { TopUpFormState } from "./actions";
 
 type TopUpClientProps = {
@@ -11,7 +12,6 @@ type TopUpClientProps = {
 };
 
 export default function TopUpClient({ initialAmount, isRu }: TopUpClientProps) {
-  const usdToRub = 100;
   const [amountInput, setAmountInput] = useState<number>(initialAmount);
   const [network, setNetwork] = useState<"ERC20" | "TRC20">("ERC20");
   const [formState, formAction] = useActionState<TopUpFormState>(createTopUpRequest, { status: "idle" });
@@ -21,12 +21,20 @@ export default function TopUpClient({ initialAmount, isRu }: TopUpClientProps) {
     setAmountInput(initialAmount);
   }, [initialAmount]);
 
+  const paymentCurrency = "USDT";
+
   const { amountDisplay, amountHint, title, subtitle, amountLabel } = useMemo(() => {
     const safeAmount = Number.isFinite(amountInput) && amountInput > 0 ? amountInput : 0;
-    const amountUsd = isRu ? safeAmount / usdToRub : safeAmount;
-    const display = isRu
-      ? `${Math.round(amountUsd * usdToRub).toLocaleString("ru-RU")} ₽`
-      : `$${amountUsd.toFixed(2)}`;
+    const display = (() => {
+      try {
+        return new Intl.NumberFormat(isRu ? "ru-RU" : "en-US", {
+          style: "currency",
+          currency: paymentCurrency,
+        }).format(safeAmount);
+      } catch {
+        return `${safeAmount.toFixed(2)} ${paymentCurrency}`;
+      }
+    })();
     return {
       amountDisplay: display,
       title: isRu ? "Пополнение" : "Top up",
@@ -34,12 +42,12 @@ export default function TopUpClient({ initialAmount, isRu }: TopUpClientProps) {
         ? "Выберите способ оплаты и используйте реквизиты ниже."
         : "Choose a payment method and use the details below.",
       amountLabel: isRu ? "Сумма пополнения" : "Top-up amount",
-      amountHint: isRu ? "Сумма в рублях" : "Amount in USD",
+      amountHint: isRu ? "Сумма в долларах (USDT)" : `Amount in ${paymentCurrency}`,
     };
-  }, [amountInput, isRu]);
+  }, [amountInput, isRu, paymentCurrency]);
 
-  const amountUsd = Number.isFinite(amountInput) && amountInput > 0 ? (isRu ? amountInput / usdToRub : amountInput) : 0;
-  const isAmountValid = amountUsd > 0;
+  const amountValue = Number.isFinite(amountInput) && amountInput > 0 ? amountInput : 0;
+  const isAmountValid = amountValue > 0;
   const methodLabel =
     formState.method === "crypto"
       ? isRu
@@ -49,7 +57,7 @@ export default function TopUpClient({ initialAmount, isRu }: TopUpClientProps) {
         ? isRu
           ? "СБП"
           : "SBP"
-        : formState.method === "invoice"
+        : formState.method === "other"
           ? isRu
             ? "счету"
             : "invoice"
@@ -161,9 +169,9 @@ export default function TopUpClient({ initialAmount, isRu }: TopUpClientProps) {
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-1">
         <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-sm font-semibold text-slate-900">{isRu ? "Криптовалюта (USDT)" : "Crypto (USDT)"}</p>
+            <p className="text-sm font-semibold text-slate-900">{isRu ? "Криптовалюта (только USDT)" : "Crypto (USDT only)"}</p>
           <p className="mt-1 text-xs text-slate-500">
             {isRu ? "Только USDT. Реквизиты добавим позже." : "USDT only. Details will be added later."}
           </p>
@@ -188,11 +196,7 @@ export default function TopUpClient({ initialAmount, isRu }: TopUpClientProps) {
             <DetailRow
               id="crypto-address"
               label={isRu ? "Адрес USDT" : "USDT address"}
-              value={
-                network === "ERC20"
-                  ? "0x7628267db0cba86297910fd75d91cf4f0bf2c5bb"
-                  : "TU22xAVauNPds3PxakjV97BJySJ8pKm1yG"
-              }
+              value={PAYMENT_DETAILS.crypto.networks[network]}
               mono
             />
             <DetailRow id="crypto-memo" label={isRu ? "Комментарий" : "Memo"} value="—" />
@@ -201,7 +205,7 @@ export default function TopUpClient({ initialAmount, isRu }: TopUpClientProps) {
             {isRu ? "После оплаты нажмите «Я оплатил»." : "After payment, click “I paid”."}
           </p>
           <form action={formAction}>
-            <input type="hidden" name="amountUsd" value={amountUsd.toFixed(2)} />
+            <input type="hidden" name="amount" value={amountValue.toFixed(2)} />
             <input type="hidden" name="method" value="crypto" />
             <input type="hidden" name="network" value={network} />
             <button
@@ -209,58 +213,6 @@ export default function TopUpClient({ initialAmount, isRu }: TopUpClientProps) {
               className="mt-3 w-full rounded-full bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm disabled:bg-slate-200 disabled:text-slate-500"
             >
               {isRu ? "Я оплатил" : "I paid"}
-            </button>
-          </form>
-        </div>
-
-        <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-sm font-semibold text-slate-900">{isRu ? "Оплата через СБП" : "SBP transfer"}</p>
-          <p className="mt-1 text-xs text-slate-500">
-            {isRu ? "Реквизиты СБП добавим после получения данных." : "SBP details will be added once provided."}
-          </p>
-          <div className="mt-4 space-y-2 text-sm text-slate-700">
-            <DetailRow id="sbp-recipient" label={isRu ? "Получатель" : "Recipient"} value="—" />
-            <DetailRow id="sbp-bank" label={isRu ? "Банк" : "Bank"} value="—" />
-            <DetailRow id="sbp-phone" label={isRu ? "Телефон" : "Phone"} value="—" />
-            <DetailRow id="sbp-purpose" label={isRu ? "Назначение платежа" : "Payment purpose"} value="—" />
-          </div>
-          <p className="mt-3 text-xs text-slate-500">
-            {isRu ? "Поддержим автосверку после оплаты." : "Auto-reconciliation will be available after payment."}
-          </p>
-          <form action={formAction}>
-            <input type="hidden" name="amountUsd" value={amountUsd.toFixed(2)} />
-            <input type="hidden" name="method" value="sbp" />
-            <button
-              disabled={!isAmountValid}
-              className="mt-3 w-full rounded-full bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm disabled:bg-slate-200 disabled:text-slate-500"
-            >
-              {isRu ? "Я оплатил" : "I paid"}
-            </button>
-          </form>
-        </div>
-
-        <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-sm font-semibold text-slate-900">
-            {isRu ? "Официальный счет с чеком" : "Official invoice & receipt"}
-          </p>
-          <p className="mt-1 text-xs text-slate-500">
-            {isRu
-              ? "Подготовим официальный счет и чек для бухгалтерии."
-              : "We will prepare an official invoice and receipt."}
-          </p>
-          <div className="mt-4 space-y-2 text-sm text-slate-700">
-            <DetailRow id="invoice-recipient" label={isRu ? "Реквизиты получателя" : "Recipient details"} value="—" />
-            <DetailRow id="invoice-email" label={isRu ? "Email для счета" : "Invoice email"} value="—" />
-            <DetailRow id="invoice-amount" label={isRu ? "Сумма" : "Amount"} value={amountDisplay} />
-          </div>
-          <form action={formAction}>
-            <input type="hidden" name="amountUsd" value={amountUsd.toFixed(2)} />
-            <input type="hidden" name="method" value="invoice" />
-            <button
-              disabled={!isAmountValid}
-              className="mt-3 w-full rounded-full bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm disabled:bg-slate-200 disabled:text-slate-500"
-            >
-              {isRu ? "Запросить счет" : "Request invoice"}
             </button>
           </form>
         </div>

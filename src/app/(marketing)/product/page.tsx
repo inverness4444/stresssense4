@@ -4,9 +4,6 @@ import SectionManagerCockpit from "./_components/SectionManagerCockpit";
 import SectionEmployeeExperience from "./_components/SectionEmployeeExperience";
 import SectionPeopleCompOnboarding from "./_components/SectionPeopleCompOnboarding";
 import SectionAIAutomation from "./_components/SectionAIAutomation";
-import SectionSecurityTrust from "./_components/SectionSecurityTrust";
-import SectionIntegrations from "./_components/SectionIntegrations";
-import SectionCTA from "./_components/SectionCTA";
 import HowItWorks from "../_components/HowItWorks";
 
 export default function ProductPage() {
@@ -18,10 +15,7 @@ export default function ProductPage() {
       <SectionEmployeeExperience />
       <SectionPeopleCompOnboarding />
       <SectionAIAutomation />
-      <SectionSecurityTrust />
-      <SectionIntegrations />
       <HowItWorks />
-      <SectionCTA />
     </div>
   );
 }

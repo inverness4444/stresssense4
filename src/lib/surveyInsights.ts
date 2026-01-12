@@ -1,6 +1,8 @@
 import { prisma } from "./prisma";
 import { getAIClient } from "./ai";
 import { triggerWebhookEvent } from "./webhooks";
+import { createNotificationsForAdmins } from "@/lib/notifications";
+import { getBillingGateStatus } from "@/lib/billingGate";
 
 type GenerateOptions = { force?: boolean; language?: string };
 
@@ -65,6 +67,7 @@ Requirements:
 export async function generateSurveyInsight(surveyId: string, options?: GenerateOptions) {
   const existing = await prisma.surveyInsight.findUnique({ where: { surveyId } });
   if (existing && !options?.force) return existing;
+  const shouldNotify = !existing;
 
   const survey = await prisma.survey.findUnique({
     where: { id: surveyId },
@@ -75,6 +78,15 @@ export async function generateSurveyInsight(surveyId: string, options?: Generate
     },
   });
   if (!survey) throw new Error("Survey not found");
+
+  const org = await prisma.organization.findUnique({
+    where: { id: survey.organizationId },
+    select: { createdAt: true },
+  });
+  const gateStatus = await getBillingGateStatus(survey.organizationId, org?.createdAt ?? null);
+  if (!gateStatus.hasPaidAccess) {
+    throw new Error("AI_DISABLED_UNPAID");
+  }
 
   const inviteCount = survey.inviteTokens.length;
   const responsesCount = survey.responses.length;
@@ -151,6 +163,17 @@ export async function generateSurveyInsight(surveyId: string, options?: Generate
     sentiment: parsed.sentiment,
     generatedAt: new Date().toISOString(),
   });
+
+  if (shouldNotify) {
+    await createNotificationsForAdmins({
+      organizationId: survey.organizationId,
+      type: "SURVEY_AI_READY",
+      title: "AI insight is ready",
+      body: `AI report for "${survey.name}" is now available.`,
+      link: `/app/surveys/${survey.id}`,
+      dedupe: true,
+    });
+  }
 
   return insight;
 }

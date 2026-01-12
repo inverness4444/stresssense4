@@ -24,7 +24,7 @@ export default function Header({ locale = "en" }: { locale?: Locale }) {
   }, []);
 
   useEffect(() => {
-    const ids = ["#product", "#solutions", "#how", "#integrations", "#pricing", "#demo"];
+    const ids = ["#product", "#demo", "#pricing", "#terms"];
     const onScroll = () => {
       const current = ids
         .map((id) => {
@@ -50,9 +50,11 @@ export default function Header({ locale = "en" }: { locale?: Locale }) {
     >
       <div className="mx-auto flex h-16 max-w-screen-xl items-center justify-between px-4 sm:px-6 lg:px-10">
         <Link href="/" className="flex items-center gap-3">
-          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-primary via-primary-strong to-indigo-500 text-lg font-semibold text-white shadow-md shadow-indigo-100">
-            💜
-          </span>
+          <img
+            src="/branding/quadrantlogo.PNG"
+            alt="StressSense"
+            className="h-12 w-auto"
+          />
           <div className="leading-tight">
             <p className="text-base font-semibold text-slate-900">StressSense</p>
             <p className="text-xs font-medium text-slate-500">by Quadrant</p>
@@ -62,11 +64,9 @@ export default function Header({ locale = "en" }: { locale?: Locale }) {
         <nav className="hidden flex-1 items-center justify-center gap-8 text-sm font-semibold text-slate-700 md:flex">
           {[
             { href: "#product", label: t(locale, "headerProduct") },
-            { href: "#solutions", label: t(locale, "headerSolutions") },
-            { href: "#how", label: t(locale, "headerHow") },
-            { href: "#integrations", label: t(locale, "headerIntegrations") },
-            { href: "#pricing", label: t(locale, "headerPricing") },
             { href: "#demo", label: t(locale, "headerDemo") },
+            { href: "#pricing", label: t(locale, "headerPricing") },
+            { href: "#terms", label: t(locale, "headerTerms") },
           ].map((item) => (
             <a
               key={item.href}
@@ -97,12 +97,6 @@ export default function Header({ locale = "en" }: { locale?: Locale }) {
           <Link href="/signin" className="hidden text-sm font-semibold text-slate-700 transition-colors hover:text-slate-950 sm:inline-flex">
             {t(locale, "login")}
           </Link>
-          <Link
-            href="/get-started"
-            className="rounded-full bg-gradient-to-r from-primary to-primary-strong px-4 py-2 text-sm font-semibold text-white shadow-md shadow-indigo-200 transition duration-200 hover:scale-[1.02] hover:shadow-lg"
-          >
-            {t(locale, "startFree")}
-          </Link>
         </div>
       </div>
     </header>
@@ -115,7 +109,7 @@ function LanguageSwitcher({ locale, onChange, pending }: { locale: Locale; onCha
       <button
         type="button"
         disabled={pending}
-        className={`rounded-full px-2 py-1 ${locale === "en" ? "bg-primary/10 text-primary" : "bg-slate-100 text-slate-700"}`}
+        className={`px-2 py-1 ${locale === "en" ? "bg-primary/10 text-primary" : "bg-slate-100 text-slate-700"}`}
         onClick={() => onChange("en")}
       >
         EN
@@ -123,7 +117,7 @@ function LanguageSwitcher({ locale, onChange, pending }: { locale: Locale; onCha
       <button
         type="button"
         disabled={pending}
-        className={`rounded-full px-2 py-1 ${locale === "ru" ? "bg-primary/10 text-primary" : "bg-slate-100 text-slate-700"}`}
+        className={`px-2 py-1 ${locale === "ru" ? "bg-primary/10 text-primary" : "bg-slate-100 text-slate-700"}`}
         onClick={() => onChange("ru")}
       >
         RU

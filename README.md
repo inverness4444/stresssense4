@@ -38,3 +38,24 @@ cd /Users/abuzada/Desktop/QuadrantStress/stresssense
 npm run dev
 ADMIN: admin@stresssense.demo / StressDemo123!
 MANAGER: manager@stresssense.demo / StressDemo123!
+## Daily stress surveys (auto-generated)
+
+Env vars (server-side only):
+
+- `OPENAI_API_KEY` – OpenAI API key for daily survey generation (AI days 11+).
+- `CRON_SECRET` – secret token for the daily cron endpoint.
+- `AI_MODEL_SUMMARY` – optional model override (defaults to `gpt-5-mini`).
+
+Trigger cron manually (dev):
+
+```bash
+curl -X POST "http://localhost:3000/api/cron/daily-surveys?token=YOUR_CRON_SECRET"
+```
+
+The cron creates one daily survey per member (idempotent). The Surveys page will show today’s survey and history.
+
+## StressSense AI attachment tests (manual)
+
+1) Image (PNG/JPG/WebP/GIF) with a chart or numbers → ask the assistant to extract the values and comment on them.
+2) PDF with text → ask a question about the document; expect a brief “document received” acknowledgment and an answer grounded in the file.
+3) Unsupported file (e.g., .zip or .mp4) → expect a clear “unsupported format” error without sending the message.

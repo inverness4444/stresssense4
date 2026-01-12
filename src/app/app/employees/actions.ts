@@ -7,7 +7,6 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { USER_ROLES, type UserRole } from "@/lib/roles";
 import { logAuditEvent } from "@/lib/audit";
-import { getOrgSubscription, checkLimit } from "@/lib/subscription";
 
 type CreateEmployeeInput = {
   name: string;
@@ -23,13 +22,8 @@ export async function createEmployee(input: CreateEmployeeInput) {
     return { error: "You must be signed in." };
   }
   const role = (currentUser.role ?? "").toUpperCase();
-  if (!["ADMIN", "HR"].includes(role)) {
+  if (!["ADMIN", "HR", "SUPER_ADMIN"].includes(role)) {
     return { error: "You don't have access to add employees." };
-  }
-
-  const sub = await getOrgSubscription(currentUser.organizationId);
-  if (!checkLimit(await prisma.user.count({ where: { organizationId: currentUser.organizationId } }), sub?.plan?.maxEmployees ?? null)) {
-    return { error: "You’ve reached the employee limit on your current plan. Upgrade to add more." };
   }
 
   const trimmedEmail = input.email.trim().toLowerCase();

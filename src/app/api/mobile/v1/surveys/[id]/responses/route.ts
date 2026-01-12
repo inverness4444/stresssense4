@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getMobileUser } from "@/lib/authMobile";
 import { prisma } from "@/lib/prisma";
+import { notifySurveyReportReady } from "@/lib/surveyNotifications";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -34,5 +35,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   });
 
   await prisma.surveyInviteToken.update({ where: { id: invite.id }, data: { usedAt: new Date() } });
+  await notifySurveyReportReady(surveyId);
   return NextResponse.json({ data: { responseId: response.id } });
 }

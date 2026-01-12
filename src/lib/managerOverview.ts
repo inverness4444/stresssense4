@@ -1,8 +1,11 @@
 import { prisma } from "@/lib/prisma";
 import { cache } from "react";
 
-export const getManagerTeams = cache(async (userId: string) => {
-  const memberships = await prisma.member.findMany({ where: { userId }, include: { team: true } });
+export const getManagerTeams = cache(async (userId: string, organizationId?: string) => {
+  const memberships = await prisma.member.findMany({
+    where: { userId, ...(organizationId ? { organizationId } : {}) },
+    include: { team: true },
+  });
   return memberships.map((m: any) => ({ teamId: m.teamId, name: m.team.name }));
 });
 

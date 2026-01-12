@@ -3,13 +3,18 @@ import { notFound } from "next/navigation";
 import { EditTeamModal } from "@/components/app/EditTeamModal";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getLocale } from "@/lib/i18n-server";
+import { getRoleLabel } from "@/lib/roles";
 
 type Props = {
   params: { id: string };
 };
 
+export const dynamic = "force-dynamic";
+
 export default async function TeamDetailPage({ params }: Props) {
   const currentUser = await getCurrentUser();
+  const locale = await getLocale();
   if (!currentUser) {
     return (
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -18,8 +23,16 @@ export default async function TeamDetailPage({ params }: Props) {
     );
   }
 
+  const hiddenRole = "SUPER_ADMIN";
+  const resolvedParams = await Promise.resolve(params);
+  const rawId = Array.isArray(resolvedParams?.id) ? resolvedParams.id[0] : resolvedParams?.id;
+  const teamId = typeof rawId === "string" ? decodeURIComponent(rawId).trim() : "";
+  if (!teamId) {
+    notFound();
+  }
+
   const team = await prisma.team.findFirst({
-    where: { id: params.id, organizationId: currentUser.organizationId },
+    where: { id: teamId, organizationId: currentUser.organizationId },
     include: {
       users: {
         include: { user: true },
@@ -33,14 +46,17 @@ export default async function TeamDetailPage({ params }: Props) {
   }
 
   const allUsers = await prisma.user.findMany({
-    where: { organizationId: currentUser.organizationId },
+    where: { organizationId: currentUser.organizationId, role: { not: hiddenRole } },
     select: { id: true, name: true, email: true, role: true },
     orderBy: { name: "asc" },
   });
 
-  const isAdmin = currentUser.role === "ADMIN";
-  const members = team.users.map((u: any) => u.user);
-  const canManage = ["ADMIN", "HR", "MANAGER"].includes((currentUser.role ?? "").toUpperCase());
+  const normalizedRole = (currentUser.role ?? "").toUpperCase();
+  const isAdmin = ["ADMIN", "HR", "SUPER_ADMIN"].includes(normalizedRole);
+  const members = team.users
+    .map((u: any) => u.user)
+    .filter((member: any) => (member?.role ?? "").toUpperCase() !== hiddenRole);
+  const canManage = ["ADMIN", "HR", "MANAGER", "SUPER_ADMIN"].includes(normalizedRole);
 
   return (
     <div className="space-y-6">
@@ -70,6 +86,7 @@ export default async function TeamDetailPage({ params }: Props) {
               initialDescription={team.description}
               members={members.map((m: any) => ({ id: m.id }))}
               users={allUsers}
+              locale={locale}
             />
             <button
               disabled
@@ -110,7 +127,7 @@ export default async function TeamDetailPage({ params }: Props) {
                 <td className="px-4 py-3 text-sm text-slate-700">{member.email}</td>
                 <td className="px-4 py-3">
                   <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold uppercase text-slate-700">
-                    {member.role}
+                    {getRoleLabel(member.role, locale)}
                   </span>
                 </td>
               </tr>

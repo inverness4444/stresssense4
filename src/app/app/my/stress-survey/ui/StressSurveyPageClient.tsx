@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useSelfStressSurvey } from "@/components/app/SelfStressSurveyProvider";
 import type { Locale } from "@/lib/i18n";
 
@@ -12,8 +12,16 @@ type HistoryItem = {
   score: number;
 };
 
-function formatDate(d: Date) {
-  return d.toLocaleString("ru-RU", {
+type DailySurveySummary = {
+  runId: string;
+  title: string;
+  dayIndex: number | null;
+  source: string;
+  runDate: string;
+};
+
+function formatDate(d: Date, locale: Locale) {
+  return d.toLocaleString(locale === "ru" ? "ru-RU" : "en-US", {
     day: "2-digit",
     month: "short",
     hour: "2-digit",
@@ -21,68 +29,40 @@ function formatDate(d: Date) {
   });
 }
 
-function formatDuration(ms: number) {
+function formatDuration(ms: number, locale: Locale) {
   const mins = Math.floor(ms / 60000);
   const secs = Math.round((ms % 60000) / 1000);
-  if (mins <= 0) return `${secs} c`;
-  return `${mins} мин ${secs.toString().padStart(2, "0")} c`;
+  if (mins <= 0) return locale === "ru" ? `${secs} c` : `${secs}s`;
+  return locale === "ru" ? `${mins} мин ${secs.toString().padStart(2, "0")} c` : `${mins}m ${secs.toString().padStart(2, "0")}s`;
 }
 
-export default function StressSurveyPageClient({ userName, userId, locale }: { userName: string; userId: string; locale: Locale }) {
+export default function StressSurveyPageClient({
+  userName,
+  locale,
+  todaySurvey,
+  todayCompletedAt,
+  todayScore,
+  canStart,
+  aiLocked,
+  history,
+}: {
+  userName: string;
+  locale: Locale;
+  todaySurvey: DailySurveySummary | null;
+  todayCompletedAt: string | null;
+  todayScore: number | null;
+  canStart: boolean;
+  aiLocked: boolean;
+  history: HistoryItem[];
+}) {
   const { openSurvey } = useSelfStressSurvey();
   const isRu = locale === "ru";
-  const [history, setHistory] = useState<HistoryItem[]>([]);
-  const [startedAt, setStartedAt] = useState<Date | null>(null);
-  const storagePrefix = useMemo(() => `stressSurvey:${userId || "local-user"}`, [userId]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const stored = window.localStorage.getItem(`${storagePrefix}:history`);
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored) as HistoryItem[];
-        setHistory(parsed);
-      } catch {
-        setHistory([]);
-      }
-    } else {
-      setHistory([]);
-    }
-  }, [storagePrefix]);
-
-  useEffect(() => {
-    const handler = (e: Event) => {
-      const detail = (e as CustomEvent<{ average: number; answers: number[]; date: string; userId?: string }>).detail;
-      if (detail?.userId && detail.userId !== userId) return;
-      const finished = detail?.date ? new Date(detail.date) : new Date();
-      const started = startedAt ?? finished;
-      const durationMs = Math.max(0, finished.getTime() - started.getTime());
-      const entry: HistoryItem = {
-        id: `survey-${finished.getTime()}`,
-        startedAt: started.toISOString(),
-        finishedAt: finished.toISOString(),
-        durationMs,
-        score: detail?.average ?? 0,
-      };
-      setHistory((prev) => {
-        const next = [entry, ...prev].slice(0, 20);
-        if (typeof window !== "undefined") {
-          window.localStorage.setItem(`${storagePrefix}:history`, JSON.stringify(next));
-        }
-        return next;
-      });
-      setStartedAt(null);
-    };
-    window.addEventListener("stress-survey-completed", handler as EventListener);
-    return () => window.removeEventListener("stress-survey-completed", handler as EventListener);
-  }, [startedAt, storagePrefix]);
-
-  const todayIso = new Date().toISOString().slice(0, 10);
-  const lastEntry = history.find((h) => h.startedAt.slice(0, 10) === todayIso);
+  const lockedCopy = isRu
+    ? "Опросы после 10-го дня доступны только при активной подписке."
+    : "Daily AI surveys after day 10 are available only with an active subscription.";
 
   const startSurvey = () => {
-    if (lastEntry) return;
-    setStartedAt(new Date());
+    if (!canStart) return;
     openSurvey();
   };
 
@@ -121,7 +101,7 @@ export default function StressSurveyPageClient({ userName, userId, locale }: { u
           <p className="text-xs font-semibold uppercase tracking-[0.22em] text-primary">StressSense</p>
           <h1 className="text-2xl font-semibold text-slate-900">{isRu ? "Опросы" : "Surveys"}</h1>
           <p className="text-sm text-slate-600">
-            {isRu ? "Проходите опрос и следите за историей: старт, длительность, результат." : "Take the pulse and track start time, duration, and score."}
+            {isRu ? "Ежедневные опросы и история ответов." : "Daily pulses and response history."}
           </p>
         </div>
         <div className="flex flex-wrap items-center justify-end gap-3 text-xs">
@@ -137,22 +117,43 @@ export default function StressSurveyPageClient({ userName, userId, locale }: { u
           <div className="space-y-1">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">{isRu ? "Сегодняшний опрос" : "Today’s pulse"}</p>
             <p className="text-sm text-slate-600">
-              {lastEntry
-                ? isRu
-                  ? `Пройден: ${formatDate(new Date(lastEntry.finishedAt))}, результат ${lastEntry.score.toFixed(1)} pt`
-                  : `Taken: ${formatDate(new Date(lastEntry.finishedAt))}, score ${lastEntry.score.toFixed(1)} pt`
-                : isRu
-                  ? "Опрос ещё не пройден сегодня."
-                  : "You haven’t taken today’s pulse."}
+              {todaySurvey ? (
+                todayCompletedAt ? (
+                  isRu
+                    ? `Пройден: ${formatDate(new Date(todayCompletedAt), locale)}, результат ${Number(todayScore ?? 0).toFixed(1)} pt`
+                    : `Taken: ${formatDate(new Date(todayCompletedAt), locale)}, score ${Number(todayScore ?? 0).toFixed(1)} pt`
+                ) : (
+                  isRu ? "Опрос ещё не пройден сегодня." : "You haven’t taken today’s pulse."
+                )
+              ) : (
+                aiLocked ? lockedCopy : isRu ? "Опрос будет создан автоматически сегодня." : "Today’s survey will be generated automatically."
+              )}
             </p>
+            {todaySurvey && (
+              <p className="text-xs text-slate-500">
+                {isRu ? `Тема: ${todaySurvey.title}` : `Title: ${todaySurvey.title}`}
+              </p>
+            )}
           </div>
-          <button
-            onClick={startSurvey}
-            disabled={!!lastEntry}
-            className="rounded-full bg-gradient-to-r from-primary to-indigo-500 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {lastEntry ? (isRu ? "Доступно завтра" : "Available tomorrow") : isRu ? "Пройти опрос" : "Start pulse"}
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={startSurvey}
+              disabled={!canStart}
+              className="rounded-full bg-gradient-to-r from-primary to-indigo-500 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {!canStart
+                ? aiLocked
+                  ? isRu
+                    ? "Доступно после оплаты"
+                    : "Available after payment"
+                  : isRu
+                    ? "Доступно позже"
+                    : "Not available yet"
+                : isRu
+                  ? "Пройти опрос"
+                  : "Start pulse"}
+            </button>
+          </div>
         </div>
       </section>
 
@@ -173,16 +174,13 @@ export default function StressSurveyPageClient({ userName, userId, locale }: { u
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {history.map((run) => {
-                const duration = run.durationMs;
-                return (
-                  <tr key={run.id} className="transition hover:bg-slate-50/80">
-                    <td className="px-3 py-2 text-sm text-slate-800">{formatDate(new Date(run.startedAt))}</td>
-                    <td className="px-3 py-2 text-sm text-slate-800">{formatDuration(duration)}</td>
-                    <td className="px-3 py-2 text-sm font-semibold text-slate-900">{run.score.toFixed(1)} pt</td>
-                  </tr>
-                );
-              })}
+              {history.map((run) => (
+                <tr key={run.id} className="transition hover:bg-slate-50/80">
+                  <td className="px-3 py-2 text-sm text-slate-800">{formatDate(new Date(run.startedAt), locale)}</td>
+                  <td className="px-3 py-2 text-sm text-slate-800">{formatDuration(run.durationMs, locale)}</td>
+                  <td className="px-3 py-2 text-sm font-semibold text-slate-900">{Number(run.score ?? 0).toFixed(1)} pt</td>
+                </tr>
+              ))}
               {history.length === 0 && (
                 <tr>
                   <td colSpan={3} className="px-3 py-4 text-center text-sm text-slate-600">
@@ -194,6 +192,7 @@ export default function StressSurveyPageClient({ userName, userId, locale }: { u
           </table>
         </div>
       </section>
+
     </div>
   );
 }

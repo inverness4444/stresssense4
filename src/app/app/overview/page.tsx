@@ -1,21 +1,47 @@
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { SurveyReportWithAiPanel } from "@/components/app/SurveyReportWithAiPanel";
+import { StressDriversGrid } from "@/components/app/StressDriversGrid";
 import { getLocale } from "@/lib/i18n-server";
 import { initialActions, type ActionItem } from "@/lib/actionCenterMocks";
+import { getTeamActionsByStatus, getTeamStatus, teamStatusMeta } from "@/lib/statusLogic";
+import { getStressDrivers } from "@/lib/aiStressDrivers";
+import { computeStatsForResponses, getPeriodRanges } from "@/lib/ai/analysisAggregates";
+import { OverviewReportSelector } from "./OverviewReportSelector";
+import { getDisplayStressIndex, getEngagementFromParticipation } from "@/lib/metricDisplay";
+import { getBillingGateStatus } from "@/lib/billingGate";
+import { env } from "@/config/env";
 
-export default async function OverviewPage() {
+type OverviewSearchParams = {
+  team?: string | string[];
+  teamId?: string | string[];
+  scope?: string | string[];
+  from?: string | string[];
+  to?: string | string[];
+};
+
+type OverviewPageProps = {
+  searchParams?: OverviewSearchParams | Promise<OverviewSearchParams>;
+};
+
+export const dynamic = "force-dynamic";
+
+export default async function OverviewPage({ searchParams }: OverviewPageProps) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
-  // Позволяем всем ролям видеть обзор, как в старой версии
+  const role = (user.role ?? "").toUpperCase();
+  if (role === "EMPLOYEE") redirect("/app/my/home");
   const locale = await getLocale();
   const isRu = locale === "ru";
   const isDemo = Boolean((user as any)?.organization?.isDemo);
   const createdAt = (user as any)?.organization?.createdAt ? new Date((user as any).organization.createdAt) : new Date();
   const diffDays = Math.max(0, Math.ceil((7 * 24 * 60 * 60 * 1000 - (Date.now() - createdAt.getTime())) / (24 * 60 * 60 * 1000)));
   const gateAdvanced = !isDemo && diffDays > 0;
+  const gateStatus = await getBillingGateStatus(user.organizationId, createdAt);
+  const aiEnabled = gateStatus.hasPaidAccess || env.isDev;
 
   const teams = await prisma.team.findMany({ where: { organizationId: user.organizationId }, orderBy: { createdAt: "desc" } });
   const runs = (await prisma.surveyRun.findMany({ where: { orgId: user.organizationId }, orderBy: { launchedAt: "desc" }, take: 5 })) ?? [];
@@ -54,39 +80,440 @@ export default async function OverviewPage() {
         ]
       : nudges;
 
-  const hasTeams = safeTeams.length > 0;
-  const hasRuns = safeRuns.length > 0;
+  const isAdminLike = ["ADMIN", "HR", "SUPER_ADMIN"].includes(role);
+  const membershipTeams = !isDemo && !isAdminLike
+    ? await prisma.userTeam.findMany({ where: { userId: user.id }, select: { teamId: true } })
+    : [];
+  const allowedTeamIds = new Set(membershipTeams.map((t) => t.teamId));
+  const accessibleTeams = isDemo || isAdminLike
+    ? safeTeams
+    : safeTeams.filter((team: any) => allowedTeamIds.has(team.id));
+  const accessibleTeamIds = accessibleTeams.map((team: any) => team.id);
 
-  const avgStressRaw = hasTeams ? safeTeams.reduce((acc: number, t: any) => acc + (t.stressIndex ?? 0), 0) / safeTeams.length : 0;
-  const avgEngagementRaw = hasTeams ? safeTeams.reduce((acc: number, t: any) => acc + (t.engagementScore ?? 0), 0) / safeTeams.length : 0;
-  const participationRaw = hasTeams ? Math.round(safeTeams.reduce((acc: number, t: any) => acc + (t.participation ?? 0), 0) / safeTeams.length) : 0;
-  const avgStress = avgStressRaw;
-  const avgEngagement = avgEngagementRaw;
+  const hasTeams = accessibleTeams.length > 0;
+  const hasOverallRuns = safeRuns.length > 0;
+
+  const stressValues = hasTeams
+    ? accessibleTeams
+        .map((t: any) => getDisplayStressIndex(t.stressIndex, t.engagementScore))
+        .filter((v: number | null) => v != null) as number[]
+    : [];
+  const engagementValues = hasTeams
+    ? accessibleTeams
+        .map((t: any) => getEngagementFromParticipation(t.participation, t.engagementScore))
+        .filter((v: number | null) => v != null) as number[]
+    : [];
+  const avgStressRaw = stressValues.length ? stressValues.reduce((acc, v) => acc + v, 0) / stressValues.length : 0;
+  const avgEngagementRaw = engagementValues.length ? engagementValues.reduce((acc, v) => acc + v, 0) / engagementValues.length : 0;
+  const participationRaw = hasTeams
+    ? Math.round(accessibleTeams.reduce((acc: number, t: any) => acc + (t.participation ?? 0), 0) / accessibleTeams.length)
+    : 0;
+  let avgEngagement = avgEngagementRaw;
   const participation = participationRaw;
-  const activeSurveys = runs.length;
 
-  const engagementScore = safeRuns.length && safeRuns[0].avgEngagementScore ? safeRuns[0].avgEngagementScore : 0;
+  const cookieStore = await cookies();
+  const resolvedSearchParams = (await Promise.resolve(searchParams)) ?? {};
+  const rawScopeParam = Array.isArray(resolvedSearchParams?.scope) ? resolvedSearchParams?.scope[0] : resolvedSearchParams?.scope;
+  const rawTeamParam = Array.isArray(resolvedSearchParams?.teamId) ? resolvedSearchParams?.teamId[0] : resolvedSearchParams?.teamId;
+  const rawLegacyTeamParam = Array.isArray(resolvedSearchParams?.team) ? resolvedSearchParams?.team[0] : resolvedSearchParams?.team;
+  const rawTeamCookie = cookieStore.get("ss_overview_team")?.value;
+  const resolveTeamValue = (value?: string | null) => {
+    if (!value) return null;
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    try {
+      return decodeURIComponent(trimmed);
+    } catch {
+      return trimmed;
+    }
+  };
+  const scopeParam = resolveTeamValue(rawScopeParam);
+  const teamParam = resolveTeamValue(rawTeamParam) ?? resolveTeamValue(rawLegacyTeamParam);
+  const cookieTeam = resolveTeamValue(rawTeamCookie);
+  const hasTeamAccess = (id?: string | null) => Boolean(id && accessibleTeams.some((team: any) => team.id === id));
+  const fallbackTeamId = accessibleTeams[0]?.id ?? null;
 
-  const reportTimeseries =
-    safeRuns.length > 1
-      ? safeRuns.map((run: any, idx: number) => ({
-          label: run.launchedAt ? new Date(run.launchedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : `W${idx + 1}`,
-          value: run.avgEngagementScore ?? engagementScore,
-          date: run.launchedAt ?? null,
-        }))
+  let selectedScope: "org" | "team" = "org";
+  let selectedTeamId: string | null = null;
+
+  if (scopeParam === "team" && hasTeamAccess(teamParam)) {
+    selectedScope = "team";
+    selectedTeamId = teamParam!;
+  } else if (scopeParam === "org" && isAdminLike) {
+    selectedScope = "org";
+    selectedTeamId = null;
+  } else if (!isAdminLike) {
+    const preferredTeam = hasTeamAccess(teamParam)
+      ? teamParam
+      : hasTeamAccess(cookieTeam)
+        ? cookieTeam
+        : fallbackTeamId;
+    selectedScope = "team";
+    selectedTeamId = preferredTeam ?? null;
+  } else {
+    const preferredTeam = hasTeamAccess(teamParam)
+      ? teamParam
+      : hasTeamAccess(cookieTeam)
+        ? cookieTeam
+        : null;
+    if (preferredTeam) {
+      selectedScope = "team";
+      selectedTeamId = preferredTeam;
+    } else {
+      selectedScope = "org";
+      selectedTeamId = null;
+    }
+  }
+
+  const showTeamReport = selectedScope === "team" && Boolean(selectedTeamId);
+  const teamIdForFilter = showTeamReport ? selectedTeamId : null;
+  const teamOptions = accessibleTeams.map((team: any) => ({ id: team.id, name: team.name }));
+  const selectedTeam = teamIdForFilter ? accessibleTeams.find((team: any) => team.id === teamIdForFilter) ?? null : null;
+  const reportTeam = showTeamReport ? selectedTeam ?? null : accessibleTeams[0] ?? null;
+  const teamMemberCount = teamIdForFilter
+    ? await prisma.member.count({
+        where: { teamId: teamIdForFilter, organizationId: user.organizationId },
+      })
+    : 0;
+  const teamHasMembers = teamMemberCount > 0;
+  const selectorLabels = {
+    title: isRu ? "Отчет" : "Report view",
+    all: isRu ? "Общий обзор всех команд" : "All teams overview",
+    teamPrefix: isRu ? "Отчет: " : "Report: ",
+  };
+  const overallHistoryRaw = await prisma.teamMetricsHistory.findMany({
+    where: {
+      team: { organizationId: user.organizationId },
+      ...(isDemo || isAdminLike ? {} : { teamId: { in: accessibleTeamIds } }),
+    },
+    orderBy: { createdAt: "desc" },
+    take: 40,
+  });
+  const overallHistory = overallHistoryRaw.slice().reverse();
+  const teamRunsRaw =
+    teamIdForFilter
+      ? await prisma.surveyRun.findMany({
+          where: { orgId: user.organizationId, teamId: teamIdForFilter },
+          orderBy: { launchedAt: "desc" },
+          take: 5,
+        })
       : [];
+  const teamHistoryRaw =
+    teamIdForFilter
+      ? await prisma.teamMetricsHistory.findMany({
+          where: { teamId: teamIdForFilter },
+          orderBy: { createdAt: "desc" },
+          take: 8,
+        })
+      : [];
+  const teamHistory = teamHistoryRaw.slice().reverse();
+  const teamRuns = teamRunsRaw;
+  const teamRunsWithStats = teamRuns.filter((run: any) => run.avgStressIndex != null || run.avgEngagementScore != null);
+  const hasTeamRuns = teamRunsWithStats.length > 0;
+  const analysisLocale = locale === "ru" ? "ru" : "en";
+  const responseInclude = { run: { include: { template: { include: { questions: true } } } } };
+  const overallResponseWhere = {
+    run: { orgId: user.organizationId },
+    OR: isDemo || isAdminLike
+      ? [
+          { member: { organizationId: user.organizationId } },
+          { run: { teamId: { not: null } } },
+        ]
+      : [
+          { run: { teamId: { in: accessibleTeamIds } } },
+          { member: { teamId: { in: accessibleTeamIds }, organizationId: user.organizationId } },
+        ],
+  };
+  const teamResponseWhere =
+    teamIdForFilter
+      ? {
+          run: { orgId: user.organizationId },
+          OR: [
+            { run: { teamId: teamIdForFilter } },
+            { member: { teamId: teamIdForFilter, organizationId: user.organizationId } },
+          ],
+        }
+      : null;
+  const overallLatestResponse = await prisma.surveyResponse.findFirst({
+    where: overallResponseWhere,
+    orderBy: { submittedAt: "desc" },
+    select: { submittedAt: true },
+  });
+  const overallRange = getPeriodRanges("year", overallLatestResponse?.submittedAt ?? new Date()).current;
+  const overallResponses = await prisma.surveyResponse.findMany({
+    where: { ...overallResponseWhere, submittedAt: { gte: overallRange.start, lte: overallRange.end } },
+    include: responseInclude,
+    orderBy: { submittedAt: "asc" },
+  });
+  const overallStats = computeStatsForResponses(overallResponses, analysisLocale, overallRange);
+  const overallTrendSource =
+    overallStats.overallTrend.length > 0
+      ? overallStats.overallTrend
+      : overallStats.stressTrend.length > 0
+        ? overallStats.stressTrend
+        : overallStats.engagementTrend;
+  const overallResponseSeries = overallTrendSource.map((point) => ({
+    label: point.label,
+    value: point.value,
+    date: point.date,
+  }));
 
-  const driverCards = hasTeams
+  const teamLatestResponse =
+    teamIdForFilter
+      ? await prisma.surveyResponse.findFirst({
+          where: teamResponseWhere ?? { run: { orgId: user.organizationId, teamId: teamIdForFilter } },
+          orderBy: { submittedAt: "desc" },
+          select: { submittedAt: true },
+        })
+      : null;
+  const teamRange = teamIdForFilter
+    ? getPeriodRanges("year", teamLatestResponse?.submittedAt ?? new Date()).current
+    : null;
+  const teamResponses =
+    teamIdForFilter
+      ? await prisma.surveyResponse.findMany({
+          where: {
+            ...(teamResponseWhere ?? { run: { orgId: user.organizationId, teamId: teamIdForFilter } }),
+            submittedAt: { gte: teamRange!.start, lte: teamRange!.end },
+          },
+          include: responseInclude,
+          orderBy: { submittedAt: "asc" },
+        })
+      : [];
+  const teamStats = showTeamReport && teamRange ? computeStatsForResponses(teamResponses, analysisLocale, teamRange) : null;
+  const teamTrendSource = teamStats
+    ? (teamStats.overallTrend.length > 0
+        ? teamStats.overallTrend
+        : teamStats.stressTrend.length > 0
+          ? teamStats.stressTrend
+          : teamStats.engagementTrend)
+    : [];
+  const teamResponseSeries = teamStats
+    ? teamTrendSource.map((point) => ({ label: point.label, value: point.value, date: point.date }))
+    : [];
+  const overallStressAvg =
+    overallStats.overallCount > 0
+      ? overallStats.overallAvg
+      : getDisplayStressIndex(overallStats.stressAvg, overallStats.engagementAvg) ?? overallStats.stressAvg;
+  const teamStressAvg =
+    teamStats && teamStats.overallCount > 0
+      ? teamStats.overallAvg
+      : teamStats
+        ? (getDisplayStressIndex(teamStats.stressAvg, teamStats.engagementAvg) ?? teamStats.stressAvg)
+        : null;
+  const avgStress = overallStats.overallCount > 0 ? overallStressAvg : avgStressRaw;
+  if (overallStats.engagementCount > 0) {
+    avgEngagement = overallStats.engagementAvg;
+  }
+  const overallStatus = hasTeams ? getTeamStatus(avgStress, avgEngagement, participation) : null;
+  const overallMeta = overallStatus ? teamStatusMeta[overallStatus] : null;
+
+  const overallStressScore =
+    overallStats.overallCount > 0
+      ? overallStressAvg
+      : safeRuns.length > 0
+        ? getDisplayStressIndex(safeRuns[0].avgStressIndex, safeRuns[0].avgEngagementScore) ?? avgStressRaw
+        : avgStressRaw;
+  const teamStressScore =
+    teamStats && teamStats.overallCount > 0 && teamStressAvg != null
+      ? teamStressAvg
+      : teamRunsWithStats.length > 0
+        ? getDisplayStressIndex(teamRunsWithStats[0].avgStressIndex, teamRunsWithStats[0].avgEngagementScore) ??
+          (getDisplayStressIndex(reportTeam?.stressIndex, reportTeam?.engagementScore) ?? 0)
+        : getDisplayStressIndex(reportTeam?.stressIndex, reportTeam?.engagementScore) ?? 0;
+  const reportScoreRaw = showTeamReport ? teamStressScore : overallStressScore;
+
+  const formatLabel = (date: Date, idx: number) =>
+    date.toLocaleDateString(locale === "ru" ? "ru-RU" : "en-US", { month: "short", day: "numeric" }) || `W${idx + 1}`;
+  const normalizeValue = (value: number) => Number.isFinite(value) ? Number(value.toFixed(1)) : 0;
+
+  const buildTimeseriesFromRuns = (runsInput: any[], fallbackScore: number) => {
+    if (runsInput.length >= 2) {
+      return runsInput.map((run: any, idx: number) => ({
+        label: run.launchedAt ? formatLabel(new Date(run.launchedAt), idx) : `W${idx + 1}`,
+        value: normalizeValue(getDisplayStressIndex(run.avgStressIndex, run.avgEngagementScore) ?? fallbackScore),
+        date: run.launchedAt ?? null,
+      }));
+    }
+    if (runsInput.length === 1) {
+      const run = runsInput[0];
+      const value = normalizeValue(getDisplayStressIndex(run.avgStressIndex, run.avgEngagementScore) ?? fallbackScore);
+      const currentDate = run.launchedAt ? new Date(run.launchedAt) : new Date();
+      const prevDate = new Date(currentDate.getTime() - 7 * 24 * 60 * 60 * 1000);
+      return [
+        { label: formatLabel(prevDate, 0), value, date: prevDate },
+        { label: formatLabel(currentDate, 1), value, date: currentDate },
+      ];
+    }
+    return [];
+  };
+
+  const buildTimeseriesFromHistory = (history: any[], fallbackScore: number, aggregate: boolean) => {
+    if (history.length === 0) return [];
+    if (!aggregate) {
+      return history.map((entry: any, idx: number) => ({
+        label: entry.periodLabel ?? formatLabel(new Date(entry.createdAt), idx),
+        value: normalizeValue(getDisplayStressIndex(entry.stressIndex, entry.engagementScore) ?? fallbackScore),
+        date: entry.createdAt ?? null,
+      }));
+    }
+    const buckets = new Map<string, { date: Date; sum: number; count: number }>();
+    history.forEach((entry: any) => {
+      const date = entry.createdAt ? new Date(entry.createdAt) : new Date();
+      const key = date.toISOString().slice(0, 10);
+      const current = buckets.get(key) ?? { date, sum: 0, count: 0 };
+      current.sum += getDisplayStressIndex(entry.stressIndex, entry.engagementScore) ?? fallbackScore;
+      current.count += 1;
+      buckets.set(key, current);
+    });
+    return Array.from(buckets.values())
+      .sort((a, b) => a.date.getTime() - b.date.getTime())
+      .map((bucket, idx) => ({
+        label: formatLabel(bucket.date, idx),
+        value: normalizeValue(bucket.sum / Math.max(1, bucket.count)),
+        date: bucket.date,
+      }));
+  };
+
+  const buildFlatTimeseries = (baseScore: number, points = 4) => {
+    const base = normalizeValue(baseScore);
+    const now = Date.now();
+    return Array.from({ length: points }, (_, idx) => {
+      const date = new Date(now - (points - idx - 1) * 7 * 24 * 60 * 60 * 1000);
+      return {
+        label: formatLabel(date, idx),
+        value: base,
+        date,
+      };
+    });
+  };
+
+  const overallRunSeries = buildTimeseriesFromRuns(safeRuns, overallStressScore);
+  const overallHistorySeries = buildTimeseriesFromHistory(overallHistory, avgStress || overallStressScore, true);
+  const teamRunSeries = buildTimeseriesFromRuns(teamRunsWithStats, teamStressScore);
+  const teamHistorySeries = buildTimeseriesFromHistory(teamHistory, teamStressScore, false);
+
+  const overallReportTimeseries =
+    overallResponseSeries.length > 0
+      ? overallResponseSeries
+      : overallHistorySeries.length > 0
+        ? overallHistorySeries
+        : overallRunSeries.length > 0
+          ? overallRunSeries
+          : buildFlatTimeseries(avgStress || overallStressScore);
+  const hasOverallResponses = overallStats.overallCount > 0;
+  const hasTeamResponses = teamStats ? teamStats.overallCount > 0 : false;
+  const teamHasData = Boolean(showTeamReport && reportTeam && teamHasMembers && hasTeamResponses);
+  const teamReportTimeseries =
+    teamHasData
+      ? teamResponseSeries.length > 0
+        ? teamResponseSeries
+        : teamHistorySeries.length > 0
+          ? teamHistorySeries
+          : teamRunSeries.length > 0
+            ? teamRunSeries
+            : []
+      : [];
+  const reportTimeseries = showTeamReport ? teamReportTimeseries : overallReportTimeseries;
+  const hasReportRuns = showTeamReport ? hasTeamRuns : hasOverallRuns;
+  const hasReportHistory = showTeamReport ? teamHistory.length > 0 : overallHistory.length > 0;
+  const hasReportResponses = showTeamReport ? hasTeamResponses : hasOverallResponses;
+  const showSurveyNotice = showTeamReport
+    ? !teamHasData
+    : !hasReportResponses && !hasReportRuns && !hasReportHistory;
+  const reportScore = showTeamReport ? (teamHasData ? reportScoreRaw : 0) : reportScoreRaw;
+  const resolvedTeamEngagement =
+    teamHasData
+      ? hasTeamResponses
+        ? teamStats?.engagementAvg ?? 0
+        : getEngagementFromParticipation(reportTeam.participation, reportTeam.engagementScore) ?? 0
+      : 0;
+  const resolvedTeamStress =
+    teamHasData
+      ? hasTeamResponses && teamStressAvg != null
+        ? teamStressAvg
+        : getDisplayStressIndex(reportTeam.stressIndex, reportTeam.engagementScore) ?? 0
+      : 0;
+
+  const overallDriverCards = hasTeams
     ? [
-        { name: isRu ? "Вовлечённость" : "Alignment", score: Math.max(0, avgEngagementRaw), delta: 0 },
-        { name: isRu ? "Нагрузка" : "Workload", score: Math.max(0, avgStressRaw), delta: 0 },
+        { name: isRu ? "Вовлечённость" : "Alignment", score: Math.max(0, avgEngagement), delta: 0 },
+        { name: isRu ? "Нагрузка" : "Workload", score: Math.max(0, avgStress), delta: 0 },
       ]
     : [];
-  const watchThreshold = 7.5;
-  const firstDate = reportTimeseries[0]?.date ? new Date(reportTimeseries[0].date) : new Date();
-  const lastDate = reportTimeseries[reportTimeseries.length - 1]?.date ? new Date(reportTimeseries[reportTimeseries.length - 1].date) : new Date();
-  const periodFrom = firstDate.toISOString().slice(0, 10);
-  const periodTo = lastDate.toISOString().slice(0, 10);
+  const teamDriverCards =
+    reportTeam && showTeamReport && teamHasData
+      ? [
+          {
+            name: isRu ? "Вовлечённость" : "Alignment",
+            score: Math.max(0, resolvedTeamEngagement),
+            delta: 0,
+          },
+          {
+            name: isRu ? "Нагрузка" : "Workload",
+            score: Math.max(0, resolvedTeamStress),
+            delta: 0,
+          },
+        ]
+      : [];
+  const reportDriverCards = showTeamReport ? teamDriverCards : overallDriverCards;
+
+  const getPeriodBounds = (series: { date?: string | number | Date | null }[], fallbackDate?: Date | null) => {
+    const fallback = fallbackDate ?? new Date();
+    const firstDate = series[0]?.date ? new Date(series[0].date) : fallback;
+    const lastDate = series[series.length - 1]?.date ? new Date(series[series.length - 1].date as any) : fallback;
+    return {
+      from: firstDate.toISOString().slice(0, 10),
+      to: lastDate.toISOString().slice(0, 10),
+    };
+  };
+  const overallPeriod = getPeriodBounds(overallReportTimeseries, safeRuns[0]?.launchedAt ?? null);
+  const teamPeriod = getPeriodBounds(teamReportTimeseries, teamRuns[0]?.launchedAt ?? null);
+  const reportPeriodFrom = showTeamReport ? teamPeriod.from : overallPeriod.from;
+  const reportPeriodTo = showTeamReport ? teamPeriod.to : overallPeriod.to;
+  const stressDrivers = getStressDrivers({
+    workspaceId: user.organizationId,
+    dateRange: { start: new Date(reportPeriodFrom), end: new Date(reportPeriodTo), locale },
+  }); // TODO: заменить моки на реальные AI-инсайты на основе ответов опросов.
+  const reportTeamParticipation = teamHasData ? Math.round(reportTeam?.participation ?? 0) : 0;
+  const reportTeamEngagement = teamHasData ? resolvedTeamEngagement : 0;
+  const reportTeamStress = teamHasData ? resolvedTeamStress : 0;
+  const teamHasMetrics = !!reportTeam && showTeamReport && teamHasData;
+  const teamStatus = reportTeam
+    ? getTeamStatus(reportTeamStress, reportTeamEngagement, reportTeamParticipation)
+    : "watch";
+  const teamStatusAi = teamHasMetrics ? teamStatusMeta[teamStatus].ai : "";
+  const teamStatusBadge = teamHasMetrics ? teamStatusMeta[teamStatus] : null;
+  const teamDrivers = reportTeam && showTeamReport && teamHasData
+    ? [
+        {
+          name: isRu ? "Вовлечённость" : "Engagement",
+          score: resolvedTeamEngagement,
+        },
+        { name: isRu ? "Нагрузка" : "Workload", score: resolvedTeamStress },
+      ]
+    : [];
+  const teamStrengths = teamHasMetrics
+    ? [
+        ...(reportTeamEngagement >= 6.5
+          ? [isRu ? "Стабильная вовлечённость" : "Stable engagement"]
+          : []),
+        ...(reportTeamParticipation >= 60
+          ? [isRu ? "Хорошее участие" : "Strong participation"]
+          : []),
+      ]
+    : [];
+  const teamRisks = teamHasMetrics
+    ? [
+        ...(reportTeamStress >= 7
+          ? [isRu ? "Высокая нагрузка" : "High workload"]
+          : []),
+        ...(reportTeamParticipation < 60
+          ? [isRu ? "Низкое участие" : "Low participation"]
+          : []),
+      ]
+    : [];
+  const teamSuggestedActions = teamHasMetrics ? getTeamActionsByStatus(teamStatus).map((a) => a.title) : [];
 
   const computeWeekdayStreak = (dates: (Date | null | undefined)[]) => {
     const daySet = new Set(
@@ -119,7 +546,7 @@ export default async function OverviewPage() {
     return streak;
   };
 
-  const streak = computeWeekdayStreak(reportTimeseries.map((p) => (p as any).date ? new Date((p as any).date) : null));
+  const streak = computeWeekdayStreak(overallReportTimeseries.map((p) => (p as any).date ? new Date((p as any).date) : null));
   const focusActions = isDemo ? (initialActions.filter((a) => a.status !== "done").slice(0, 3) as ActionItem[]) : [];
   const dueLabel = (days: number) => {
     if (days < 0) return isRu ? `Просрочено на ${Math.abs(days)} дн.` : `Overdue by ${Math.abs(days)} days`;
@@ -127,7 +554,7 @@ export default async function OverviewPage() {
     return isRu ? `До срока: ${days} дн.` : `Due in ${days} days`;
   };
 
-  if (!isDemo && !hasTeams && !hasRuns) {
+  if (!isDemo && !hasTeams && !hasOverallRuns) {
     return (
       <div className="space-y-6">
         <header className="flex items-center justify-between">
@@ -135,7 +562,7 @@ export default async function OverviewPage() {
             <p className="text-xs font-semibold uppercase tracking-[0.22em] text-primary">StressSense</p>
             <h1 className="text-2xl font-semibold text-slate-900">{isRu ? "Обзор" : "Overview"}</h1>
             <p className="text-sm text-slate-600">
-              {isRu ? "Данных ещё нет — запустите первый опрос и добавьте команды." : "No data yet — launch your first survey and add teams."}
+              {isRu ? "Данных ещё нет — добавьте команды, чтобы начать собирать метрики." : "No data yet — add teams to start collecting metrics."}
             </p>
           </div>
         </header>
@@ -145,12 +572,9 @@ export default async function OverviewPage() {
             {isRu ? "Начните с первого действия" : "Start with your first step"}
           </p>
           <p className="mt-1 text-sm text-slate-600">
-            {isRu ? "Добавьте команду и запустите короткий опрос, чтобы увидеть метрики стресса и вовлечённости." : "Add a team and launch a quick pulse to see stress and engagement metrics."}
+            {isRu ? "Добавьте команду, чтобы увидеть метрики стресса и вовлечённости." : "Add a team to see stress and engagement metrics."}
           </p>
           <div className="mt-4 flex flex-wrap gap-3">
-            <Link href="/app/surveys/new" className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:brightness-105">
-              {isRu ? "Запустить опрос" : "Launch survey"}
-            </Link>
             <Link href="/app/teams" className="rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-800 transition hover:border-primary/40 hover:text-primary">
               {isRu ? "Добавить команду" : "Add team"}
             </Link>
@@ -170,7 +594,8 @@ export default async function OverviewPage() {
             {isRu ? "Краткий снимок состояния рабочего пространства." : "Quick snapshot of your StressSense workspace."}
           </p>
         </div>
-        <div className="flex flex-wrap items-center justify-end gap-3 text-xs">
+        <div className="flex flex-wrap items-center justify-end gap-4 text-xs">
+          <OverviewReportSelector teams={teamOptions} labels={selectorLabels} showAllOption={isAdminLike || isDemo} />
           <div className="flex items-center gap-2 rounded-full bg-amber-50 px-3 py-1 text-sm font-semibold text-amber-800 ring-1 ring-amber-200">
             <span>🔥</span>
             <span>{isRu ? `Серия опросов: ${streak} дн.` : `Survey streak: ${streak} days`}</span>
@@ -178,200 +603,119 @@ export default async function OverviewPage() {
         </div>
       </header>
 
-      <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="flex flex-wrap items-start justify-between gap-6">
-          <div className="space-y-2">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary">At a glance</p>
-            <h3 className="text-xl font-semibold text-slate-900">{isRu ? "Здоровье пространства" : "Workspace health"}</h3>
-            <p className="text-sm text-slate-600 max-w-xl">
-              {isRu ? "Стресс, участие и вовлечённость в одном виде." : "Snapshot of stress, participation, engagement."}
-            </p>
+      {!showTeamReport && (
+        <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-6">
+            <div className="space-y-2">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary">At a glance</p>
+              <h3 className="text-xl font-semibold text-slate-900">{isRu ? "Общий обзор стресса" : "Overall stress overview"}</h3>
+              <p className="text-sm text-slate-600 max-w-xl">
+                {isRu ? "Средние показатели по всем командам." : "Average stress signals across all teams."}
+              </p>
+              {overallMeta && (
+                <span
+                  className={`mt-2 inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
+                    overallMeta.tone === "emerald"
+                      ? "bg-emerald-50 text-emerald-700"
+                      : overallMeta.tone === "amber"
+                        ? "bg-amber-50 text-amber-700"
+                        : overallMeta.tone === "orange"
+                          ? "bg-orange-50 text-orange-700"
+                          : "bg-rose-50 text-rose-700"
+                  }`}
+                >
+                  {isRu ? overallMeta.label : overallMeta.badge}
+                </span>
+              )}
+            </div>
+            <div className="grid grid-cols-2 gap-3 text-sm md:grid-cols-4">
+              <Metric label={isRu ? "Средний индекс стресса" : "Average stress index"} value={hasTeams ? `${avgStress.toFixed(1)}` : "—"} />
+              <Metric label={isRu ? "Уровень участия" : "Participation rate"} value={hasTeams ? `${participation}%` : "—"} />
+              <Metric label={isRu ? "Индекс вовлечённости" : "Engagement score"} value={hasTeams ? `${avgEngagement.toFixed(1)}` : "—"} />
+            </div>
           </div>
-          <div className="grid grid-cols-2 gap-3 text-sm md:grid-cols-4">
-            <Metric label={isRu ? "Средний индекс стресса" : "Average stress index"} value={hasTeams ? `${avgStress.toFixed(1)}` : "—"} />
-            <Metric label={isRu ? "Уровень участия" : "Participation rate"} value={hasTeams ? `${participation}%` : "—"} />
-            <Metric label={isRu ? "Индекс вовлечённости" : "Engagement score"} value={hasTeams ? `${avgEngagement.toFixed(1)}` : "—"} />
-            <Metric label={isRu ? "Активных опросов" : "Active surveys"} value={activeSurveys ? `${activeSurveys}` : "0"} />
-          </div>
-        </div>
-      </section>
+        </section>
+      )}
 
-      <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
-        {hasRuns ? (
+      {showTeamReport && !teamHasData ? (
+        <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary">
+            {isRu ? "Отчёт по команде" : "Team survey report"}
+          </p>
+          <p className="mt-2 text-sm text-slate-600">
+            {isRu
+              ? "В этой команде пока нет ответов на опросы. Добавьте участников и запустите опрос."
+              : "This team has no survey responses yet. Add members and launch a survey."}
+          </p>
+        </section>
+      ) : (
+        <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
           <SurveyReportWithAiPanel
-            title={isRu ? "Отчёт по опросу" : "Survey report"}
-            subtitle={isRu ? "Онлайн-просмотр" : "Live preview"}
-            score={engagementScore || 0}
+            title={
+              showTeamReport
+                ? isRu
+                  ? "Отчёт по команде"
+                  : "Team survey report"
+                : isRu
+                  ? "Отчёт по опросу"
+                  : "Survey report"
+            }
+            subtitle={
+              showTeamReport
+                ? reportTeam?.name ?? ""
+                : isRu
+                  ? "Онлайн-просмотр"
+                  : "Live preview"
+            }
+            score={reportScore || 0}
             delta={0}
             deltaDirection="flat"
             periodLabel={isRu ? "Последние 6 месяцев" : "Last 6 months"}
             timeseries={reportTimeseries}
-            drivers={driverCards}
+            drivers={reportDriverCards}
             ctaLabel={isRu ? "Проанализировать вовлечённость" : "Analyze engagement"}
             locale={locale}
-            periodFrom={periodFrom}
-            periodTo={periodTo}
+            reportContext={{
+              scope: showTeamReport ? "team" : "org",
+              scopeId: showTeamReport ? reportTeam?.id ?? user.organizationId : user.organizationId,
+              dateRange: { from: reportPeriodFrom, to: reportPeriodTo },
+            }}
+            aiEnabled={aiEnabled}
           />
-        ) : (
-          <div className="space-y-2 text-sm text-slate-700">
-            <p className="text-base font-semibold text-slate-900">{isRu ? "Нет данных опросов" : "No survey data yet"}</p>
-            <p className="text-slate-600">
-              {isRu ? "Запустите первый опрос, чтобы увидеть тренды стресса и вовлечённости." : "Launch your first survey to see stress and engagement trends."}
-            </p>
-            <Link href="/app/surveys/new" className="inline-flex rounded-full bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:brightness-105">
-              {isRu ? "Запустить опрос" : "Start survey"}
-            </Link>
-          </div>
-        )}
-      </section>
-
-      <section className="grid gap-3 lg:grid-cols-2">
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary">
-            {isRu ? "AI инсайт" : "AI insight"}
-          </p>
-          {gateAdvanced ? (
-            <p className="mt-3 text-sm text-slate-600">
-              {isRu ? "Доступно через 7 дней после старта." : "Available in 7 days after start."}
-            </p>
-          ) : hasRuns ? (
-            <>
-              <ul className="mt-3 space-y-2 text-sm text-slate-700">
-                <li>
-                  {isRu
-                    ? "• Вовлечённость стабильна, поддержку и признание стоит укреплять."
-                    : "• Engagement steady; recognition and support drive sentiment."}
-                </li>
-                <li>
-                  {isRu
-                    ? "• Следите за нагрузкой в Product и уточняйте приоритеты недели."
-                    : "• Watch workload spikes in Product; clarify weekly priorities."}
-                </li>
-                <li>
-                  {isRu
-                    ? "• Участие хорошее — короткие апдейты помогут удержать уровень."
-                    : "• Participation is healthy; keep short updates to sustain it."}
-                </li>
-              </ul>
-              <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-primary">
-                {isRu ? "AI сгенерировано" : "AI generated"}
-              </p>
-            </>
-          ) : (
-            <p className="mt-3 text-sm text-slate-600">
-              {isRu ? "Пока нет данных для инсайтов. Запустите опрос." : "No insights yet. Launch a survey to generate insights."}
-            </p>
-          )}
-        </div>
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="flex items-center justify-between">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary">
-              {isRu ? "Фокус недели" : "Your focus this week"}
-            </p>
-            <a href="/app/actions" className="text-sm font-semibold text-primary hover:underline">
-              {isRu ? "Открыть Action center" : "Open Action center"}
-            </a>
-          </div>
-          {gateAdvanced ? (
-            <p className="mt-3 text-sm text-slate-600">
-              {isRu ? "Фокус и действия появятся через 7 дней." : "Focus and actions will appear in 7 days."}
-            </p>
-          ) : focusActions.length > 0 ? (
-            <div className="mt-3 space-y-3">
-              {focusActions.map((a) => (
-                <div key={a.id} className="rounded-2xl border border-slate-100 bg-slate-50 px-3 py-3 shadow-inner">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-700 ring-1 ring-slate-200">{a.teamName}</span>
-                    <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-700 ring-1 ring-slate-200">{a.priority}</span>
-                    <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-700 ring-1 ring-slate-200">{dueLabel(a.dueInDays)}</span>
-                  </div>
-                  <p className="mt-2 text-sm font-semibold text-slate-900">{a.title}</p>
-                  <p className="text-xs text-slate-600">{a.description}</p>
-                  <p className="mt-1 text-xs font-semibold text-slate-700">
-                    {isRu ? "Драйвер" : "Driver"}: {a.driver} · {isRu ? "Опрос" : "Survey"} {a.sourceSurveyDate}
-                  </p>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {a.tags.map((t) => (
-                      <span key={t} className="rounded-full bg-white px-2 py-1 text-[11px] font-semibold text-slate-700 ring-1 ring-slate-200">
-                        {t}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              ))}
+          {showSurveyNotice && (
+            <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-slate-600">
+              <span>
+                {showTeamReport
+                  ? isRu
+                    ? "Данных по опросам команды пока нет."
+                    : "No team survey data yet."
+                  : isRu
+                    ? "Данных опросов пока нет."
+                    : "No survey data yet."}
+              </span>
             </div>
-          ) : (
-            <p className="mt-3 text-sm text-slate-600">
-              {isRu ? "Пока нет активных действий. Начните с опроса или добавьте действие вручную." : "No actions yet. Start with a survey or add an action manually."}
-            </p>
           )}
-        </div>
-      </section>
+        </section>
+      )}
+
+      {!showTeamReport && (
+        <StressDriversGrid
+          drivers={stressDrivers}
+          title={isRu ? "Драйверы стресса" : "Stress drivers"}
+          subtitle={
+            isRu
+              ? "Сводка по ключевым факторам стресса: как они изменились за выбранный период."
+              : "A summary of key stress factors and how they changed in the selected period."
+          }
+          emptyMessage={
+            isRu
+              ? "AI-инсайты по драйверам появятся после первых опросов."
+              : "AI driver insights will appear after the first surveys."
+          }
+        />
+      )}
 
       {/* Убрали дублирующий блок "Фокус недели" с nudges */}
-
-      <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-        <h3 className="text-lg font-semibold text-slate-900">{isRu ? "Недавние опросы" : "Recent surveys"}</h3>
-        <div className="mt-3 space-y-2">
-          {safeRuns.map((run: any) => (
-            <div key={run.id} className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm shadow-sm">
-              <div>
-                <p className="font-semibold text-slate-900">{run.title}</p>
-                <p className="text-xs text-slate-500">
-                  {new Date(run.launchedAt).toLocaleDateString()} · {isRu ? "стресс" : "stress"} {run.avgStressIndex?.toFixed(1) ?? "n/a"} ·{" "}
-                  {isRu ? "вовлечённость" : "engagement"} {run.avgEngagementScore?.toFixed(1) ?? "n/a"}
-                </p>
-              </div>
-            </div>
-          ))}
-          {safeRuns.length === 0 && <p className="text-sm text-slate-600">{isRu ? "Пока нет опросов." : "No surveys yet."}</p>}
-        </div>
-      </section>
-
-      <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-lg font-semibold text-slate-900">{isRu ? "Команды" : "Teams"}</h3>
-            <p className="text-sm text-slate-600">
-              {isRu ? "Стресс / Вовлечённость / Участие" : "Stress / Engagement / Participation"}
-            </p>
-          </div>
-          <a href="/app/teams" className="text-sm font-semibold text-primary hover:underline">
-            Все команды
-          </a>
-        </div>
-        <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-          {safeTeams.slice(0, 6).map((team: any) => (
-            <div key={team.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4 shadow-sm">
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-semibold text-slate-900">{team.name}</p>
-                {(() => {
-                  const statusValue = team.stressIndex ?? 0;
-                  const statusLabel =
-                    statusValue >= watchThreshold ? (isRu ? "В риске" : "At risk") : isRu ? "Watch" : "Watch";
-                  const badgeClass =
-                    statusValue >= watchThreshold ? "bg-rose-50 text-rose-700" : "bg-amber-50 text-amber-700";
-                  return (
-                    <span className={`rounded-full px-3 py-1 text-[11px] font-semibold uppercase ${badgeClass}`}>
-                      {statusLabel}
-                    </span>
-                  );
-                })()}
-              </div>
-              <div className="mt-3 flex items-center justify-between text-xs font-semibold text-slate-700">
-                <span>{isRu ? "Стресс" : "Stress"} {(team.stressIndex ?? 0).toFixed(1)}</span>
-                <span>{isRu ? "Вовл." : "Eng"} {(team.engagementScore ?? 0).toFixed(1)}</span>
-                <span>{isRu ? "Участие" : "Part"} {Math.round(team.participation ?? 0)}%</span>
-              </div>
-            </div>
-          ))}
-          {safeTeams.length === 0 && (
-            <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-5 text-sm text-slate-600">
-              Пока нет команд. Создайте команду, чтобы получать метрики.
-            </div>
-          )}
-        </div>
-      </section>
 
     </div>
   );

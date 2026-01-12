@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { ensureDefaultSurveyTemplate } from "@/lib/surveySeed";
+import { createNotification } from "@/lib/notifications";
 
 type CreateSurveyInput = {
   name: string;
@@ -19,7 +20,7 @@ export async function createSurvey(input: CreateSurveyInput) {
   const user = await getCurrentUser();
   if (!user) return { error: "Unauthorized" };
   const role = (user.role ?? "").toUpperCase();
-  if (!["HR", "MANAGER", "ADMIN"].includes(role)) return { error: "Forbidden" };
+  if (!["HR", "MANAGER", "ADMIN", "SUPER_ADMIN"].includes(role)) return { error: "Forbidden" };
 
   const template = await ensureDefaultSurveyTemplate();
   if (!template) return { error: "No survey templates available" };
@@ -45,6 +46,35 @@ export async function createSurvey(input: CreateSurveyInput) {
           avgEngagementScore: null,
           tags: [],
         },
+      })
+    )
+  );
+
+  const surveyLabel = input.name?.trim() || template.name || "Stress survey";
+  const targetUserIds = new Set<string>();
+  if (input.teamIds.length) {
+    const teamUsers = await prisma.userTeam.findMany({
+      where: { teamId: { in: input.teamIds } },
+      select: { userId: true },
+    });
+    teamUsers.forEach((u: any) => targetUserIds.add(u.userId));
+  } else {
+    const orgUsers = await prisma.user.findMany({
+      where: { organizationId: user.organizationId },
+      select: { id: true },
+    });
+    orgUsers.forEach((u: any) => targetUserIds.add(u.id));
+  }
+  const notificationBody = `"${surveyLabel}" is now open.`;
+  await Promise.all(
+    Array.from(targetUserIds).map((userId) =>
+      createNotification({
+        organizationId: user.organizationId,
+        userId,
+        type: "SURVEY_OPENED",
+        title: "New stress survey is open",
+        body: notificationBody,
+        link: "/app/my/stress-survey",
       })
     )
   );

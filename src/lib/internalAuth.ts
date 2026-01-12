@@ -9,7 +9,14 @@ export async function internalSignIn(email: string, password: string) {
   if (!user) return null;
   const ok = await bcrypt.compare(password, user.passwordHash);
   if (!ok) return null;
-  (await cookies()).set(INTERNAL_SESSION, user.id, { httpOnly: true, sameSite: "lax", path: "/internal" });
+  const secureCookies = process.env.NODE_ENV === "production";
+  (await cookies()).set(INTERNAL_SESSION, user.id, {
+    httpOnly: true,
+    sameSite: "strict",
+    secure: secureCookies,
+    path: "/internal",
+    maxAge: 60 * 60 * 8,
+  });
   return user;
 }
 
@@ -20,5 +27,12 @@ export async function getInternalUser() {
 }
 
 export async function internalSignOut() {
-  (await cookies()).delete(INTERNAL_SESSION);
+  const secureCookies = process.env.NODE_ENV === "production";
+  (await cookies()).set(INTERNAL_SESSION, "", {
+    httpOnly: true,
+    sameSite: "strict",
+    secure: secureCookies,
+    path: "/internal",
+    maxAge: 0,
+  });
 }

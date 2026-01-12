@@ -5,16 +5,16 @@ import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { createCheckoutSession } from "@/lib/billing";
 
-export async function startCheckout(planId: string) {
+export async function startCheckout(seats: number) {
   const user = await getCurrentUser();
-  if (!user || user.role !== "ADMIN") return { error: "No access" };
-  const url = await createCheckoutSession(user.organizationId, planId);
+  if (!user || !["ADMIN", "SUPER_ADMIN"].includes(user.role)) return { error: "No access" };
+  const url = await createCheckoutSession(user.organizationId, seats);
   return { url };
 }
 
 export async function handleCheckoutReturn(sessionId: string) {
   const user = await getCurrentUser();
-  if (!user || user.role !== "ADMIN") redirect("/app/billing");
+  if (!user || !["ADMIN", "SUPER_ADMIN"].includes(user.role)) redirect("/app/billing");
   const sub = await prisma.subscription.findUnique({ where: { organizationId: user.organizationId } });
   await prisma.subscription.update({
     where: { organizationId: user.organizationId },

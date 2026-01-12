@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { getTeamStatus, type InsightTag, type TeamStatus } from "@/lib/statusLogic";
 import { createNudgesForTeamFromSurvey } from "@/lib/nudgesStore";
+import { BILLING_MODEL, MIN_SEATS } from "@/config/pricing";
 import crypto from "crypto";
 
 export type Tag = InsightTag | "communication" | "participation" | "wellbeing" | "focus" | "boundaries";
@@ -36,7 +37,7 @@ export async function createDemoOrganization(name: string, ownerEmail?: string) 
         team = await prisma.team.create({
           data: {
             name: "Demo team",
-            description: "Starter team",
+            description: "Pilot team",
             organizationId: org.id,
             stressIndex: 5.5,
             engagementScore: 7.0,
@@ -50,7 +51,7 @@ export async function createDemoOrganization(name: string, ownerEmail?: string) 
         member = await prisma.member.create({
           data: {
             displayName: existingUser.name ?? "Demo manager",
-            role: "Manager",
+            role: "MANAGER",
             email: existingUser.email,
             organizationId: org.id,
             teamId: team.id,
@@ -79,10 +80,15 @@ export async function createDemoOrganization(name: string, ownerEmail?: string) 
     slug = `${base}-${Math.floor(Math.random() * 9000 + 1000)}`;
   }
   const org = await prisma.organization.create({ data: { name, slug, isDemo: true, inviteToken: generateInviteToken() } });
+  await prisma.organizationSettings.upsert({
+    where: { organizationId: org.id },
+    create: { organizationId: org.id, featureFlags: { billingModel: BILLING_MODEL, billingSeats: MIN_SEATS } },
+    update: { featureFlags: { billingModel: BILLING_MODEL, billingSeats: MIN_SEATS } },
+  });
   const team = await prisma.team.create({
     data: {
       name: "Пилотная команда",
-      description: "Starter team",
+      description: "Pilot team",
       organizationId: org.id,
       stressIndex: 5.5,
       engagementScore: 7.0,
@@ -95,14 +101,14 @@ export async function createDemoOrganization(name: string, ownerEmail?: string) 
       email: ownerEmail ?? "manager@demo.local",
       name: "Новый менеджер",
       passwordHash: "",
-      role: "Manager",
+      role: "MANAGER",
       organizationId: org.id,
     },
   });
   const member = await prisma.member.create({
     data: {
       displayName: "Новый менеджер",
-      role: "Manager",
+      role: "MANAGER",
       email: user.email,
       organizationId: org.id,
       teamId: team.id,

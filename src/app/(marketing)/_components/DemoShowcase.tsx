@@ -53,10 +53,8 @@ export default async function DemoShowcase() {
           <div className="relative overflow-hidden rounded-3xl bg-white/95 p-6 shadow-2xl ring-1 ring-slate-200">
             <div className="flex items-center justify-between rounded-2xl bg-slate-50 p-4">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-500">Preview</p>
                 <p className="text-lg font-semibold text-slate-900">{isRu ? "Обзор стресса и вовлечённости" : "Stress & engagement overview"}</p>
               </div>
-              <div className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">Demo</div>
             </div>
 
             <div className="mt-4 grid gap-4 sm:grid-cols-2">

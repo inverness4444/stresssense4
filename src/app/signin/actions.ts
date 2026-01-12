@@ -7,6 +7,7 @@ import { headers } from "next/headers";
 import { rateLimit } from "@/lib/rateLimit";
 
 export async function signInAction(formData: FormData) {
+  const secureCookies = process.env.NODE_ENV === "production";
   const ip = (await headers()).get("x-forwarded-for") ?? "unknown";
   const limit = rateLimit(`signin:${ip}`, { limit: 100, windowMs: 60_000 });
   if (!limit.allowed) {
@@ -32,10 +33,12 @@ export async function signInAction(formData: FormData) {
   const store = await cookies();
   store.set("ss_user_id", user.id, {
     httpOnly: true,
+    sameSite: "strict",
+    secure: secureCookies,
     path: "/",
     maxAge: 60 * 60 * 24 * 7,
   });
-  store.set("ss_demo_mode", "0", { path: "/", maxAge: 60 * 60 * 24 });
+  store.set("ss_demo_mode", "0", { path: "/", maxAge: 60 * 60 * 24, sameSite: "strict", secure: secureCookies });
 
   return { success: true };
 }
