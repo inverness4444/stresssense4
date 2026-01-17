@@ -5,8 +5,10 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "vercel-build": "prisma generate && next build",
     "start": "next start",
     "lint": "eslint",
+    "postinstall": "prisma generate",
     "typecheck": "tsc --noEmit",
     "security:check": "npm run lint && npm run typecheck && node scripts/security-check.js",
     "smoke:check": "node scripts/smoke-check.js",
