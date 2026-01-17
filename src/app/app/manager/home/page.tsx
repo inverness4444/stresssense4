@@ -8,7 +8,7 @@ import { getDisplayStressIndex, getEngagementFromParticipation } from "@/lib/met
 
 export default async function ManagerHomePage() {
   const user = await getCurrentUser();
-  if (!user) redirect("/login");
+  if (!user) redirect("/signin");
   if (["ADMIN", "HR", "SUPER_ADMIN"].includes((user.role ?? "").toUpperCase())) redirect("/app/overview");
   const locale = await getLocale();
 

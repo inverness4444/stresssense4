@@ -81,8 +81,8 @@ function invalidLink() {
       <p className="text-xl font-semibold text-slate-900">Ссылка недействительна или устарела</p>
       <p className="text-sm text-slate-600">Попросите владельца компании отправить новую ссылку.</p>
       <div className="mt-3 flex justify-center gap-3">
-        <Link href="/login" className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm hover:brightness-105">
-          Вернуться к логину
+        <Link href="/signin" className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm hover:brightness-105">
+          Вернуться к входу
         </Link>
         <Link href="/" className="rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-800 hover:border-primary/40 hover:text-primary">
           На главную

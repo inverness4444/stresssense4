@@ -7,7 +7,7 @@ import Link from "next/link";
 export default async function ActionsPage() {
   const user = await getCurrentUser();
   if (!user) {
-    redirect("/login");
+    redirect("/signin");
   }
   const role = (user.role ?? "").toUpperCase();
   const locale = await getLocale();

@@ -31,7 +31,7 @@ export const dynamic = "force-dynamic";
 
 export default async function OverviewPage({ searchParams }: OverviewPageProps) {
   const user = await getCurrentUser();
-  if (!user) redirect("/login");
+  if (!user) redirect("/signin");
   const role = (user.role ?? "").toUpperCase();
   if (role === "EMPLOYEE") redirect("/app/my/home");
   const locale = await getLocale();

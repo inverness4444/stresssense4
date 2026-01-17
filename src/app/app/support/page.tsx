@@ -11,7 +11,7 @@ const TELEGRAM_MANAGER_LINK = `https://t.me/${TELEGRAM_MANAGER}`;
 
 export default async function SupportPage() {
   const user = await getCurrentUser();
-  if (!user) redirect("/login");
+  if (!user) redirect("/signin");
   const locale = await getLocale();
 
   return (

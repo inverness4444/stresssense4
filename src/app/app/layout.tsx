@@ -23,7 +23,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const user = await getCurrentUser();
 
   if (!user) {
-    redirect("/login");
+    redirect("/signin");
   }
 
   const locale = await getLocale();

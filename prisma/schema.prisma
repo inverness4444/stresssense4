@@ -88,6 +88,8 @@ model User {
   passwordHash String
   name         String
   role         UserRole
+  isDeleted    Boolean  @default(false)
+  deletedAt    DateTime?
   balance      Decimal  @default(0) @db.Decimal(12, 2)
   organization Organization @relation(fields: [organizationId], references: [id])
   organizationId String
