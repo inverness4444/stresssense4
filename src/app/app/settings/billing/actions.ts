@@ -350,7 +350,7 @@ export async function payLatestInvoice(orgId: string) {
     if (!Number.isFinite(amountRub) || amountRub <= 0) return { error: "Invalid amount" };
     if (currentBalance < amountRub) return { error: "Insufficient balance" };
 
-    await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx: any) => {
       await tx.invoice.update({ where: { id: dbInvoice.id }, data: { status: "paid" } });
 
       await applyWalletTransaction(
@@ -420,7 +420,7 @@ export async function payLatestInvoice(orgId: string) {
     shouldSaveFlags = true;
   }
 
-  await prisma.$transaction(async (tx) => {
+  await prisma.$transaction(async (tx: any) => {
     await applyWalletTransaction(
       {
         userId: user.id,

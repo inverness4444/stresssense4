@@ -3,6 +3,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { rateLimit } from "@/lib/rateLimit";
 import OpenAI from "openai";
+import type { ResponseInput } from "openai/resources/responses/responses";
 import { env } from "@/config/env";
 import { headers } from "next/headers";
 import { assertSameOrigin } from "@/lib/apiAuth";
@@ -636,7 +637,7 @@ export async function POST(req: Request) {
       const response = await client.responses.create({
         model: modelName,
         instructions,
-        input: enrichedMessages,
+        input: enrichedMessages as ResponseInput,
         max_output_tokens: 500,
       });
       const { text, refusal } = extractText(response);

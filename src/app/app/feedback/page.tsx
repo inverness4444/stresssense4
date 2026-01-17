@@ -55,11 +55,11 @@ export default async function FeedbackPage() {
         }),
       ])
     : [[], []];
-  const countByTeam = counts.reduce<Record<string, number>>((acc, row: any) => {
+  const countByTeam = counts.reduce((acc: Record<string, number>, row: any) => {
     acc[row.teamId] = row._count.teamId;
     return acc;
   }, {});
-  const teamCountById = teamMeta.reduce<Record<string, number>>((acc, team: any) => {
+  const teamCountById = teamMeta.reduce((acc: Record<string, number>, team: any) => {
     if (typeof team.memberCount === "number") acc[team.id] = team.memberCount;
     return acc;
   }, {});
@@ -73,7 +73,7 @@ export default async function FeedbackPage() {
         orderBy: { user: { name: "asc" } },
       })
     : [];
-  const recipientsByTeam = recipientEntries.reduce<Record<string, { id: string; name: string }[]>>((acc, entry: any) => {
+  const recipientsByTeam = recipientEntries.reduce((acc: Record<string, { id: string; name: string }[]>, entry: any) => {
     if (!acc[entry.teamId]) acc[entry.teamId] = [];
     if (entry.user?.id && entry.user?.name && entry.user.id !== user.id) {
       acc[entry.teamId].push({ id: entry.user.id, name: entry.user.name });

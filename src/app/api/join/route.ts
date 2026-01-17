@@ -126,7 +126,7 @@ export async function POST(req: Request) {
         if (["ADMIN", "HR", "SUPER_ADMIN"].includes(existingRole)) {
           return NextResponse.json({ error: "account_in_other_org" }, { status: 400 });
         }
-        const movedUser = await prisma.$transaction(async (tx) => {
+        const movedUser = await prisma.$transaction(async (tx: any) => {
           await tx.userTeam.deleteMany({ where: { userId: existingByEmail.id } });
           await tx.member.updateMany({
             where: { userId: existingByEmail.id, organizationId: { not: org.organization.id } },
@@ -175,7 +175,7 @@ export async function POST(req: Request) {
   }
 
     const hash = await bcrypt.hash(password, 10);
-    const newUser = await prisma.$transaction(async (tx) => {
+    const newUser = await prisma.$transaction(async (tx: any) => {
       const created = await tx.user.create({
         data: {
           email,

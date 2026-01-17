@@ -33,6 +33,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const gateStatus = await getBillingGateStatus(user.organizationId, orgCreatedAt);
   const isDemo = Boolean((user as any)?.organization?.isDemo);
   const aiEnabled = gateStatus.hasPaidAccess || env.isDev;
+  const blockedReason = gateStatus.blockedReason as "trial_expired" | "subscription_inactive" | null;
 
   const [notifications, unread] = await Promise.all([
     recentNotifications(user.id, user.organizationId, 10),
@@ -68,7 +69,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
       <BillingGate
         blocked={!isDemo && !demoMode && gateStatus.blocked}
-        blockedReason={gateStatus.blockedReason}
+        blockedReason={blockedReason}
         locale={locale}
         isAdmin={isAdminRole}
       >

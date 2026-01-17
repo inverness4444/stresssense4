@@ -8,7 +8,8 @@ export async function GET(req: Request) {
   const auth = await authenticateApiRequest(req, ["read:teams"]);
   if ("error" in auth) return auth.error;
 
-  const teams = await prisma.team.findMany({
+  type TeamRow = { id: string; name: string };
+  const teams: TeamRow[] = await prisma.team.findMany({
     where: { organizationId: auth.key!.organizationId },
     select: { id: true, name: true },
     orderBy: { createdAt: "asc" },

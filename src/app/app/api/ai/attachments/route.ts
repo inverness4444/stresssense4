@@ -69,9 +69,19 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "no_files" }, { status: 400 });
   }
 
+  type AttachmentRecord = {
+    id: string;
+    name: string;
+    type: string;
+    size: number;
+    url: string;
+    storageKey: string;
+    openaiFileId: string | null;
+  };
+
   const storageRoot = path.join(process.cwd(), "public", "ai-uploads", user.organizationId, user.id);
   await mkdir(storageRoot, { recursive: true });
-  const attachments = [];
+  const attachments: AttachmentRecord[] = [];
 
   let openaiClient: OpenAI | null = null;
   if (env.OPENAI_API_KEY) {

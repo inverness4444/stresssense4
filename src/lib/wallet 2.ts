@@ -53,5 +53,5 @@ export async function applyWalletTransactionTx(client: TxClient, input: WalletTr
 }
 
 export async function applyWalletTransaction(input: WalletTransactionInput) {
-  return prisma.$transaction((tx) => applyWalletTransactionTx(tx, input));
+  return prisma.$transaction((tx: TxClient) => applyWalletTransactionTx(tx, input));
 }

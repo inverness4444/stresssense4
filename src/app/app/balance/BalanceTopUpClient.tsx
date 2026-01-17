@@ -15,7 +15,7 @@ export default function BalanceTopUpClient({ locale, initialAmount = 1000 }: Bal
   const [method, setMethod] = useState<PaymentMethod>("sbp");
   const [network, setNetwork] = useState<"ERC20" | "TRC20">("ERC20");
   const [comment, setComment] = useState<string>("");
-  const [formState, formAction] = useActionState<TopupFormState>(createTopupRequest, { status: "idle" });
+  const [formState, formAction] = useActionState<TopupFormState, FormData>(createTopupRequest, { status: "idle" });
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const statusMessage = useMemo(() => {

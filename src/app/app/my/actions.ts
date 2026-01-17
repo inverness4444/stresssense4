@@ -64,7 +64,8 @@ export async function getMyHomeData() {
 
     const include = { run: { include: { template: { include: { questions: true } } } } };
 
-    const identityFilters = [{ memberId: member.id }];
+    type IdentityFilter = { memberId?: string; respondentEmail?: string };
+    const identityFilters: IdentityFilter[] = [{ memberId: member.id }];
     if (user.email) {
       identityFilters.push({ respondentEmail: user.email });
     }

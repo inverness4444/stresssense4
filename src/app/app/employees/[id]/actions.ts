@@ -53,7 +53,7 @@ export async function updateEmployeeTeams(formData: FormData) {
 
   const rawTeamIds = formData.getAll("teamIds").map((id) => String(id));
   const uniqueTeamIds = Array.from(new Set(rawTeamIds.map((id) => id.trim()).filter(Boolean)));
-  const teams = uniqueTeamIds.length
+  const teams: { id: string }[] = uniqueTeamIds.length
     ? await prisma.team.findMany({
         where: { id: { in: uniqueTeamIds }, organizationId: user.organizationId },
         select: { id: true },
@@ -61,7 +61,7 @@ export async function updateEmployeeTeams(formData: FormData) {
     : [];
   const allowedTeamIds = teams.map((t) => t.id);
 
-  await prisma.$transaction(async (tx) => {
+  await prisma.$transaction(async (tx: any) => {
     await tx.userTeam.deleteMany({ where: { userId: targetUser.id } });
     if (allowedTeamIds.length) {
       await tx.userTeam.createMany({
@@ -103,7 +103,7 @@ export async function updateEmployeeRole(formData: FormData) {
     throw new Error("Cannot change your own role.");
   }
 
-  await prisma.$transaction(async (tx) => {
+  await prisma.$transaction(async (tx: any) => {
     await tx.user.update({
       where: { id: targetUser.id },
       data: { role: nextRole },

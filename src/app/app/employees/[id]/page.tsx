@@ -61,7 +61,7 @@ export default async function EmployeeDetailPage({ params, searchParams }: Props
   const canEditRole = ["ADMIN", "HR", "SUPER_ADMIN"].includes(role);
   const employeeRole = (employee.role ?? "").toUpperCase();
   const isAdminRole = ["ADMIN", "HR", "SUPER_ADMIN"].includes(employeeRole);
-  const allTeams = canEditTeams
+  const allTeams: { id: string; name: string }[] = canEditTeams
     ? await prisma.team.findMany({
         where: { organizationId: user.organizationId },
         orderBy: { name: "asc" },

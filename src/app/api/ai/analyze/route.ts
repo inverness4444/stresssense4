@@ -367,7 +367,7 @@ const buildRunTrendSeries = (
         date: start.toISOString(),
       };
     })
-    .filter((point): point is { label: string; value: number; date?: string } => Boolean(point));
+    .filter((point): point is { label: string; value: number; date: string } => Boolean(point));
 };
 
 const buildStatsForRuns = (runs: RunMetric[], locale: AnalysisLocale, range: { start: Date; end: Date }): StatsResult => {
@@ -599,7 +599,7 @@ export async function POST(req: Request) {
     ];
   }
 
-  const runsInRange =
+  const runsInRange: RunMetric[] =
     scope === "user" && !user.member?.id
       ? []
       : await prisma.surveyRun.findMany({
@@ -776,7 +776,8 @@ export async function POST(req: Request) {
   ) => {
     const resolved = keys
       .map(resolveDriverKey)
-      .filter((key): key is string => Boolean(key) && !exclude.has(key));
+      .filter((key): key is string => Boolean(key))
+      .filter((key) => !exclude.has(key));
     const unique = Array.from(new Set(resolved));
     const items = unique.map((key) => {
       const driver = driverByKey.get(key)!;

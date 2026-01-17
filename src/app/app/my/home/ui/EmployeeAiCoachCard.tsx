@@ -40,7 +40,7 @@ export function EmployeeAiCoachCard({ locale, statusLabel, userId }: Props) {
     ],
   };
 
-  const scaleType: "likert5" | "tenPoint" = "likert5";
+  const scaleType = "likert5" as "likert5" | "tenPoint";
   const answerScale = useMemo(() => {
     if (scaleType === "tenPoint") {
       return Array.from({ length: 11 }).map((_, idx) => ({ value: idx, label: String(idx) }));

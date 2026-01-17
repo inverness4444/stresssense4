@@ -95,7 +95,8 @@ export default async function EmployeesPage({ searchParams }: Props) {
   const seatsOverLimit = seatsUsed > seatsConfigured;
 
   const userIds = users.map((user) => user.id);
-  const userTeamsPromise = userIds.length
+  type UserTeamRow = { userId: string; team: { id: string; name: string } };
+  const userTeamsPromise: Promise<UserTeamRow[]> = userIds.length
     ? prisma.userTeam.findMany({
         where: { userId: { in: userIds } },
         include: { team: true },

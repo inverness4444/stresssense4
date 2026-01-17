@@ -31,7 +31,7 @@ export async function updateUserRole(formData: FormData) {
 
   revalidatePath("/admin/users");
   revalidatePath(`/admin/users/${userId}`);
-  return { ok: true };
+  return;
 }
 
 export async function adjustUserBalance(formData: FormData) {
@@ -62,7 +62,7 @@ export async function adjustUserBalance(formData: FormData) {
   revalidatePath("/admin/transactions");
   revalidatePath("/app/settings/billing");
   revalidatePath("/app/balance");
-  return { ok: true };
+  return;
 }
 
 export async function approveTopupRequest(formData: FormData) {
@@ -70,7 +70,7 @@ export async function approveTopupRequest(formData: FormData) {
   const requestId = String(formData.get("requestId") ?? "");
   if (!requestId) throw new Error("Invalid request");
 
-  await prisma.$transaction(async (tx) => {
+  await prisma.$transaction(async (tx: any) => {
     const request = await tx.topupRequest.findUnique({
       where: { id: requestId },
       select: { id: true, status: true, userId: true, amount: true, currency: true },
@@ -119,7 +119,7 @@ export async function approveTopupRequest(formData: FormData) {
   revalidatePath("/admin/transactions");
   revalidatePath("/app/settings/billing");
   revalidatePath("/app/balance");
-  return { ok: true };
+  return;
 }
 
 export async function rejectTopupRequest(formData: FormData) {
@@ -146,5 +146,5 @@ export async function rejectTopupRequest(formData: FormData) {
   revalidatePath("/admin/topups");
   revalidatePath(`/admin/topups/${requestId}`);
   revalidatePath("/app/balance");
-  return { ok: true };
+  return;
 }

@@ -57,5 +57,5 @@ export async function applyWalletTransaction(input: WalletTransactionInput, tx?:
     return run(tx);
   }
 
-  return prisma.$transaction((db) => run(db as typeof prisma));
+  return prisma.$transaction((db: Prisma.TransactionClient) => run(db as typeof prisma));
 }
