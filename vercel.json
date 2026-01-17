@@ -1,5 +1,4 @@
 {
   "version": 2,
-  "regions": ["iad1", "cdg1"],
-  "//env": "Set env variables in Vercel dashboard. Required: DATABASE_URL, SESSION_SECRET, EMAIL_FROM, SMTP_HOST/PORT/USER/PASSWORD, NEXT_PUBLIC_APP_URL"
+  "regions": ["iad1", "cdg1"]
 }

@@ -369,6 +369,7 @@ async function generateAiQuestions(
 ${fillOnly ? "" : requirementsRu}
 - Не повторяй вопросы из списка recentQuestions.
 - Вопросы короткие, 1-2 предложения.
+- Язык вопросов: только русский.
 - Типы только: scale, text, single_choice, multi_choice.
 - Если сомневаешься в driverKey/polarity, поставь needsReview=true.
 - reason: максимально коротко (3-8 слов).
@@ -388,6 +389,7 @@ recentQuestions: ${JSON.stringify(avoidQuestions)}
 ${fillOnly ? "" : requirementsEn}
 - Avoid repeating recentQuestions.
 - Keep questions short (1-2 sentences).
+- Language: English only.
 - Types only: scale, text, single_choice, multi_choice.
 - If unsure about driverKey/polarity, set needsReview=true.
 - reason: keep it very short (3-8 words).
@@ -654,19 +656,58 @@ async function generateAiTemplate(orgId: string, memberId: string, dayIndex: num
 }
 
 export async function maybeUpgradeDailyRunToAi(
-  run: { id: string; orgId: string; memberId: string | null; dayIndex: number | null; source?: string | null },
+  run: {
+    id: string;
+    orgId: string;
+    memberId: string | null;
+    dayIndex: number | null;
+    source?: string | null;
+    template?: { language?: string | null } | null;
+  },
   locale: "ru" | "en",
   allowAi: boolean
 ) {
-  if (!allowAi) return run;
   if (!run.memberId) return run;
-  if ((run.dayIndex ?? 0) <= SEED_DAYS) return run;
-  if (run.source === "ai") return run;
 
   const responseCount = await prisma.surveyResponse.count({ where: { runId: run.id } });
   if (responseCount > 0) return run;
 
-  const template = await generateAiTemplate(run.orgId, run.memberId, run.dayIndex ?? SEED_DAYS + 1, locale);
+  const dayIndex = run.dayIndex ?? SEED_DAYS + 1;
+  const templateLanguage = run.template?.language ?? null;
+  if (templateLanguage && templateLanguage !== locale) {
+    let template = null;
+    let source: "seed" | "ai" = "seed";
+    if (allowAi && dayIndex > SEED_DAYS) {
+      source = "ai";
+      template = await generateAiTemplate(run.orgId, run.memberId, dayIndex, locale);
+      if (!template) {
+        source = "seed";
+        template = await ensureSeedTemplateFallback(run.orgId, dayIndex, locale);
+      }
+    } else {
+      template =
+        dayIndex <= SEED_DAYS
+          ? await ensureSeedTemplate(run.orgId, dayIndex, locale)
+          : await ensureSeedTemplateFallback(run.orgId, dayIndex, locale);
+    }
+    if (template) {
+      return prisma.surveyRun.update({
+        where: { id: run.id },
+        data: {
+          templateId: template.id,
+          title: template.title,
+          source,
+        },
+        include: { template: { include: { questions: true } } },
+      });
+    }
+  }
+
+  if (!allowAi) return run;
+  if (dayIndex <= SEED_DAYS) return run;
+  if (run.source === "ai") return run;
+
+  const template = await generateAiTemplate(run.orgId, run.memberId, dayIndex, locale);
   if (!template) return run;
 
   return prisma.surveyRun.update({
