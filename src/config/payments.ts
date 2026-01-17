@@ -1,4 +1,6 @@
 export const BASE_CURRENCY = "RUB" as const;
+// 1 USD = 75 RUB
+export const USD_TO_RUB_RATE = 75;
 
 export const PAYMENT_METHODS = ["sbp", "card", "crypto", "other"] as const;
 export type PaymentMethod = (typeof PAYMENT_METHODS)[number];

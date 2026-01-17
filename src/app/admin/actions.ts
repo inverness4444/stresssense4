@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { assertSuperAdmin } from "@/lib/superAdmin";
 import { applyWalletTransaction } from "@/lib/wallet";
-import { BASE_CURRENCY } from "@/config/payments";
+import { BASE_CURRENCY, USD_TO_RUB_RATE } from "@/config/payments";
 
 const EDITABLE_ROLES = ["HR", "ADMIN", "MANAGER", "EMPLOYEE"] as const;
 const BALANCE_TYPES = ["manual_deposit", "manual_withdraw", "adjustment"] as const;
@@ -95,7 +95,7 @@ export async function approveTopupRequest(formData: FormData) {
     if (requestCurrency !== baseCurrency) {
       const rate =
         requestCurrency === "USD" && baseCurrency === "RUB"
-          ? 100
+          ? USD_TO_RUB_RATE
           : 1;
       normalizedAmount = amountValue * rate;
       conversionNote = rate !== 1 ? ` (${requestCurrency}→${baseCurrency} x${rate})` : "";

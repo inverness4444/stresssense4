@@ -503,6 +503,7 @@ export default function LiveDemoSection({ locale = "en" }: { locale?: Locale }) 
         report={reportData}
         locale={isRu ? "ru" : "en"}
         showPeriodRange={false}
+        audience="manager"
       />
     </section>
   );

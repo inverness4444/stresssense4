@@ -44,6 +44,13 @@ const aiTextSchema = z.object({
     )
     .optional()
     .default([]),
+  drivers: z
+    .object({
+      positive: z.union([z.array(z.string()), z.string()]).optional().default([]),
+      risk: z.union([z.array(z.string()), z.string()]).optional().default([]),
+      summary: z.string().optional(),
+    })
+    .optional(),
 });
 
 function normalizeRole(role?: string | null) {
@@ -233,27 +240,39 @@ const buildParticipationNote = (participationRate: number, locale: AnalysisLocal
     : "Participation is strong; insights look reliable.";
 };
 
-const buildManagerFocusFallback = (drivers: DriverMetric[], locale: AnalysisLocale) =>
+const buildFocusFallback = (drivers: DriverMetric[], locale: AnalysisLocale, audience: "employee" | "manager") =>
   drivers.slice(0, 3).map((driver) => ({
-    title: locale === "ru" ? `Улучшить: ${driver.label}` : `Improve: ${driver.label}`,
+    title: locale === "ru" ? `Фокус: ${driver.label}` : `Focus: ${driver.label}`,
     tags: [driver.key],
     description:
-      locale === "ru"
-        ? `Сфокусируйтесь на факторе "${driver.label}" и снимите ключевые блокеры.`
-        : `Focus on "${driver.label}" and remove the main blockers.`,
+      audience === "employee"
+        ? locale === "ru"
+          ? `Сделайте шаг по теме "${driver.label}" в своей ежедневной работе.`
+          : `Take one personal step on "${driver.label}" in your daily work.`
+        : locale === "ru"
+          ? `Сфокусируйтесь на факторе "${driver.label}" и снимите ключевые блокеры в команде.`
+          : `Focus on "${driver.label}" and remove the main blockers for the team.`,
   }));
 
-const buildNudgesFallback = (drivers: DriverMetric[], locale: AnalysisLocale) =>
+const buildNudgesFallback = (drivers: DriverMetric[], locale: AnalysisLocale, audience: "employee" | "manager") =>
   drivers.slice(0, 3).map((driver) => ({
     text:
-      locale === "ru"
-        ? `Сделайте один шаг по теме "${driver.label}".`
-        : `Take one concrete step on "${driver.label}".`,
+      audience === "employee"
+        ? locale === "ru"
+          ? `Попробуйте одно действие по теме "${driver.label}".`
+          : `Try one personal action on "${driver.label}".`
+        : locale === "ru"
+          ? `Сделайте один управленческий шаг по теме "${driver.label}".`
+          : `Take one managerial step on "${driver.label}".`,
     tags: [driver.key],
     steps:
-      locale === "ru"
-        ? ["Определите причину", "Согласуйте 1-2 улучшения"]
-        : ["Identify the root cause", "Agree on 1-2 improvements"],
+      audience === "employee"
+        ? locale === "ru"
+          ? ["Определите, что мешает", "Выберите 1 небольшой шаг", "Зафиксируйте результат"]
+          : ["Identify the blocker", "Pick 1 small step", "Track the outcome"]
+        : locale === "ru"
+          ? ["Определите причину", "Согласуйте 1-2 улучшения"]
+          : ["Identify the root cause", "Agree on 1-2 improvements"],
   }));
 
 type StatsResult = ReturnType<typeof computeStatsForResponses>;
@@ -700,12 +719,16 @@ export async function POST(req: Request) {
   const avgEngagement = engagementMetric?.avgScore ?? 0;
   const deltaStress = stressMetric?.delta ?? 0;
   const deltaEngagement = engagementMetric?.delta ?? 0;
+  const trendPoints = (stressMetric?.trendPoints?.length ? stressMetric.trendPoints : engagementMetric?.trendPoints ?? []) as any;
+  const trendBase = stressMetric?.avgScore ?? avgStress;
   const trends = ensureTrendPoints(
-    (engagementMetric?.trendPoints ?? []) as any,
-    avgEngagement,
+    trendPoints,
+    trendBase,
     { from: meta.dateFrom, to: meta.dateTo },
     locale
   );
+
+  const audience: "employee" | "manager" = scope === "user" ? "employee" : "manager";
 
   const report: AiEngagementReport = {
     period: { from: meta.dateFrom, to: meta.dateTo },
@@ -720,16 +743,65 @@ export async function POST(req: Request) {
     deltaStress,
     deltaEngagement,
     trends,
-    trendInsight: buildTrendInsight(deltaEngagement, locale),
+    trendInsight: buildTrendInsight(deltaStress, locale),
     driversPositive,
     driversRisk,
     driversSummary: buildDriversSummary(driversPositive, driversRisk, locale),
     teamsFocus: [],
     participationRate: Math.max(0, Math.min(100, participationRate)),
     participationNote: buildParticipationNote(participationRate, locale),
-    managerFocus: buildManagerFocusFallback(riskDrivers, locale),
-    nudges: buildNudgesFallback(riskDrivers, locale),
+    managerFocus: buildFocusFallback(riskDrivers, locale, audience),
+    nudges: buildNudgesFallback(riskDrivers, locale, audience),
     disclaimer: t(locale, "aiDisclaimerText"),
+  };
+
+  const driverByKey = new Map(drivers.map((driver) => [driver.key, driver]));
+  const driverKeyByLabel = new Map(
+    drivers.map((driver) => [driver.label.toLowerCase(), driver.key])
+  );
+
+  const resolveDriverKey = (value: string) => {
+    const raw = String(value ?? "").trim();
+    if (!raw) return null;
+    if (driverByKey.has(raw)) return raw;
+    const normalized = raw.toLowerCase();
+    return driverKeyByLabel.get(normalized) ?? null;
+  };
+
+  const buildDriverList = (
+    keys: string[],
+    sentiment: DriverSentiment,
+    fallback: typeof report.driversPositive,
+    exclude: Set<string> = new Set()
+  ) => {
+    const resolved = keys
+      .map(resolveDriverKey)
+      .filter((key): key is string => Boolean(key) && !exclude.has(key));
+    const unique = Array.from(new Set(resolved));
+    const items = unique.map((key) => {
+      const driver = driverByKey.get(key)!;
+      return {
+        name: driver.label,
+        score: driver.avgScore,
+        delta: driver.delta,
+        sentiment,
+      };
+    });
+    return fillList(items, fallback, 3);
+  };
+
+  const normalizeAiDrivers = (aiDrivers: z.infer<typeof aiTextSchema>["drivers"]) => {
+    const positiveKeys = normalizeStringArray(aiDrivers?.positive);
+    const riskKeys = normalizeStringArray(aiDrivers?.risk);
+    const positives = buildDriverList(positiveKeys, "positive", report.driversPositive);
+    const exclude = new Set(
+      positives
+        .map((item) => resolveDriverKey(item.name))
+        .filter((key): key is string => Boolean(key))
+    );
+    const risks = buildDriverList(riskKeys, "risk", report.driversRisk, exclude);
+    const summary = normalizeText(aiDrivers?.summary, buildDriversSummary(positives, risks, locale));
+    return { positives, risks, summary };
   };
 
   let ok = true;
@@ -746,28 +818,46 @@ export async function POST(req: Request) {
         ? `Данные (JSON):\n${JSON.stringify({
             meta,
             computed: computedInput.computed,
-            drivers: { positive: positiveDrivers, risk: riskDrivers },
+            drivers,
+            audience,
           })}\n\nВерни JSON:
 {
   managerFocus: Array<{ title, tags, description? }>,
-  nudges: Array<{ text, tags?, steps? }>
+  nudges: Array<{ text, tags?, steps? }>,
+  drivers: {
+    positive: Array<string>,
+    risk: Array<string>,
+    summary?: string
+  }
 }
 Требования:
 - По 3 элемента в каждом массиве.
 - tags: используй ключи драйверов (key) где возможно.
+- drivers.positive/risk: только ключи драйверов из входных данных (key), без названий.
+- drivers.summary: 1 короткая фраза без чисел.
+- Рекомендации должны соответствовать роли (сотрудник = личные действия, менеджер = действия для команды).
 - Никаких чисел и новых метрик.`
         : `Data (JSON):\n${JSON.stringify({
             meta,
             computed: computedInput.computed,
-            drivers: { positive: positiveDrivers, risk: riskDrivers },
+            drivers,
+            audience,
           })}\n\nReturn JSON:
 {
   managerFocus: Array<{ title, tags, description? }>,
-  nudges: Array<{ text, tags?, steps? }>
+  nudges: Array<{ text, tags?, steps? }>,
+  drivers: {
+    positive: Array<string>,
+    risk: Array<string>,
+    summary?: string
+  }
 }
 Requirements:
 - 3 items per array.
 - tags: use driver keys where possible.
+- drivers.positive/risk: only driver keys from the input data.
+- drivers.summary: 1 short sentence with no numbers.
+- Recommendations must match the audience (employee = personal actions, manager = team actions).
 - No numbers and no new metrics.`;
 
     const requestAiText = async (model: string) => {
@@ -811,12 +901,20 @@ Requirements:
       const parsed = await requestAiText(primaryModel);
       report.managerFocus = normalizeAiFocus(parsed.managerFocus, report.managerFocus);
       report.nudges = normalizeAiNudges(parsed.nudges, report.nudges);
+      const normalizedDrivers = normalizeAiDrivers(parsed.drivers);
+      report.driversPositive = normalizedDrivers.positives;
+      report.driversRisk = normalizedDrivers.risks;
+      report.driversSummary = normalizedDrivers.summary;
     } catch {
       if (fallbackModel !== primaryModel) {
         try {
           const parsed = await requestAiText(fallbackModel);
           report.managerFocus = normalizeAiFocus(parsed.managerFocus, report.managerFocus);
           report.nudges = normalizeAiNudges(parsed.nudges, report.nudges);
+          const normalizedDrivers = normalizeAiDrivers(parsed.drivers);
+          report.driversPositive = normalizedDrivers.positives;
+          report.driversRisk = normalizedDrivers.risks;
+          report.driversSummary = normalizedDrivers.summary;
         } catch {
           ok = true;
           error = "AI_TEXT_FAILED";

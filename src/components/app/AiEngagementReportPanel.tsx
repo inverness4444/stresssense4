@@ -15,6 +15,7 @@ type PanelProps = {
   loading?: boolean;
   errorMessage?: string;
   showPeriodRange?: boolean;
+  audience?: "employee" | "manager";
 };
 
 function DriverTag({ driver, locale }: { driver: Driver; locale: Locale }) {
@@ -121,11 +122,13 @@ export function AiEngagementReportPanel({
   loading,
   errorMessage,
   showPeriodRange = true,
+  audience = "manager",
 }: PanelProps) {
   const [fromDate, setFromDate] = useState(report.period.from);
   const [toDate, setToDate] = useState(report.period.to);
   const dateFormatter = new Intl.DateTimeFormat(locale === "ru" ? "ru-RU" : "en-US");
   const unitLabel = locale === "ru" ? "пт" : "pt";
+  const focusTitleKey = audience === "employee" ? "aiEmployeeFocusTitle" : "aiManagerFocusTitle";
   const isEmpty = report.isEmpty === true;
   const isLoading = loading === true;
   const showSkeleton = isLoading && report.summary === "" && report.trends.length === 0;
@@ -273,11 +276,11 @@ export function AiEngagementReportPanel({
                           a 15.9155 15.9155 0 0 1 0 -31.831"
                           />
                         </svg>
-                        <div className="absolute inset-0 flex items-center justify-center text-xs font-bold text-slate-800">{(report.avgEngagement * 10).toFixed(0)}%</div>
+                        <div className="absolute inset-0 flex items-center justify-center text-xs font-bold text-slate-800">{(report.avgStress * 10).toFixed(0)}%</div>
                       </div>
                       <div>
                         <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">{t(locale, "aiPeriodScoreLabel")}</p>
-                        <p className="text-sm font-semibold text-slate-900">{report.avgEngagement.toFixed(1)} / 10</p>
+                        <p className="text-sm font-semibold text-slate-900">{report.avgStress.toFixed(1)} / 10</p>
                       </div>
                     </div>
                   </div>
@@ -294,8 +297,8 @@ export function AiEngagementReportPanel({
                   <EngagementTrendCard
                     scope="team"
                     title={t(locale, "aiTrendsTitle")}
-                    score={report.avgEngagement}
-                    delta={report.deltaEngagement}
+                    score={report.avgStress}
+                    delta={report.deltaStress}
                     trendLabel={`${dateFormatter.format(new Date(report.period.from))} — ${dateFormatter.format(new Date(report.period.to))}`}
                     participation={report.participationRate}
                     data={report.trends as TrendPoint[]}
@@ -316,14 +319,14 @@ export function AiEngagementReportPanel({
                 <div className="mt-3 grid gap-3 md:grid-cols-2">
                   <div className="space-y-2">
                     <p className="text-xs font-semibold uppercase tracking-[0.14em] text-emerald-600">{t(locale, "aiDriversPositive")}</p>
-                    {report.driversPositive.map((d) => (
-                      <DriverTag key={d.name} driver={d} locale={locale} />
+                    {report.driversPositive.map((d, idx) => (
+                      <DriverTag key={`${d.name}-${idx}`} driver={d} locale={locale} />
                     ))}
                   </div>
                   <div className="space-y-2">
                     <p className="text-xs font-semibold uppercase tracking-[0.14em] text-amber-600">{t(locale, "aiDriversRisk")}</p>
-                    {report.driversRisk.map((d) => (
-                      <DriverTag key={d.name} driver={d} locale={locale} />
+                    {report.driversRisk.map((d, idx) => (
+                      <DriverTag key={`${d.name}-${idx}`} driver={d} locale={locale} />
                     ))}
                   </div>
                 </div>
@@ -361,7 +364,7 @@ export function AiEngagementReportPanel({
               </section>
 
               <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">{t(locale, "aiManagerFocusTitle")}</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">{t(locale, focusTitleKey)}</p>
                 <div className="mt-3 grid gap-3 md:grid-cols-2">
                   {report.managerFocus.map((f) => (
                     <FocusCard key={f.title} item={f} />

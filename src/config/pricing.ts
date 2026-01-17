@@ -2,8 +2,10 @@ export const BILLING_MODEL = "per_seat" as const;
 export const MIN_SEATS = 10;
 
 // Placeholder values; update anytime without changing UI logic.
+import { USD_TO_RUB_RATE } from "@/config/payments";
+
 export const PRICE_PER_SEAT_RUB = 500;
-export const PRICE_PER_SEAT_USD = 8;
+export const PRICE_PER_SEAT_USD = 7;
 
 export type PricingCurrency = "RUB" | "USD";
 

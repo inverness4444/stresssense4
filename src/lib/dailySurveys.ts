@@ -44,10 +44,10 @@ const QUESTIONS_PER_SURVEY = 11;
 const AI_DRIVER_KEYS = DRIVER_KEYS.filter((key) => key !== "unknown");
 
 const AI_QUESTION_SCHEMA = z.object({
-  type: z.enum(["scale", "single_choice", "multi_choice", "text"]),
+  type: z.string().min(1),
   title: z.string().min(3),
   description: z.string().optional().nullable(),
-  options: z.array(z.string()).optional().nullable(),
+  options: z.union([z.array(z.string()), z.string()]).optional().nullable(),
   driverKey: z.string().optional().nullable(),
   polarity: z.enum(["NEGATIVE", "POSITIVE"]).optional().nullable(),
   reason: z.string().optional().nullable(),
@@ -369,7 +369,9 @@ async function generateAiQuestions(
 ${fillOnly ? "" : requirementsRu}
 - Не повторяй вопросы из списка recentQuestions.
 - Вопросы короткие, 1-2 предложения.
+- Типы только: scale, text, single_choice, multi_choice.
 - Если сомневаешься в driverKey/polarity, поставь needsReview=true.
+- reason: максимально коротко (3-8 слов).
 
 Для каждого вопроса верни:
 - driverKey: один из [${driverKeysList}]
@@ -386,7 +388,9 @@ recentQuestions: ${JSON.stringify(avoidQuestions)}
 ${fillOnly ? "" : requirementsEn}
 - Avoid repeating recentQuestions.
 - Keep questions short (1-2 sentences).
+- Types only: scale, text, single_choice, multi_choice.
 - If unsure about driverKey/polarity, set needsReview=true.
+- reason: keep it very short (3-8 words).
 
 For each question return:
 - driverKey: one of [${driverKeysList}]
@@ -411,7 +415,7 @@ Return JSON: {"questions": [{"type":"scale","title":"...","description":"...","o
     model,
     instructions: systemPrompt,
     input: [{ role: "user", content: userPrompt }],
-    max_output_tokens: 2400,
+    max_output_tokens: 3600,
     text: { format: { type: "json_object" } },
   });
 
@@ -470,7 +474,32 @@ function normalizeAiQuestion(
   question: z.infer<typeof AI_QUESTION_SCHEMA>,
   locale: "ru" | "en"
 ) {
-  const isScale = question.type === "scale";
+  const normalizeQuestionType = (rawType?: string | null) => {
+    const normalized = String(rawType ?? "").toLowerCase().trim();
+    if (normalized.includes("single")) return "single_choice";
+    if (normalized.includes("multi")) return "multi_choice";
+    if (normalized.includes("text") || normalized.includes("open")) return "text";
+    return "scale";
+  };
+  const normalizeOptions = (raw: unknown) => {
+    if (Array.isArray(raw)) {
+      const cleaned = raw.map((item) => String(item ?? "").trim()).filter(Boolean);
+      return cleaned.length ? cleaned : null;
+    }
+    if (typeof raw === "string") {
+      const cleaned = raw
+        .split(/[;,]\s*/g)
+        .map((item) => item.trim())
+        .filter(Boolean);
+      return cleaned.length ? cleaned : null;
+    }
+    return null;
+  };
+
+  const normalizedType = normalizeQuestionType(question.type);
+  const resolvedOptions = normalizeOptions(question.options);
+  const isScale = normalizedType === "scale";
+  const isChoice = normalizedType === "single_choice" || normalizedType === "multi_choice";
   const resolvedDriverKey = normalizeDriverKey(question.driverKey) ?? "unknown";
   const resolvedPolarity = normalizePolarity(question.polarity);
   let needsReview = Boolean(question.needsReview);
@@ -485,12 +514,14 @@ function normalizeAiQuestion(
     if (resolvedDriverKey === "unknown") {
       needsReview = true;
     }
+  } else if (isChoice && !resolvedOptions) {
+    needsReview = true;
   }
 
   if (needsReview) {
     console.warn("AI question needs review", {
       locale,
-      type: question.type,
+      type: normalizedType,
       title: question.title,
       driverKey: resolvedDriverKey,
       polarity: resolvedPolarity,
@@ -500,6 +531,8 @@ function normalizeAiQuestion(
 
   return {
     ...question,
+    type: normalizedType,
+    options: resolvedOptions,
     driverKey: resolvedDriverKey,
     polarity: resolvedPolarity,
     needsReview,
@@ -557,7 +590,10 @@ async function generateAiTemplate(orgId: string, memberId: string, dayIndex: num
   };
 
   let questions = await fetchQuestions({ count: QUESTIONS_PER_SURVEY });
-  if (!questions) return null;
+  if (!questions) {
+    console.warn("AI template generation returned no questions", { orgId, memberId, dayIndex, locale });
+    return null;
+  }
   let normalizedQuestions = dedupeQuestions(questions.map((q) => normalizeAiQuestion(q, locale)));
 
   if (normalizedQuestions.length < QUESTIONS_PER_SURVEY) {
@@ -570,7 +606,16 @@ async function generateAiTemplate(orgId: string, memberId: string, dayIndex: num
     }
   }
 
-  if (normalizedQuestions.length < QUESTIONS_PER_SURVEY) return null;
+  if (normalizedQuestions.length < QUESTIONS_PER_SURVEY) {
+    console.warn("AI template generation incomplete", {
+      orgId,
+      memberId,
+      dayIndex,
+      locale,
+      count: normalizedQuestions.length,
+    });
+    return null;
+  }
   normalizedQuestions = normalizedQuestions.slice(0, QUESTIONS_PER_SURVEY);
 
   const title = locale === "ru" ? `День ${dayIndex} · AI-опрос` : `Day ${dayIndex} · AI survey`;

@@ -20,6 +20,7 @@ export function SurveyReportWithAiPanel({
   const { scope, scopeId, dateRange } = reportContext;
   const [open, setOpen] = useState(false);
   const locale = reportProps.locale ?? "en";
+  const focusAudience: "employee" | "manager" = scope === "user" ? "employee" : "manager";
   const [analysis, setAnalysis] = useState<AnalysisPayload | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -43,7 +44,7 @@ export function SurveyReportWithAiPanel({
     const deltaStress = stressMetric?.delta ?? 0;
     const deltaEngagement = engagementMetric?.delta ?? 0;
     const trends =
-      (engagementMetric?.trendPoints?.length ? engagementMetric.trendPoints : stressMetric?.trendPoints ?? []) as any;
+      (stressMetric?.trendPoints?.length ? stressMetric.trendPoints : engagementMetric?.trendPoints ?? []) as any;
     const drivers = computed.drivers ?? [];
     const positiveDrivers = [...drivers].sort((a, b) => b.delta - a.delta).slice(0, 3);
     const riskDrivers = [...drivers].sort((a, b) => a.delta - b.delta).slice(0, 3);
@@ -54,17 +55,32 @@ export function SurveyReportWithAiPanel({
       title: locale === "ru" ? `Улучшить: ${driver.label}` : `Improve: ${driver.label}`,
       tags: [driver.key],
       description:
-        locale === "ru"
-          ? `Сфокусируйтесь на факторе "${driver.label}" и снимите ключевые блокеры.`
-          : `Focus on "${driver.label}" and remove the main blockers.`,
+        focusAudience === "employee"
+          ? locale === "ru"
+            ? `Сделайте личный шаг по теме "${driver.label}".`
+            : `Take a personal step on "${driver.label}".`
+          : locale === "ru"
+            ? `Сфокусируйтесь на факторе "${driver.label}" и снимите ключевые блокеры.`
+            : `Focus on "${driver.label}" and remove the main blockers.`,
     }));
     const nudges = riskDrivers.map((driver) => ({
       text:
-        locale === "ru"
-          ? `Сделайте один шаг по теме "${driver.label}".`
-          : `Take one concrete step on "${driver.label}".`,
+        focusAudience === "employee"
+          ? locale === "ru"
+            ? `Попробуйте одно действие по теме "${driver.label}".`
+            : `Try one personal action on "${driver.label}".`
+          : locale === "ru"
+            ? `Сделайте один управленческий шаг по теме "${driver.label}".`
+            : `Take one managerial step on "${driver.label}".`,
       tags: [driver.key],
-      steps: locale === "ru" ? ["Определите причину", "Согласуйте 1-2 улучшения"] : ["Identify the root cause", "Agree on 1-2 improvements"],
+      steps:
+        focusAudience === "employee"
+          ? locale === "ru"
+            ? ["Определите, что мешает", "Выберите 1 небольшой шаг", "Зафиксируйте результат"]
+            : ["Identify the blocker", "Pick 1 small step", "Track the outcome"]
+          : locale === "ru"
+            ? ["Определите причину", "Согласуйте 1-2 улучшения"]
+            : ["Identify the root cause", "Agree on 1-2 improvements"],
     }));
 
     return {
@@ -258,6 +274,7 @@ export function SurveyReportWithAiPanel({
         locale={locale}
         loading={loading}
         errorMessage={error}
+        audience={focusAudience}
       />
     </>
   );
