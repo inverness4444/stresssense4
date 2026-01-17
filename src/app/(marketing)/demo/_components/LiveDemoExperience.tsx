@@ -1,5 +1,5 @@
 'use client';
-import LiveDemoPlayground from "../../_components/LiveDemoPlayground";
+import LiveDemoPlayground from "./LiveDemoPlayground";
 
 export default function LiveDemoExperience() {
   return (
