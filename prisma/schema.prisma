@@ -107,6 +107,7 @@ model User {
   abuseReports AbuseReport[] @relation("AbuseReportReporter")
   joinInvitesCreated JoinInvite[] @relation("JoinInviteCreatedBy")
   aiChatStates AiChatState[]
+  payments      Payment[]
 }
 
 model Organization {
@@ -127,6 +128,7 @@ model Organization {
   anonymousFeedback AnonymousFeedback[]
   anonymousThreads AnonymousThread[]
   aiChatStates AiChatState[]
+  payments  Payment[]
 }
 
 model JoinInvite {
