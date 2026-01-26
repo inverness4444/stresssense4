@@ -38,7 +38,6 @@ export function SignInForm({ locale = "en" }: { locale?: Locale }) {
       <p className="mt-1 text-sm text-slate-600">{t(locale, "signinSubtitle")}</p>
       <form
         id="signin-form"
-        action={() => {}}
         onSubmit={(e) => {
           e.preventDefault();
           submit();

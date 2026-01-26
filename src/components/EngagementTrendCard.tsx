@@ -19,6 +19,11 @@ type Props = {
 
 export function EngagementTrendCard({ scope, title, score, delta, trendLabel, participation, data, locale = "en", showOverlay = true }: Props) {
   const isRu = locale === "ru";
+  const hasData = data.length > 0;
+  const chartData = hasData ? data : [{ label: isRu ? "Нет данных" : "No data", value: 0 }];
+  const values = chartData.map((point) => point.value);
+  const minValue = Math.min(...values);
+  const maxValue = Math.max(...values);
   const deltaPositive = delta > 0;
   const deltaZero = delta === 0;
   const overlayTone = deltaPositive
@@ -44,7 +49,7 @@ export function EngagementTrendCard({ scope, title, score, delta, trendLabel, pa
 
       <div className="relative mt-5 h-56 w-full">
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 10 }}>
+          <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 10 }}>
             <defs>
               <linearGradient id="engagementGradient" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor="#4F46E5" stopOpacity={0.35} />
@@ -52,7 +57,7 @@ export function EngagementTrendCard({ scope, title, score, delta, trendLabel, pa
               </linearGradient>
             </defs>
             <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fontSize: 12, fill: "#475569" }} />
-            <YAxis hide domain={[Math.min(...data.map((d) => d.value)) - 0.5, Math.max(...data.map((d) => d.value)) + 0.5]} />
+            <YAxis hide domain={hasData ? [minValue - 0.5, maxValue + 0.5] : [0, 10]} />
             <Tooltip
               formatter={(val: number) => `${val.toFixed(1)} / 10`}
               contentStyle={{ borderRadius: 12, border: "1px solid #e2e8f0", boxShadow: "0 10px 30px rgba(0,0,0,0.07)" }}
@@ -64,6 +69,11 @@ export function EngagementTrendCard({ scope, title, score, delta, trendLabel, pa
 
         <div className="pointer-events-none absolute inset-0">
           <div className="absolute bottom-3 left-4 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">{t(locale, "trendMonthsSprints")}</div>
+          {!hasData && (
+            <div className="absolute inset-0 flex items-center justify-center text-xs font-semibold text-slate-500">
+              {isRu ? "Нет данных" : "No data yet"}
+            </div>
+          )}
         </div>
 
         {showOverlay && (

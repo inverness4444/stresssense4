@@ -33,22 +33,46 @@ export function requireOrg(user: { organizationId: string }, orgId?: string | nu
 
 export function assertSameOrigin(req: Request): NextResponse | null {
   const origin = req.headers.get("origin");
-  const host = req.headers.get("host");
+  const forwardedHost = req.headers.get("x-forwarded-host");
+  const host = forwardedHost ?? req.headers.get("host");
+  const requestUrl = (() => {
+    try {
+      return new URL(req.url);
+    } catch {
+      return null;
+    }
+  })();
+  const requestHost = host ?? requestUrl?.host ?? null;
+  const normalize = (value: string) => value.replace(/\/$/, "");
   const base = getBaseUrl();
   const allowed = new Set(
     [base, env.APP_URL, env.client.NEXT_PUBLIC_APP_URL]
       .filter(Boolean)
-      .map((url) => url!.replace(/\/$/, ""))
+      .map((url) => normalize(url!))
   );
-
-  if (origin) {
-    if (!allowed.has(origin.replace(/\/$/, ""))) {
-      return NextResponse.json({ error: "Invalid origin" }, { status: 403 });
-    }
-    return null;
+  if (requestUrl?.origin) {
+    allowed.add(normalize(requestUrl.origin));
   }
 
-  if (host) {
+  if (origin) {
+    const normalizedOrigin = normalize(origin);
+    if (allowed.has(normalizedOrigin)) {
+      return null;
+    }
+    if (requestHost) {
+      try {
+        const originHost = new URL(origin).host;
+        if (originHost === requestHost) {
+          return null;
+        }
+      } catch {
+        // Ignore malformed origin.
+      }
+    }
+    return NextResponse.json({ error: "Invalid origin" }, { status: 403 });
+  }
+
+  if (requestHost) {
     const allowedHosts = new Set(
       Array.from(allowed).map((url) => {
         try {
@@ -58,7 +82,7 @@ export function assertSameOrigin(req: Request): NextResponse | null {
         }
       })
     );
-    if (!allowedHosts.has(host)) {
+    if (!allowedHosts.has(requestHost)) {
       return NextResponse.json({ error: "Invalid origin" }, { status: 403 });
     }
   }
