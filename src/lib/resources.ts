@@ -1,7 +1,7 @@
 import { prisma } from "./prisma";
 
 export function listArticles(category?: string, query?: string) {
-  return prisma.article.findMany({
+  const results = prisma.article.findMany({
     where: {
       ...(category ? { category } : {}),
       ...(query
@@ -12,6 +12,7 @@ export function listArticles(category?: string, query?: string) {
     },
     orderBy: { publishedAt: "desc" },
   });
+  return Promise.resolve(results).then((items) => (Array.isArray(items) ? items : []));
 }
 
 export function getArticleBySlug(slug: string) {
