@@ -9,6 +9,8 @@ import { InviteLinkBlock } from "@/app/app/settings/InviteLinkBlock";
 import { getBillingOverview } from "@/lib/billingOverview";
 import { MIN_SEATS } from "@/config/pricing";
 import Link from "next/link";
+import { headers } from "next/headers";
+import { getBaseUrl } from "@/lib/url";
 
 type Props = {
   searchParams?: {
@@ -66,7 +68,12 @@ export default async function EmployeesPage({ searchParams }: Props) {
       inviteToken = "";
     }
   }
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+  const headerList = await headers();
+  const forwardedHost = headerList.get("x-forwarded-host") ?? headerList.get("host");
+  const forwardedProto = (headerList.get("x-forwarded-proto") ?? "https").split(",")[0]?.trim() || "https";
+  const baseUrl = forwardedHost
+    ? `${forwardedProto}://${forwardedHost}`.replace(/\/$/, "")
+    : getBaseUrl();
 
   const hiddenRole = "SUPER_ADMIN";
   const where = {

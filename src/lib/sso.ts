@@ -1,6 +1,7 @@
 import { prisma } from "./prisma";
 import { randomBytes } from "crypto";
 import { env } from "@/config/env";
+import { getBaseUrl } from "@/lib/url";
 
 type RedirectResult = { url: string };
 
@@ -17,10 +18,11 @@ export async function getSSOConfigForEmail(email: string) {
 
 export function buildOidcRedirect(config: any, orgId: string) {
   const state = Buffer.from(JSON.stringify({ orgId, nonce: randomBytes(8).toString("hex") })).toString("base64url");
+  const baseUrl = getBaseUrl();
   const params = new URLSearchParams({
     client_id: config.oidcClientId!,
     response_type: "code",
-    redirect_uri: `${env.NEXT_PUBLIC_APP_URL ?? env.APP_URL ?? "http://localhost:3000"}/auth/sso/callback`,
+    redirect_uri: `${baseUrl}/auth/sso/callback`,
     scope: config.oidcScope ?? "openid profile email",
     state,
   });
@@ -47,13 +49,14 @@ export async function handleOidcCallback(code: string, state: string) {
   const config = await prisma.sSOConfig.findUnique({ where: { organizationId: orgId } });
   if (!config) throw new Error("SSO config missing");
 
+  const baseUrl = getBaseUrl();
   const tokenRes = await fetch(config.oidcTokenUrl!, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
       grant_type: "authorization_code",
       code,
-      redirect_uri: `${env.NEXT_PUBLIC_APP_URL ?? env.APP_URL ?? "http://localhost:3000"}/auth/sso/callback`,
+      redirect_uri: `${baseUrl}/auth/sso/callback`,
       client_id: config.oidcClientId ?? "",
       client_secret: config.oidcClientSecret ?? "",
     }),
