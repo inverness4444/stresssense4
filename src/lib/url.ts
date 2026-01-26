@@ -1,6 +1,7 @@
 import { env } from "@/config/env";
 
 export function getBaseUrl() {
+  if (env.PUBLIC_BASE_URL) return env.PUBLIC_BASE_URL.replace(/\/$/, "");
   if (env.client.NEXT_PUBLIC_APP_URL) return env.client.NEXT_PUBLIC_APP_URL.replace(/\/$/, "");
   if (env.APP_URL) return env.APP_URL.replace(/\/$/, "");
   if (process.env.NEXTAUTH_URL) return process.env.NEXTAUTH_URL.replace(/\/$/, "");

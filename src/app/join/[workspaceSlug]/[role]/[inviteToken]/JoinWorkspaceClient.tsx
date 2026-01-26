@@ -36,6 +36,16 @@ export function JoinWorkspaceClient({ workspaceName, workspaceSlug, inviteToken,
     setPassword("");
   }, [isAuthenticated]);
 
+  const normalizeRedirect = (target?: string | null) => {
+    if (!target) return "/app/my/home";
+    try {
+      const parsed = new URL(target, window.location.origin);
+      return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+    } catch {
+      return target.startsWith("/") ? target : "/app/my/home";
+    }
+  };
+
   const callJoin = async (payload: Record<string, string>) => {
     setPending(true);
     setError(null);
@@ -79,12 +89,18 @@ export function JoinWorkspaceClient({ workspaceName, workspaceSlug, inviteToken,
     }
     const data = await callJoin({ name, email, password });
     if (data) {
-      await signIn("credentials", {
+      const result = await signIn("credentials", {
         email,
         password,
-        redirect: true,
+        redirect: false,
         callbackUrl: data.redirect || "/app/my/home",
       });
+      if (result?.error) {
+        setError(result.error);
+        setPending(false);
+        return;
+      }
+      router.replace(normalizeRedirect(result?.url ?? data.redirect));
     }
     setPending(false);
   };

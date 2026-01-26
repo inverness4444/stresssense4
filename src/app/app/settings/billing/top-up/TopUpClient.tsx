@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { useActionState, useEffect, useMemo, useState } from "react";
 import { createTopUpRequest } from "./actions";
-import { PAYMENT_DETAILS } from "@/config/payments";
+import { BASE_CURRENCY, PAYMENT_DETAILS } from "@/config/payments";
 import type { TopUpFormState } from "./actions";
+import { YooKassaPayButton } from "@/components/billing/YooKassaPayButton";
 
 type TopUpClientProps = {
   initialAmount: number;
@@ -13,6 +14,7 @@ type TopUpClientProps = {
 
 export default function TopUpClient({ initialAmount, isRu }: TopUpClientProps) {
   const [amountInput, setAmountInput] = useState<number>(initialAmount);
+  const [method, setMethod] = useState<"card" | "crypto">("card");
   const [network, setNetwork] = useState<"ERC20" | "TRC20">("ERC20");
   const [formState, formAction] = useActionState<TopUpFormState>(createTopUpRequest, { status: "idle" });
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -21,7 +23,7 @@ export default function TopUpClient({ initialAmount, isRu }: TopUpClientProps) {
     setAmountInput(initialAmount);
   }, [initialAmount]);
 
-  const paymentCurrency = "USDT";
+  const paymentCurrency = method === "card" ? BASE_CURRENCY : "USDT";
 
   const { amountDisplay, amountHint, title, subtitle, amountLabel } = useMemo(() => {
     const safeAmount = Number.isFinite(amountInput) && amountInput > 0 ? amountInput : 0;
@@ -42,9 +44,16 @@ export default function TopUpClient({ initialAmount, isRu }: TopUpClientProps) {
         ? "Выберите способ оплаты и используйте реквизиты ниже."
         : "Choose a payment method and use the details below.",
       amountLabel: isRu ? "Сумма пополнения" : "Top-up amount",
-      amountHint: isRu ? "Сумма в долларах (USDT)" : `Amount in ${paymentCurrency}`,
+      amountHint:
+        method === "card"
+          ? isRu
+            ? "Сумма в рублях (RUB)"
+            : `Amount in ${BASE_CURRENCY}`
+          : isRu
+            ? "Сумма в долларах (USDT)"
+            : `Amount in ${paymentCurrency}`,
     };
-  }, [amountInput, isRu, paymentCurrency]);
+  }, [amountInput, isRu, method, paymentCurrency]);
 
   const amountValue = Number.isFinite(amountInput) && amountInput > 0 ? amountInput : 0;
   const isAmountValid = amountValue > 0;
@@ -121,12 +130,32 @@ export default function TopUpClient({ initialAmount, isRu }: TopUpClientProps) {
     setAmountInput(Number.isFinite(parsed) ? parsed : 0);
   };
 
+  const methodTabLabel = (value: "card" | "crypto") =>
+    value === "card" ? (isRu ? "Карта" : "Card") : isRu ? "Крипто" : "Crypto";
+  const payLabel = isRu ? "Оплатить картой" : "Pay by card";
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="space-y-1">
           <h2 className="text-2xl font-semibold text-slate-900">{title}</h2>
           <p className="text-sm text-slate-600">{subtitle}</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {(["card", "crypto"] as const).map((item) => (
+              <button
+                key={item}
+                type="button"
+                onClick={() => setMethod(item)}
+                className={`rounded-full px-3 py-1 text-xs font-semibold ring-1 transition ${
+                  method === item
+                    ? "bg-primary text-white ring-primary/30"
+                    : "bg-slate-100 text-slate-700 ring-slate-200 hover:bg-slate-200"
+                }`}
+              >
+                {methodTabLabel(item)}
+              </button>
+            ))}
+          </div>
         </div>
         <Link
           href="/app/settings/billing"
@@ -170,52 +199,72 @@ export default function TopUpClient({ initialAmount, isRu }: TopUpClientProps) {
       </div>
 
       <div className="grid gap-4 md:grid-cols-1">
-        <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+        {method === "card" && (
+          <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+            <p className="text-sm font-semibold text-slate-900">{isRu ? "Оплата картой (YooKassa)" : "Card payment (YooKassa)"}</p>
+            <p className="mt-1 text-xs text-slate-500">
+              {isRu ? "После нажатия вы будете перенаправлены на оплату." : "You will be redirected to complete payment."}
+            </p>
+            <div className="mt-4">
+              <YooKassaPayButton
+                endpoint="/api/billing/top-up/create-payment"
+                payload={{ amount: amountValue }}
+                label={payLabel}
+                disabled={!isAmountValid}
+                className="w-full rounded-full bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm disabled:bg-slate-200 disabled:text-slate-500"
+              />
+            </div>
+          </div>
+        )}
+
+        {method === "crypto" && (
+          <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
             <p className="text-sm font-semibold text-slate-900">{isRu ? "Криптовалюта (только USDT)" : "Crypto (USDT only)"}</p>
-          <p className="mt-1 text-xs text-slate-500">
-            {isRu ? "Только USDT. Реквизиты добавим позже." : "USDT only. Details will be added later."}
-          </p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {(["ERC20", "TRC20"] as const).map((item) => (
+            <p className="mt-1 text-xs text-slate-500">
+              {isRu ? "Только USDT. Реквизиты добавим позже." : "USDT only. Details will be added later."}
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {(["ERC20", "TRC20"] as const).map((item) => (
+                <button
+                  key={item}
+                  type="button"
+                  onClick={() => setNetwork(item)}
+                  className={`rounded-full px-3 py-1 text-xs font-semibold ring-1 transition ${
+                    network === item
+                      ? "bg-primary text-white ring-primary/30"
+                      : "bg-slate-100 text-slate-700 ring-slate-200 hover:bg-slate-200"
+                  }`}
+                >
+                  {item}
+                </button>
+              ))}
+            </div>
+            <div className="mt-4 space-y-2 text-sm text-slate-700">
+              <DetailRow id="crypto-network" label={isRu ? "Сеть" : "Network"} value={network} />
+              <DetailRow
+                id="crypto-address"
+                label={isRu ? "Адрес USDT" : "USDT address"}
+                value={PAYMENT_DETAILS.crypto.networks[network]}
+                mono
+              />
+              <DetailRow id="crypto-memo" label={isRu ? "Комментарий" : "Memo"} value="—" />
+            </div>
+            <p className="mt-3 text-xs text-slate-500">
+              {isRu ? "После оплаты нажмите «Я оплатил»." : "After payment, click “I paid”."}
+            </p>
+            <form action={formAction}>
+              <input type="hidden" name="amount" value={amountValue.toFixed(2)} />
+              <input type="hidden" name="method" value="crypto" />
+              <input type="hidden" name="network" value={network} />
               <button
-                key={item}
-                type="button"
-                onClick={() => setNetwork(item)}
-                className={`rounded-full px-3 py-1 text-xs font-semibold ring-1 transition ${
-                  network === item
-                    ? "bg-primary text-white ring-primary/30"
-                    : "bg-slate-100 text-slate-700 ring-slate-200 hover:bg-slate-200"
-                }`}
+                disabled={!isAmountValid}
+                className="mt-3 w-full rounded-full bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm disabled:bg-slate-200 disabled:text-slate-500"
               >
-                {item}
+                {isRu ? "Я оплатил" : "I paid"}
               </button>
-            ))}
+            </form>
           </div>
-          <div className="mt-4 space-y-2 text-sm text-slate-700">
-            <DetailRow id="crypto-network" label={isRu ? "Сеть" : "Network"} value={network} />
-            <DetailRow
-              id="crypto-address"
-              label={isRu ? "Адрес USDT" : "USDT address"}
-              value={PAYMENT_DETAILS.crypto.networks[network]}
-              mono
-            />
-            <DetailRow id="crypto-memo" label={isRu ? "Комментарий" : "Memo"} value="—" />
-          </div>
-          <p className="mt-3 text-xs text-slate-500">
-            {isRu ? "После оплаты нажмите «Я оплатил»." : "After payment, click “I paid”."}
-          </p>
-          <form action={formAction}>
-            <input type="hidden" name="amount" value={amountValue.toFixed(2)} />
-            <input type="hidden" name="method" value="crypto" />
-            <input type="hidden" name="network" value={network} />
-            <button
-              disabled={!isAmountValid}
-              className="mt-3 w-full rounded-full bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm disabled:bg-slate-200 disabled:text-slate-500"
-            >
-              {isRu ? "Я оплатил" : "I paid"}
-            </button>
-          </form>
-        </div>
+        )}
       </div>
     </div>
   );

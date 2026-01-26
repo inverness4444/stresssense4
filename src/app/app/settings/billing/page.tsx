@@ -151,7 +151,8 @@ export default async function BillingPage() {
     crypto: isRu ? "Криптовалюта (USDT)" : "Crypto (USDT)",
     other: isRu ? "Другое" : "Other",
   };
-  const methodLabel = (method: string) => methodLabels[method as PaymentMethod] ?? method;
+  const methodLabel = (method: string) =>
+    method === "yookassa" ? "YooKassa" : methodLabels[method as PaymentMethod] ?? method;
 
   return (
     <div className="space-y-6">

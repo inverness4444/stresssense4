@@ -3,9 +3,16 @@ import { SignInForm } from "@/components/auth/SignInForm";
 import { getLocale } from "@/lib/i18n-server";
 import { t } from "@/lib/i18n";
 
-export default async function SignInPage() {
+export default async function SignInPage({ searchParams }: { searchParams?: { error?: string } }) {
   const locale = await getLocale();
   const isRu = locale === "ru";
+  const errorParam = typeof searchParams?.error === "string" ? searchParams.error : "";
+  const initialMessage =
+    errorParam === "email_exists"
+      ? isRu
+        ? "Аккаунт уже существует. Войдите с этим email."
+        : "An account already exists. Please sign in with this email."
+      : null;
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-indigo-50 via-white to-white px-4 py-10">
@@ -38,7 +45,7 @@ export default async function SignInPage() {
             </p>
           </div>
           <div className="flex-1 space-y-4">
-            <SignInForm locale={locale} />
+            <SignInForm locale={locale} initialMessage={initialMessage} />
           </div>
         </div>
       </div>

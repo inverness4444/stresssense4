@@ -7,12 +7,23 @@ import { signIn } from "next-auth/react";
 import clsx from "clsx";
 import { t, type Locale } from "@/lib/i18n";
 
-export function SignInForm({ locale = "en" }: { locale?: Locale }) {
+export function SignInForm({ locale = "en", initialMessage }: { locale?: Locale; initialMessage?: string | null }) {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [message, setMessage] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(initialMessage ?? null);
   const [pending, startTransition] = useTransition();
+
+  const normalizeRedirect = (target?: string | null) => {
+    if (!target) return "/app/overview";
+    if (typeof window === "undefined") return target;
+    try {
+      const parsed = new URL(target, window.location.origin);
+      return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+    } catch {
+      return target.startsWith("/") ? target : "/app/overview";
+    }
+  };
 
   const submit = () => {
     setMessage(null);
@@ -27,7 +38,7 @@ export function SignInForm({ locale = "en" }: { locale?: Locale }) {
         setMessage(result.error);
         return;
       }
-      router.push(result?.url ?? "/app/overview");
+      router.push(normalizeRedirect(result?.url));
       router.refresh();
     });
   };
