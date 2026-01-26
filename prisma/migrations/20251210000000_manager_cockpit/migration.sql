@@ -26,6 +26,22 @@ CREATE INDEX IF NOT EXISTS "ActionCenterItem_team_idx" ON "ActionCenterItem"("te
 CREATE INDEX IF NOT EXISTS "ActionCenterItem_manager_idx" ON "ActionCenterItem"("managerUserId");
 CREATE INDEX IF NOT EXISTS "ActionCenterItem_status_idx" ON "ActionCenterItem"("status");
 
+-- Ensure ActionCenterItem has userId column for later migrations
+DO $$
+BEGIN
+    IF to_regclass('"ActionCenterItem"') IS NOT NULL THEN
+        IF NOT EXISTS (
+            SELECT 1
+            FROM pg_attribute
+            WHERE attrelid = '"ActionCenterItem"'::regclass
+              AND attname = 'userId'
+              AND NOT attisdropped
+        ) THEN
+            ALTER TABLE "ActionCenterItem" ADD COLUMN "userId" TEXT;
+        END IF;
+    END IF;
+END $$;
+
 -- TeamStatusSnapshot pre-aggregated team health
 CREATE TABLE IF NOT EXISTS "TeamStatusSnapshot" (
     "id" TEXT PRIMARY KEY,
@@ -51,8 +67,15 @@ CREATE INDEX IF NOT EXISTS "TeamStatusSnapshot_team_idx" ON "TeamStatusSnapshot"
 CREATE INDEX IF NOT EXISTS "TeamStatusSnapshot_period_idx" ON "TeamStatusSnapshot"("periodStart");
 
 -- LearningCohort now links to organization
-ALTER TABLE "LearningCohort" ADD COLUMN IF NOT EXISTS "organizationId" TEXT;
-ALTER TABLE "LearningCohort" ADD CONSTRAINT "LearningCohort_organization_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_class WHERE relname = 'LearningCohort') THEN
+        ALTER TABLE "LearningCohort" ADD COLUMN IF NOT EXISTS "organizationId" TEXT;
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'LearningCohort_organization_fkey') THEN
+            ALTER TABLE "LearningCohort" ADD CONSTRAINT "LearningCohort_organization_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+        END IF;
+    END IF;
+END $$;
 
 -- Add missing indexes for SurveyEngagementSnapshot relations if tables already exist
 DO $$

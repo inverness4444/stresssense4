@@ -1,32 +1,62 @@
--- Update UserRole enum values and add new roles
+-- Update UserRole enum values and add new roles (only if UserRole is an enum)
 DO $$
 BEGIN
-  IF EXISTS (
-    SELECT 1
-    FROM pg_type t
-    JOIN pg_enum e ON t.oid = e.enumtypid
-    WHERE t.typname = 'UserRole' AND e.enumlabel = 'Manager'
-  ) THEN
-    ALTER TYPE "UserRole" RENAME VALUE 'Manager' TO 'MANAGER';
+  IF EXISTS (SELECT 1 FROM pg_type WHERE typname = 'UserRole' AND typtype = 'e') THEN
+    IF EXISTS (
+      SELECT 1
+      FROM pg_type t
+      JOIN pg_enum e ON t.oid = e.enumtypid
+      WHERE t.typname = 'UserRole' AND e.enumlabel = 'Manager'
+    ) THEN
+      ALTER TYPE "UserRole" RENAME VALUE 'Manager' TO 'MANAGER';
+    END IF;
+
+    IF EXISTS (
+      SELECT 1
+      FROM pg_type t
+      JOIN pg_enum e ON t.oid = e.enumtypid
+      WHERE t.typname = 'UserRole' AND e.enumlabel = 'Employee'
+    ) THEN
+      ALTER TYPE "UserRole" RENAME VALUE 'Employee' TO 'EMPLOYEE';
+    END IF;
+
+    IF NOT EXISTS (
+      SELECT 1
+      FROM pg_type t
+      JOIN pg_enum e ON t.oid = e.enumtypid
+      WHERE t.typname = 'UserRole' AND e.enumlabel = 'ADMIN'
+    ) THEN
+      ALTER TYPE "UserRole" ADD VALUE 'ADMIN';
+    END IF;
+
+    IF NOT EXISTS (
+      SELECT 1
+      FROM pg_type t
+      JOIN pg_enum e ON t.oid = e.enumtypid
+      WHERE t.typname = 'UserRole' AND e.enumlabel = 'MANAGER'
+    ) THEN
+      ALTER TYPE "UserRole" ADD VALUE 'MANAGER';
+    END IF;
+
+    IF NOT EXISTS (
+      SELECT 1
+      FROM pg_type t
+      JOIN pg_enum e ON t.oid = e.enumtypid
+      WHERE t.typname = 'UserRole' AND e.enumlabel = 'EMPLOYEE'
+    ) THEN
+      ALTER TYPE "UserRole" ADD VALUE 'EMPLOYEE';
+    END IF;
+
+    IF NOT EXISTS (
+      SELECT 1
+      FROM pg_type t
+      JOIN pg_enum e ON t.oid = e.enumtypid
+      WHERE t.typname = 'UserRole' AND e.enumlabel = 'SUPER_ADMIN'
+    ) THEN
+      ALTER TYPE "UserRole" ADD VALUE 'SUPER_ADMIN';
+    END IF;
   END IF;
 END $$;
-
-DO $$
-BEGIN
-  IF EXISTS (
-    SELECT 1
-    FROM pg_type t
-    JOIN pg_enum e ON t.oid = e.enumtypid
-    WHERE t.typname = 'UserRole' AND e.enumlabel = 'Employee'
-  ) THEN
-    ALTER TYPE "UserRole" RENAME VALUE 'Employee' TO 'EMPLOYEE';
-  END IF;
-END $$;
-
-ALTER TYPE "UserRole" ADD VALUE IF NOT EXISTS 'ADMIN';
-ALTER TYPE "UserRole" ADD VALUE IF NOT EXISTS 'MANAGER';
-ALTER TYPE "UserRole" ADD VALUE IF NOT EXISTS 'EMPLOYEE';
-ALTER TYPE "UserRole" ADD VALUE IF NOT EXISTS 'SUPER_ADMIN';
 
 -- Add balance to User
 ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "balance" DECIMAL(12, 2) NOT NULL DEFAULT 0;

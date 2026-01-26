@@ -30,12 +30,17 @@ CREATE TABLE "Role" (
 );
 
 -- CreateTable
-CREATE TABLE "UserRole" (
-    "userId" TEXT NOT NULL,
-    "roleId" TEXT NOT NULL,
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'UserRole') AND to_regclass('public."UserRole"') IS NULL THEN
+        CREATE TABLE "UserRole" (
+            "userId" TEXT NOT NULL,
+            "roleId" TEXT NOT NULL,
 
-    CONSTRAINT "UserRole_pkey" PRIMARY KEY ("userId","roleId")
-);
+            CONSTRAINT "UserRole_pkey" PRIMARY KEY ("userId","roleId")
+        );
+    END IF;
+END $$;
 
 -- CreateTable
 CREATE TABLE "Playbook" (
@@ -117,10 +122,22 @@ CREATE TABLE "EmailTemplate" (
 ALTER TABLE "Role" ADD CONSTRAINT "Role_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "UserRole" ADD CONSTRAINT "UserRole_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+DO $$
+BEGIN
+    IF to_regclass('public."UserRole"') IS NOT NULL
+        AND NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'UserRole_userId_fkey') THEN
+        ALTER TABLE "UserRole" ADD CONSTRAINT "UserRole_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "UserRole" ADD CONSTRAINT "UserRole_roleId_fkey" FOREIGN KEY ("roleId") REFERENCES "Role"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+DO $$
+BEGIN
+    IF to_regclass('public."UserRole"') IS NOT NULL
+        AND NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'UserRole_roleId_fkey') THEN
+        ALTER TABLE "UserRole" ADD CONSTRAINT "UserRole_roleId_fkey" FOREIGN KEY ("roleId") REFERENCES "Role"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
 
 -- AddForeignKey
 ALTER TABLE "Playbook" ADD CONSTRAINT "Playbook_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE SET NULL ON UPDATE CASCADE;

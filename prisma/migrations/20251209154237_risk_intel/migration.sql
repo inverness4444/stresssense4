@@ -123,6 +123,85 @@ CREATE TABLE "Experiment" (
     CONSTRAINT "Experiment_pkey" PRIMARY KEY ("id")
 );
 
+-- Backfill columns expected by later migrations
+DO $$
+BEGIN
+    IF to_regclass('"Experiment"') IS NOT NULL THEN
+        IF NOT EXISTS (
+            SELECT 1
+            FROM pg_attribute
+            WHERE attrelid = '"Experiment"'::regclass
+              AND attname = 'ownerUserId'
+              AND NOT attisdropped
+        ) THEN
+            ALTER TABLE "Experiment" ADD COLUMN "ownerUserId" TEXT;
+        END IF;
+        IF NOT EXISTS (
+            SELECT 1
+            FROM pg_attribute
+            WHERE attrelid = '"Experiment"'::regclass
+              AND attname = 'name'
+              AND NOT attisdropped
+        ) THEN
+            ALTER TABLE "Experiment" ADD COLUMN "name" TEXT;
+        END IF;
+        IF NOT EXISTS (
+            SELECT 1
+            FROM pg_attribute
+            WHERE attrelid = '"Experiment"'::regclass
+              AND attname = 'type'
+              AND NOT attisdropped
+        ) THEN
+            ALTER TABLE "Experiment" ADD COLUMN "type" TEXT;
+        END IF;
+        IF NOT EXISTS (
+            SELECT 1
+            FROM pg_attribute
+            WHERE attrelid = '"Experiment"'::regclass
+              AND attname = 'population'
+              AND NOT attisdropped
+        ) THEN
+            ALTER TABLE "Experiment" ADD COLUMN "population" TEXT;
+        END IF;
+        IF NOT EXISTS (
+            SELECT 1
+            FROM pg_attribute
+            WHERE attrelid = '"Experiment"'::regclass
+              AND attname = 'startAt'
+              AND NOT attisdropped
+        ) THEN
+            ALTER TABLE "Experiment" ADD COLUMN "startAt" TIMESTAMP(3);
+        END IF;
+        IF NOT EXISTS (
+            SELECT 1
+            FROM pg_attribute
+            WHERE attrelid = '"Experiment"'::regclass
+              AND attname = 'endAt'
+              AND NOT attisdropped
+        ) THEN
+            ALTER TABLE "Experiment" ADD COLUMN "endAt" TIMESTAMP(3);
+        END IF;
+        IF NOT EXISTS (
+            SELECT 1
+            FROM pg_attribute
+            WHERE attrelid = '"Experiment"'::regclass
+              AND attname = 'primaryMetric'
+              AND NOT attisdropped
+        ) THEN
+            ALTER TABLE "Experiment" ADD COLUMN "primaryMetric" TEXT;
+        END IF;
+        IF NOT EXISTS (
+            SELECT 1
+            FROM pg_attribute
+            WHERE attrelid = '"Experiment"'::regclass
+              AND attname = 'secondaryMetrics'
+              AND NOT attisdropped
+        ) THEN
+            ALTER TABLE "Experiment" ADD COLUMN "secondaryMetrics" TEXT[];
+        END IF;
+    END IF;
+END $$;
+
 -- CreateTable
 CREATE TABLE "ExperimentAssignment" (
     "id" TEXT NOT NULL,
@@ -134,6 +213,49 @@ CREATE TABLE "ExperimentAssignment" (
 
     CONSTRAINT "ExperimentAssignment_pkey" PRIMARY KEY ("id")
 );
+
+-- Backfill columns expected by later migrations
+DO $$
+BEGIN
+    IF to_regclass('"ExperimentAssignment"') IS NOT NULL THEN
+        IF NOT EXISTS (
+            SELECT 1
+            FROM pg_attribute
+            WHERE attrelid = '"ExperimentAssignment"'::regclass
+              AND attname = 'variantId'
+              AND NOT attisdropped
+        ) THEN
+            ALTER TABLE "ExperimentAssignment" ADD COLUMN "variantId" TEXT;
+        END IF;
+        IF NOT EXISTS (
+            SELECT 1
+            FROM pg_attribute
+            WHERE attrelid = '"ExperimentAssignment"'::regclass
+              AND attname = 'organizationId'
+              AND NOT attisdropped
+        ) THEN
+            ALTER TABLE "ExperimentAssignment" ADD COLUMN "organizationId" TEXT;
+        END IF;
+        IF NOT EXISTS (
+            SELECT 1
+            FROM pg_attribute
+            WHERE attrelid = '"ExperimentAssignment"'::regclass
+              AND attname = 'userId'
+              AND NOT attisdropped
+        ) THEN
+            ALTER TABLE "ExperimentAssignment" ADD COLUMN "userId" TEXT;
+        END IF;
+        IF NOT EXISTS (
+            SELECT 1
+            FROM pg_attribute
+            WHERE attrelid = '"ExperimentAssignment"'::regclass
+              AND attname = 'anonymousId'
+              AND NOT attisdropped
+        ) THEN
+            ALTER TABLE "ExperimentAssignment" ADD COLUMN "anonymousId" TEXT;
+        END IF;
+    END IF;
+END $$;
 
 -- CreateTable
 CREATE TABLE "ScaleCalibration" (

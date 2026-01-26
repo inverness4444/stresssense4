@@ -6,7 +6,7 @@ import TopUpClient from "./TopUpClient";
 
 type SearchParams = { amount?: string };
 
-export default async function BillingTopUpPage({ searchParams }: { searchParams?: SearchParams }) {
+export default async function BillingTopUpPage({ searchParams }: { searchParams?: SearchParams | Promise<SearchParams> }) {
   const locale = await getLocale();
   const isRu = locale === "ru";
   const user = await getCurrentUser();
@@ -17,7 +17,8 @@ export default async function BillingTopUpPage({ searchParams }: { searchParams?
   const role = (user.role ?? "").toUpperCase();
   if (!enabled || !["ADMIN", "HR", "SUPER_ADMIN"].includes(role)) redirect("/app/overview");
 
-  const rawAmount = Number(searchParams?.amount ?? "");
+  const resolvedSearchParams = await Promise.resolve(searchParams);
+  const rawAmount = Number(resolvedSearchParams?.amount ?? "");
   const initialAmount = Number.isFinite(rawAmount) && rawAmount > 0 ? rawAmount : isRu ? 10000 : 100;
 
   return <TopUpClient isRu={isRu} initialAmount={initialAmount} />;

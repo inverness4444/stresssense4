@@ -1,11 +1,21 @@
 -- CreateEnum
-CREATE TYPE "SurveyStatus" AS ENUM ('DRAFT', 'ACTIVE', 'CLOSED');
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'SurveyStatus') THEN
+        CREATE TYPE "SurveyStatus" AS ENUM ('DRAFT', 'ACTIVE', 'CLOSED');
+    END IF;
+END $$;
 
 -- CreateEnum
-CREATE TYPE "QuestionType" AS ENUM ('SCALE', 'TEXT');
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'QuestionType') THEN
+        CREATE TYPE "QuestionType" AS ENUM ('SCALE', 'TEXT');
+    END IF;
+END $$;
 
 -- CreateTable
-CREATE TABLE "Organization" (
+CREATE TABLE IF NOT EXISTS "Organization" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "region" TEXT NOT NULL DEFAULT 'eu',
@@ -29,7 +39,7 @@ CREATE TABLE "Organization" (
 );
 
 -- CreateTable
-CREATE TABLE "User" (
+CREATE TABLE IF NOT EXISTS "User" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "email" TEXT NOT NULL,
@@ -51,8 +61,22 @@ CREATE TABLE "User" (
     CONSTRAINT "User_pkey" PRIMARY KEY ("id")
 );
 
+DO $$
+BEGIN
+    IF to_regclass('public."User"') IS NOT NULL
+        AND NOT EXISTS (
+            SELECT 1
+            FROM pg_attribute
+            WHERE attrelid = 'public."User"'::regclass
+              AND attname = 'managerId'
+              AND NOT attisdropped
+        ) THEN
+        ALTER TABLE "User" ADD COLUMN "managerId" TEXT;
+    END IF;
+END $$;
+
 -- CreateTable
-CREATE TABLE "Team" (
+CREATE TABLE IF NOT EXISTS "Team" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "description" TEXT,
@@ -65,7 +89,7 @@ CREATE TABLE "Team" (
 );
 
 -- CreateTable
-CREATE TABLE "UserTeam" (
+CREATE TABLE IF NOT EXISTS "UserTeam" (
     "userId" TEXT NOT NULL,
     "teamId" TEXT NOT NULL,
     "assignedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -74,7 +98,7 @@ CREATE TABLE "UserTeam" (
 );
 
 -- CreateTable
-CREATE TABLE "SurveyTemplate" (
+CREATE TABLE IF NOT EXISTS "SurveyTemplate" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "description" TEXT,
@@ -88,8 +112,22 @@ CREATE TABLE "SurveyTemplate" (
     CONSTRAINT "SurveyTemplate_pkey" PRIMARY KEY ("id")
 );
 
+DO $$
+BEGIN
+    IF to_regclass('public."SurveyTemplate"') IS NOT NULL
+        AND NOT EXISTS (
+            SELECT 1
+            FROM pg_attribute
+            WHERE attrelid = 'public."SurveyTemplate"'::regclass
+              AND attname = 'parentTemplateId'
+              AND NOT attisdropped
+        ) THEN
+        ALTER TABLE "SurveyTemplate" ADD COLUMN "parentTemplateId" TEXT;
+    END IF;
+END $$;
+
 -- CreateTable
-CREATE TABLE "TemplateQuestion" (
+CREATE TABLE IF NOT EXISTS "TemplateQuestion" (
     "id" TEXT NOT NULL,
     "templateId" TEXT NOT NULL,
     "order" INTEGER NOT NULL,
@@ -103,7 +141,7 @@ CREATE TABLE "TemplateQuestion" (
 );
 
 -- CreateTable
-CREATE TABLE "Survey" (
+CREATE TABLE IF NOT EXISTS "Survey" (
     "id" TEXT NOT NULL,
     "organizationId" TEXT NOT NULL,
     "templateId" TEXT NOT NULL,
@@ -126,7 +164,7 @@ CREATE TABLE "Survey" (
 );
 
 -- CreateTable
-CREATE TABLE "SurveyQuestion" (
+CREATE TABLE IF NOT EXISTS "SurveyQuestion" (
     "id" TEXT NOT NULL,
     "surveyId" TEXT NOT NULL,
     "order" INTEGER NOT NULL,
@@ -138,8 +176,22 @@ CREATE TABLE "SurveyQuestion" (
     CONSTRAINT "SurveyQuestion_pkey" PRIMARY KEY ("id")
 );
 
+DO $$
+BEGIN
+    IF to_regclass('public."SurveyQuestion"') IS NOT NULL
+        AND NOT EXISTS (
+            SELECT 1
+            FROM pg_attribute
+            WHERE attrelid = 'public."SurveyQuestion"'::regclass
+              AND attname = 'surveyId'
+              AND NOT attisdropped
+        ) THEN
+        ALTER TABLE "SurveyQuestion" ADD COLUMN "surveyId" TEXT;
+    END IF;
+END $$;
+
 -- CreateTable
-CREATE TABLE "SurveyTarget" (
+CREATE TABLE IF NOT EXISTS "SurveyTarget" (
     "id" TEXT NOT NULL,
     "surveyId" TEXT NOT NULL,
     "teamId" TEXT NOT NULL,
@@ -148,7 +200,7 @@ CREATE TABLE "SurveyTarget" (
 );
 
 -- CreateTable
-CREATE TABLE "SurveyInviteToken" (
+CREATE TABLE IF NOT EXISTS "SurveyInviteToken" (
     "id" TEXT NOT NULL,
     "surveyId" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
@@ -161,7 +213,7 @@ CREATE TABLE "SurveyInviteToken" (
 );
 
 -- CreateTable
-CREATE TABLE "SurveySchedule" (
+CREATE TABLE IF NOT EXISTS "SurveySchedule" (
     "id" TEXT NOT NULL,
     "organizationId" TEXT NOT NULL,
     "templateId" TEXT NOT NULL,
@@ -182,7 +234,7 @@ CREATE TABLE "SurveySchedule" (
 );
 
 -- CreateTable
-CREATE TABLE "Notification" (
+CREATE TABLE IF NOT EXISTS "Notification" (
     "id" TEXT NOT NULL,
     "organizationId" TEXT NOT NULL,
     "userId" TEXT,
@@ -197,7 +249,7 @@ CREATE TABLE "Notification" (
 );
 
 -- CreateTable
-CREATE TABLE "SurveyScheduleTarget" (
+CREATE TABLE IF NOT EXISTS "SurveyScheduleTarget" (
     "id" TEXT NOT NULL,
     "scheduleId" TEXT NOT NULL,
     "teamId" TEXT NOT NULL,
@@ -206,7 +258,7 @@ CREATE TABLE "SurveyScheduleTarget" (
 );
 
 -- CreateTable
-CREATE TABLE "SurveyResponse" (
+CREATE TABLE IF NOT EXISTS "SurveyResponse" (
     "id" TEXT NOT NULL,
     "surveyId" TEXT NOT NULL,
     "inviteTokenId" TEXT NOT NULL,
@@ -216,8 +268,22 @@ CREATE TABLE "SurveyResponse" (
     CONSTRAINT "SurveyResponse_pkey" PRIMARY KEY ("id")
 );
 
+DO $$
+BEGIN
+    IF to_regclass('public."SurveyResponse"') IS NOT NULL
+        AND NOT EXISTS (
+            SELECT 1
+            FROM pg_attribute
+            WHERE attrelid = 'public."SurveyResponse"'::regclass
+              AND attname = 'surveyId'
+              AND NOT attisdropped
+        ) THEN
+        ALTER TABLE "SurveyResponse" ADD COLUMN "surveyId" TEXT;
+    END IF;
+END $$;
+
 -- CreateTable
-CREATE TABLE "SurveyAnswer" (
+CREATE TABLE IF NOT EXISTS "SurveyAnswer" (
     "id" TEXT NOT NULL,
     "responseId" TEXT NOT NULL,
     "questionId" TEXT NOT NULL,
@@ -228,7 +294,7 @@ CREATE TABLE "SurveyAnswer" (
 );
 
 -- CreateTable
-CREATE TABLE "OrganizationSettings" (
+CREATE TABLE IF NOT EXISTS "OrganizationSettings" (
     "id" TEXT NOT NULL,
     "organizationId" TEXT NOT NULL,
     "minResponsesForBreakdown" INTEGER NOT NULL DEFAULT 4,
@@ -248,7 +314,7 @@ CREATE TABLE "OrganizationSettings" (
 );
 
 -- CreateTable
-CREATE TABLE "AuditLog" (
+CREATE TABLE IF NOT EXISTS "AuditLog" (
     "id" TEXT NOT NULL,
     "organizationId" TEXT NOT NULL,
     "userId" TEXT,
@@ -262,7 +328,7 @@ CREATE TABLE "AuditLog" (
 );
 
 -- CreateTable
-CREATE TABLE "Plan" (
+CREATE TABLE IF NOT EXISTS "Plan" (
     "id" TEXT NOT NULL,
     "key" TEXT,
     "stripePriceId" TEXT NOT NULL,
@@ -286,7 +352,7 @@ CREATE TABLE "Plan" (
 );
 
 -- CreateTable
-CREATE TABLE "Subscription" (
+CREATE TABLE IF NOT EXISTS "Subscription" (
     "id" TEXT NOT NULL,
     "organizationId" TEXT NOT NULL,
     "planId" TEXT,
@@ -307,7 +373,7 @@ CREATE TABLE "Subscription" (
 );
 
 -- CreateTable
-CREATE TABLE "SlackIntegration" (
+CREATE TABLE IF NOT EXISTS "SlackIntegration" (
     "id" TEXT NOT NULL,
     "organizationId" TEXT NOT NULL,
     "accessToken" TEXT NOT NULL,
@@ -321,7 +387,7 @@ CREATE TABLE "SlackIntegration" (
 );
 
 -- CreateTable
-CREATE TABLE "Article" (
+CREATE TABLE IF NOT EXISTS "Article" (
     "id" TEXT NOT NULL,
     "slug" TEXT NOT NULL,
     "title" TEXT NOT NULL,
@@ -339,7 +405,7 @@ CREATE TABLE "Article" (
 );
 
 -- CreateTable
-CREATE TABLE "ApiKey" (
+CREATE TABLE IF NOT EXISTS "ApiKey" (
     "id" TEXT NOT NULL,
     "organizationId" TEXT NOT NULL,
     "name" TEXT NOT NULL,
@@ -355,7 +421,7 @@ CREATE TABLE "ApiKey" (
 );
 
 -- CreateTable
-CREATE TABLE "WebhookEndpoint" (
+CREATE TABLE IF NOT EXISTS "WebhookEndpoint" (
     "id" TEXT NOT NULL,
     "organizationId" TEXT NOT NULL,
     "url" TEXT NOT NULL,
@@ -371,7 +437,7 @@ CREATE TABLE "WebhookEndpoint" (
 );
 
 -- CreateTable
-CREATE TABLE "WebhookDelivery" (
+CREATE TABLE IF NOT EXISTS "WebhookDelivery" (
     "id" TEXT NOT NULL,
     "endpointId" TEXT NOT NULL,
     "eventType" TEXT NOT NULL,
@@ -386,7 +452,7 @@ CREATE TABLE "WebhookDelivery" (
 );
 
 -- CreateTable
-CREATE TABLE "EmbedConfig" (
+CREATE TABLE IF NOT EXISTS "EmbedConfig" (
     "id" TEXT NOT NULL,
     "organizationId" TEXT NOT NULL,
     "publicKey" TEXT NOT NULL,
@@ -398,7 +464,7 @@ CREATE TABLE "EmbedConfig" (
 );
 
 -- CreateTable
-CREATE TABLE "Role" (
+CREATE TABLE IF NOT EXISTS "Role" (
     "id" TEXT NOT NULL,
     "organizationId" TEXT NOT NULL,
     "name" TEXT NOT NULL,
@@ -413,15 +479,20 @@ CREATE TABLE "Role" (
 );
 
 -- CreateTable
-CREATE TABLE "UserRole" (
-    "userId" TEXT NOT NULL,
-    "roleId" TEXT NOT NULL,
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'UserRole') AND to_regclass('public."UserRole"') IS NULL THEN
+        CREATE TABLE "UserRole" (
+            "userId" TEXT NOT NULL,
+            "roleId" TEXT NOT NULL,
 
-    CONSTRAINT "UserRole_pkey" PRIMARY KEY ("userId","roleId")
-);
+            CONSTRAINT "UserRole_pkey" PRIMARY KEY ("userId","roleId")
+        );
+    END IF;
+END $$;
 
 -- CreateTable
-CREATE TABLE "Playbook" (
+CREATE TABLE IF NOT EXISTS "Playbook" (
     "id" TEXT NOT NULL,
     "organizationId" TEXT,
     "name" TEXT NOT NULL,
@@ -437,7 +508,7 @@ CREATE TABLE "Playbook" (
 );
 
 -- CreateTable
-CREATE TABLE "PlaybookStep" (
+CREATE TABLE IF NOT EXISTS "PlaybookStep" (
     "id" TEXT NOT NULL,
     "playbookId" TEXT NOT NULL,
     "order" INTEGER NOT NULL,
@@ -451,7 +522,7 @@ CREATE TABLE "PlaybookStep" (
 );
 
 -- CreateTable
-CREATE TABLE "ActionItem" (
+CREATE TABLE IF NOT EXISTS "ActionItem" (
     "id" TEXT NOT NULL,
     "organizationId" TEXT NOT NULL,
     "surveyId" TEXT NOT NULL,
@@ -469,7 +540,7 @@ CREATE TABLE "ActionItem" (
 );
 
 -- CreateTable
-CREATE TABLE "DwhExportCursor" (
+CREATE TABLE IF NOT EXISTS "DwhExportCursor" (
     "id" TEXT NOT NULL,
     "organizationId" TEXT,
     "entityType" TEXT NOT NULL,
@@ -482,7 +553,7 @@ CREATE TABLE "DwhExportCursor" (
 );
 
 -- CreateTable
-CREATE TABLE "EmailTemplate" (
+CREATE TABLE IF NOT EXISTS "EmailTemplate" (
     "id" TEXT NOT NULL,
     "organizationId" TEXT,
     "type" TEXT NOT NULL,
@@ -497,7 +568,7 @@ CREATE TABLE "EmailTemplate" (
 );
 
 -- CreateTable
-CREATE TABLE "KioskSession" (
+CREATE TABLE IF NOT EXISTS "KioskSession" (
     "id" TEXT NOT NULL,
     "organizationId" TEXT NOT NULL,
     "surveyId" TEXT NOT NULL,
@@ -511,7 +582,7 @@ CREATE TABLE "KioskSession" (
 );
 
 -- CreateTable
-CREATE TABLE "ProductEvent" (
+CREATE TABLE IF NOT EXISTS "ProductEvent" (
     "id" TEXT NOT NULL,
     "organizationId" TEXT,
     "userId" TEXT,
@@ -525,7 +596,7 @@ CREATE TABLE "ProductEvent" (
 );
 
 -- CreateTable
-CREATE TABLE "InternalUser" (
+CREATE TABLE IF NOT EXISTS "InternalUser" (
     "id" TEXT NOT NULL,
     "email" TEXT NOT NULL,
     "name" TEXT,
@@ -537,7 +608,7 @@ CREATE TABLE "InternalUser" (
 );
 
 -- CreateTable
-CREATE TABLE "EmployeeAttributeDefinition" (
+CREATE TABLE IF NOT EXISTS "EmployeeAttributeDefinition" (
     "id" TEXT NOT NULL,
     "organizationId" TEXT NOT NULL,
     "key" TEXT NOT NULL,
@@ -551,7 +622,7 @@ CREATE TABLE "EmployeeAttributeDefinition" (
 );
 
 -- CreateTable
-CREATE TABLE "EmployeeAttributeValue" (
+CREATE TABLE IF NOT EXISTS "EmployeeAttributeValue" (
     "id" TEXT NOT NULL,
     "organizationId" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
@@ -564,7 +635,7 @@ CREATE TABLE "EmployeeAttributeValue" (
 );
 
 -- CreateTable
-CREATE TABLE "SSOConfig" (
+CREATE TABLE IF NOT EXISTS "SSOConfig" (
     "id" TEXT NOT NULL,
     "organizationId" TEXT NOT NULL,
     "providerType" TEXT NOT NULL,
@@ -587,7 +658,7 @@ CREATE TABLE "SSOConfig" (
 );
 
 -- CreateTable
-CREATE TABLE "HRISIntegration" (
+CREATE TABLE IF NOT EXISTS "HRISIntegration" (
     "id" TEXT NOT NULL,
     "organizationId" TEXT NOT NULL,
     "provider" TEXT NOT NULL,
@@ -602,7 +673,7 @@ CREATE TABLE "HRISIntegration" (
 );
 
 -- CreateTable
-CREATE TABLE "TeamRiskSnapshot" (
+CREATE TABLE IF NOT EXISTS "TeamRiskSnapshot" (
     "id" TEXT NOT NULL,
     "organizationId" TEXT NOT NULL,
     "teamId" TEXT NOT NULL,
@@ -619,7 +690,7 @@ CREATE TABLE "TeamRiskSnapshot" (
 );
 
 -- CreateTable
-CREATE TABLE "OrgRiskSnapshot" (
+CREATE TABLE IF NOT EXISTS "OrgRiskSnapshot" (
     "id" TEXT NOT NULL,
     "organizationId" TEXT NOT NULL,
     "windowStart" TIMESTAMP(3) NOT NULL,
@@ -635,7 +706,7 @@ CREATE TABLE "OrgRiskSnapshot" (
 );
 
 -- CreateTable
-CREATE TABLE "AnomalyEvent" (
+CREATE TABLE IF NOT EXISTS "AnomalyEvent" (
     "id" TEXT NOT NULL,
     "organizationId" TEXT NOT NULL,
     "scopeType" TEXT NOT NULL,
@@ -657,7 +728,7 @@ CREATE TABLE "AnomalyEvent" (
 );
 
 -- CreateTable
-CREATE TABLE "RecommendationTemplate" (
+CREATE TABLE IF NOT EXISTS "RecommendationTemplate" (
     "id" TEXT NOT NULL,
     "organizationId" TEXT,
     "key" TEXT NOT NULL,
@@ -674,7 +745,7 @@ CREATE TABLE "RecommendationTemplate" (
 );
 
 -- CreateTable
-CREATE TABLE "NudgeRule" (
+CREATE TABLE IF NOT EXISTS "NudgeRule" (
     "id" TEXT NOT NULL,
     "organizationId" TEXT,
     "key" TEXT NOT NULL,
@@ -691,7 +762,7 @@ CREATE TABLE "NudgeRule" (
 );
 
 -- CreateTable
-CREATE TABLE "NudgeEvent" (
+CREATE TABLE IF NOT EXISTS "NudgeEvent" (
     "id" TEXT NOT NULL,
     "organizationId" TEXT NOT NULL,
     "ruleId" TEXT NOT NULL,
@@ -706,7 +777,7 @@ CREATE TABLE "NudgeEvent" (
 );
 
 -- CreateTable
-CREATE TABLE "Experiment" (
+CREATE TABLE IF NOT EXISTS "Experiment" (
     "id" TEXT NOT NULL,
     "key" TEXT NOT NULL,
     "name" TEXT,
@@ -730,7 +801,7 @@ CREATE TABLE "Experiment" (
 );
 
 -- CreateTable
-CREATE TABLE "ExperimentAssignment" (
+CREATE TABLE IF NOT EXISTS "ExperimentAssignment" (
     "id" TEXT NOT NULL,
     "experimentId" TEXT NOT NULL,
     "subjectType" TEXT NOT NULL,
@@ -746,7 +817,7 @@ CREATE TABLE "ExperimentAssignment" (
 );
 
 -- CreateTable
-CREATE TABLE "ScaleCalibration" (
+CREATE TABLE IF NOT EXISTS "ScaleCalibration" (
     "id" TEXT NOT NULL,
     "templateId" TEXT NOT NULL,
     "locale" TEXT NOT NULL,
@@ -761,7 +832,7 @@ CREATE TABLE "ScaleCalibration" (
 );
 
 -- CreateTable
-CREATE TABLE "SurveyInsight" (
+CREATE TABLE IF NOT EXISTS "SurveyInsight" (
     "id" TEXT NOT NULL,
     "surveyId" TEXT NOT NULL,
     "language" TEXT,
@@ -777,7 +848,7 @@ CREATE TABLE "SurveyInsight" (
 );
 
 -- CreateTable
-CREATE TABLE "BrandProfile" (
+CREATE TABLE IF NOT EXISTS "BrandProfile" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "primaryColor" TEXT,
@@ -793,7 +864,7 @@ CREATE TABLE "BrandProfile" (
 );
 
 -- CreateTable
-CREATE TABLE "OrganizationBrand" (
+CREATE TABLE IF NOT EXISTS "OrganizationBrand" (
     "id" TEXT NOT NULL,
     "organizationId" TEXT NOT NULL,
     "brandProfileId" TEXT NOT NULL,
@@ -803,7 +874,7 @@ CREATE TABLE "OrganizationBrand" (
 );
 
 -- CreateTable
-CREATE TABLE "Partner" (
+CREATE TABLE IF NOT EXISTS "Partner" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "slug" TEXT NOT NULL,
@@ -816,7 +887,7 @@ CREATE TABLE "Partner" (
 );
 
 -- CreateTable
-CREATE TABLE "PartnerUser" (
+CREATE TABLE IF NOT EXISTS "PartnerUser" (
     "id" TEXT NOT NULL,
     "partnerId" TEXT NOT NULL,
     "email" TEXT NOT NULL,
@@ -829,7 +900,7 @@ CREATE TABLE "PartnerUser" (
 );
 
 -- CreateTable
-CREATE TABLE "PartnerOrganization" (
+CREATE TABLE IF NOT EXISTS "PartnerOrganization" (
     "id" TEXT NOT NULL,
     "partnerId" TEXT NOT NULL,
     "organizationId" TEXT NOT NULL,
@@ -840,7 +911,7 @@ CREATE TABLE "PartnerOrganization" (
 );
 
 -- CreateTable
-CREATE TABLE "MarketplaceApp" (
+CREATE TABLE IF NOT EXISTS "MarketplaceApp" (
     "id" TEXT NOT NULL,
     "slug" TEXT NOT NULL,
     "name" TEXT NOT NULL,
@@ -858,7 +929,7 @@ CREATE TABLE "MarketplaceApp" (
 );
 
 -- CreateTable
-CREATE TABLE "MarketplaceInstallation" (
+CREATE TABLE IF NOT EXISTS "MarketplaceInstallation" (
     "id" TEXT NOT NULL,
     "organizationId" TEXT NOT NULL,
     "appId" TEXT NOT NULL,
@@ -872,7 +943,7 @@ CREATE TABLE "MarketplaceInstallation" (
 );
 
 -- CreateTable
-CREATE TABLE "AutomationWorkflow" (
+CREATE TABLE IF NOT EXISTS "AutomationWorkflow" (
     "id" TEXT NOT NULL,
     "organizationId" TEXT NOT NULL,
     "name" TEXT NOT NULL,
@@ -890,7 +961,7 @@ CREATE TABLE "AutomationWorkflow" (
 );
 
 -- CreateTable
-CREATE TABLE "AutomationRun" (
+CREATE TABLE IF NOT EXISTS "AutomationRun" (
     "id" TEXT NOT NULL,
     "workflowId" TEXT NOT NULL,
     "organizationId" TEXT NOT NULL,
@@ -904,7 +975,7 @@ CREATE TABLE "AutomationRun" (
 );
 
 -- CreateTable
-CREATE TABLE "ProjectSpace" (
+CREATE TABLE IF NOT EXISTS "ProjectSpace" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "description" TEXT,
@@ -917,7 +988,7 @@ CREATE TABLE "ProjectSpace" (
 );
 
 -- CreateTable
-CREATE TABLE "ProjectMembership" (
+CREATE TABLE IF NOT EXISTS "ProjectMembership" (
     "id" TEXT NOT NULL,
     "projectId" TEXT NOT NULL,
     "userType" TEXT NOT NULL,
@@ -930,7 +1001,7 @@ CREATE TABLE "ProjectMembership" (
 );
 
 -- CreateTable
-CREATE TABLE "OnboardingTask" (
+CREATE TABLE IF NOT EXISTS "OnboardingTask" (
     "id" TEXT NOT NULL,
     "organizationId" TEXT NOT NULL,
     "key" TEXT NOT NULL,
@@ -945,7 +1016,7 @@ CREATE TABLE "OnboardingTask" (
 );
 
 -- CreateTable
-CREATE TABLE "UsageRecord" (
+CREATE TABLE IF NOT EXISTS "UsageRecord" (
     "id" TEXT NOT NULL,
     "organizationId" TEXT NOT NULL,
     "periodStart" TIMESTAMP(3) NOT NULL,
@@ -958,7 +1029,7 @@ CREATE TABLE "UsageRecord" (
 );
 
 -- CreateTable
-CREATE TABLE "AddOn" (
+CREATE TABLE IF NOT EXISTS "AddOn" (
     "id" TEXT NOT NULL,
     "key" TEXT NOT NULL,
     "name" TEXT NOT NULL,
@@ -972,7 +1043,7 @@ CREATE TABLE "AddOn" (
 );
 
 -- CreateTable
-CREATE TABLE "OrganizationAddOn" (
+CREATE TABLE IF NOT EXISTS "OrganizationAddOn" (
     "id" TEXT NOT NULL,
     "organizationId" TEXT NOT NULL,
     "addOnId" TEXT NOT NULL,
@@ -984,7 +1055,7 @@ CREATE TABLE "OrganizationAddOn" (
 );
 
 -- CreateTable
-CREATE TABLE "CRMIntegration" (
+CREATE TABLE IF NOT EXISTS "CRMIntegration" (
     "id" TEXT NOT NULL,
     "type" TEXT NOT NULL,
     "apiBaseUrl" TEXT,
@@ -999,7 +1070,7 @@ CREATE TABLE "CRMIntegration" (
 );
 
 -- CreateTable
-CREATE TABLE "OrgCRMMapping" (
+CREATE TABLE IF NOT EXISTS "OrgCRMMapping" (
     "id" TEXT NOT NULL,
     "organizationId" TEXT NOT NULL,
     "crmIntegrationId" TEXT NOT NULL,
@@ -1012,7 +1083,7 @@ CREATE TABLE "OrgCRMMapping" (
 );
 
 -- CreateTable
-CREATE TABLE "Invoice" (
+CREATE TABLE IF NOT EXISTS "Invoice" (
     "id" TEXT NOT NULL,
     "organizationId" TEXT NOT NULL,
     "stripeInvoiceId" TEXT,
@@ -1030,7 +1101,7 @@ CREATE TABLE "Invoice" (
 );
 
 -- CreateTable
-CREATE TABLE "InvoiceLineItem" (
+CREATE TABLE IF NOT EXISTS "InvoiceLineItem" (
     "id" TEXT NOT NULL,
     "invoiceId" TEXT NOT NULL,
     "description" TEXT NOT NULL,
@@ -1044,7 +1115,7 @@ CREATE TABLE "InvoiceLineItem" (
 );
 
 -- CreateTable
-CREATE TABLE "DunningState" (
+CREATE TABLE IF NOT EXISTS "DunningState" (
     "id" TEXT NOT NULL,
     "organizationId" TEXT NOT NULL,
     "status" TEXT NOT NULL DEFAULT 'none',
@@ -1057,7 +1128,7 @@ CREATE TABLE "DunningState" (
 );
 
 -- CreateTable
-CREATE TABLE "ReferralProgram" (
+CREATE TABLE IF NOT EXISTS "ReferralProgram" (
     "id" TEXT NOT NULL,
     "key" TEXT NOT NULL,
     "isActive" BOOLEAN NOT NULL DEFAULT true,
@@ -1070,7 +1141,7 @@ CREATE TABLE "ReferralProgram" (
 );
 
 -- CreateTable
-CREATE TABLE "OrgReferral" (
+CREATE TABLE IF NOT EXISTS "OrgReferral" (
     "id" TEXT NOT NULL,
     "referrerOrganizationId" TEXT NOT NULL,
     "referredOrganizationId" TEXT,
@@ -1084,7 +1155,7 @@ CREATE TABLE "OrgReferral" (
 );
 
 -- CreateTable
-CREATE TABLE "InAppSurvey" (
+CREATE TABLE IF NOT EXISTS "InAppSurvey" (
     "id" TEXT NOT NULL,
     "type" TEXT NOT NULL,
     "question" TEXT NOT NULL,
@@ -1097,7 +1168,7 @@ CREATE TABLE "InAppSurvey" (
 );
 
 -- CreateTable
-CREATE TABLE "InAppSurveyResponse" (
+CREATE TABLE IF NOT EXISTS "InAppSurveyResponse" (
     "id" TEXT NOT NULL,
     "surveyId" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
@@ -1110,7 +1181,7 @@ CREATE TABLE "InAppSurveyResponse" (
 );
 
 -- CreateTable
-CREATE TABLE "FeatureFlag" (
+CREATE TABLE IF NOT EXISTS "FeatureFlag" (
     "id" TEXT NOT NULL,
     "key" TEXT NOT NULL,
     "description" TEXT,
@@ -1123,7 +1194,7 @@ CREATE TABLE "FeatureFlag" (
 );
 
 -- CreateTable
-CREATE TABLE "FeatureFlagOverride" (
+CREATE TABLE IF NOT EXISTS "FeatureFlagOverride" (
     "id" TEXT NOT NULL,
     "featureKey" TEXT NOT NULL,
     "organizationId" TEXT,
@@ -1137,7 +1208,7 @@ CREATE TABLE "FeatureFlagOverride" (
 );
 
 -- CreateTable
-CREATE TABLE "CoachSession" (
+CREATE TABLE IF NOT EXISTS "CoachSession" (
     "id" TEXT NOT NULL,
     "organizationId" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
@@ -1153,7 +1224,7 @@ CREATE TABLE "CoachSession" (
 );
 
 -- CreateTable
-CREATE TABLE "CoachMessage" (
+CREATE TABLE IF NOT EXISTS "CoachMessage" (
     "id" TEXT NOT NULL,
     "sessionId" TEXT NOT NULL,
     "role" TEXT NOT NULL,
@@ -1170,7 +1241,7 @@ CREATE TABLE "CoachMessage" (
 );
 
 -- CreateTable
-CREATE TABLE "CoachSummary" (
+CREATE TABLE IF NOT EXISTS "CoachSummary" (
     "id" TEXT NOT NULL,
     "sessionId" TEXT NOT NULL,
     "summary" TEXT NOT NULL,
@@ -1182,7 +1253,7 @@ CREATE TABLE "CoachSummary" (
 );
 
 -- CreateTable
-CREATE TABLE "HabitPlan" (
+CREATE TABLE IF NOT EXISTS "HabitPlan" (
     "id" TEXT NOT NULL,
     "organizationId" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
@@ -1197,7 +1268,7 @@ CREATE TABLE "HabitPlan" (
 );
 
 -- CreateTable
-CREATE TABLE "HabitTask" (
+CREATE TABLE IF NOT EXISTS "HabitTask" (
     "id" TEXT NOT NULL,
     "planId" TEXT NOT NULL,
     "title" TEXT NOT NULL,
@@ -1214,7 +1285,7 @@ CREATE TABLE "HabitTask" (
 );
 
 -- CreateTable
-CREATE TABLE "HabitCheckin" (
+CREATE TABLE IF NOT EXISTS "HabitCheckin" (
     "id" TEXT NOT NULL,
     "taskId" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
@@ -1227,7 +1298,7 @@ CREATE TABLE "HabitCheckin" (
 );
 
 -- CreateTable
-CREATE TABLE "UserWellbeingPreferences" (
+CREATE TABLE IF NOT EXISTS "UserWellbeingPreferences" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
     "allowCheckinReminders" BOOLEAN NOT NULL DEFAULT true,
@@ -1242,7 +1313,7 @@ CREATE TABLE "UserWellbeingPreferences" (
 );
 
 -- CreateTable
-CREATE TABLE "SafetyIncident" (
+CREATE TABLE IF NOT EXISTS "SafetyIncident" (
     "id" TEXT NOT NULL,
     "organizationId" TEXT NOT NULL,
     "userId" TEXT,
@@ -1261,7 +1332,7 @@ CREATE TABLE "SafetyIncident" (
 );
 
 -- CreateTable
-CREATE TABLE "OrgSafetySettings" (
+CREATE TABLE IF NOT EXISTS "OrgSafetySettings" (
     "id" TEXT NOT NULL,
     "organizationId" TEXT NOT NULL,
     "emergencyText" TEXT,
@@ -1275,7 +1346,7 @@ CREATE TABLE "OrgSafetySettings" (
 );
 
 -- CreateTable
-CREATE TABLE "WellbeingResource" (
+CREATE TABLE IF NOT EXISTS "WellbeingResource" (
     "id" TEXT NOT NULL,
     "title" TEXT NOT NULL,
     "slug" TEXT NOT NULL,
@@ -1293,7 +1364,7 @@ CREATE TABLE "WellbeingResource" (
 );
 
 -- CreateTable
-CREATE TABLE "AcademyCourse" (
+CREATE TABLE IF NOT EXISTS "AcademyCourse" (
     "id" TEXT NOT NULL,
     "slug" TEXT NOT NULL,
     "title" TEXT NOT NULL,
@@ -1311,7 +1382,7 @@ CREATE TABLE "AcademyCourse" (
 );
 
 -- CreateTable
-CREATE TABLE "AcademyModule" (
+CREATE TABLE IF NOT EXISTS "AcademyModule" (
     "id" TEXT NOT NULL,
     "courseId" TEXT NOT NULL,
     "title" TEXT NOT NULL,
@@ -1326,7 +1397,7 @@ CREATE TABLE "AcademyModule" (
 );
 
 -- CreateTable
-CREATE TABLE "AcademyQuizQuestion" (
+CREATE TABLE IF NOT EXISTS "AcademyQuizQuestion" (
     "id" TEXT NOT NULL,
     "moduleId" TEXT NOT NULL,
     "type" TEXT NOT NULL,
@@ -1339,7 +1410,7 @@ CREATE TABLE "AcademyQuizQuestion" (
 );
 
 -- CreateTable
-CREATE TABLE "AcademyEnrollment" (
+CREATE TABLE IF NOT EXISTS "AcademyEnrollment" (
     "id" TEXT NOT NULL,
     "organizationId" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
@@ -1355,7 +1426,7 @@ CREATE TABLE "AcademyEnrollment" (
 );
 
 -- CreateTable
-CREATE TABLE "AcademyProgress" (
+CREATE TABLE IF NOT EXISTS "AcademyProgress" (
     "id" TEXT NOT NULL,
     "enrollmentId" TEXT NOT NULL,
     "moduleId" TEXT NOT NULL,
@@ -1370,7 +1441,7 @@ CREATE TABLE "AcademyProgress" (
 );
 
 -- CreateTable
-CREATE TABLE "AcademyCertificate" (
+CREATE TABLE IF NOT EXISTS "AcademyCertificate" (
     "id" TEXT NOT NULL,
     "enrollmentId" TEXT NOT NULL,
     "certificateNumber" TEXT NOT NULL,
@@ -1382,7 +1453,7 @@ CREATE TABLE "AcademyCertificate" (
 );
 
 -- CreateTable
-CREATE TABLE "LearningProgram" (
+CREATE TABLE IF NOT EXISTS "LearningProgram" (
     "id" TEXT NOT NULL,
     "organizationId" TEXT NOT NULL,
     "title" TEXT NOT NULL,
@@ -1399,7 +1470,7 @@ CREATE TABLE "LearningProgram" (
 );
 
 -- CreateTable
-CREATE TABLE "LearningCohort" (
+CREATE TABLE IF NOT EXISTS "LearningCohort" (
     "id" TEXT NOT NULL,
     "programId" TEXT NOT NULL,
     "organizationId" TEXT,
@@ -1414,7 +1485,7 @@ CREATE TABLE "LearningCohort" (
 );
 
 -- CreateTable
-CREATE TABLE "LearningCohortMember" (
+CREATE TABLE IF NOT EXISTS "LearningCohortMember" (
     "id" TEXT NOT NULL,
     "cohortId" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
@@ -1426,7 +1497,7 @@ CREATE TABLE "LearningCohortMember" (
 );
 
 -- CreateTable
-CREATE TABLE "CommunitySpace" (
+CREATE TABLE IF NOT EXISTS "CommunitySpace" (
     "id" TEXT NOT NULL,
     "key" TEXT NOT NULL,
     "name" TEXT NOT NULL,
@@ -1440,7 +1511,7 @@ CREATE TABLE "CommunitySpace" (
 );
 
 -- CreateTable
-CREATE TABLE "CommunityThread" (
+CREATE TABLE IF NOT EXISTS "CommunityThread" (
     "id" TEXT NOT NULL,
     "spaceId" TEXT NOT NULL,
     "organizationId" TEXT,
@@ -1457,7 +1528,7 @@ CREATE TABLE "CommunityThread" (
 );
 
 -- CreateTable
-CREATE TABLE "CommunityReply" (
+CREATE TABLE IF NOT EXISTS "CommunityReply" (
     "id" TEXT NOT NULL,
     "threadId" TEXT NOT NULL,
     "authorUserId" TEXT NOT NULL,
@@ -1469,7 +1540,7 @@ CREATE TABLE "CommunityReply" (
 );
 
 -- CreateTable
-CREATE TABLE "CommunityUpvote" (
+CREATE TABLE IF NOT EXISTS "CommunityUpvote" (
     "id" TEXT NOT NULL,
     "threadId" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
@@ -1479,7 +1550,7 @@ CREATE TABLE "CommunityUpvote" (
 );
 
 -- CreateTable
-CREATE TABLE "CoachProfile" (
+CREATE TABLE IF NOT EXISTS "CoachProfile" (
     "id" TEXT NOT NULL,
     "type" TEXT NOT NULL,
     "name" TEXT NOT NULL,
@@ -1498,7 +1569,7 @@ CREATE TABLE "CoachProfile" (
 );
 
 -- CreateTable
-CREATE TABLE "CoachAvailabilitySlot" (
+CREATE TABLE IF NOT EXISTS "CoachAvailabilitySlot" (
     "id" TEXT NOT NULL,
     "coachId" TEXT NOT NULL,
     "start" TIMESTAMP(3) NOT NULL,
@@ -1509,7 +1580,7 @@ CREATE TABLE "CoachAvailabilitySlot" (
 );
 
 -- CreateTable
-CREATE TABLE "CoachBooking" (
+CREATE TABLE IF NOT EXISTS "CoachBooking" (
     "id" TEXT NOT NULL,
     "coachId" TEXT NOT NULL,
     "organizationId" TEXT NOT NULL,
@@ -1528,7 +1599,7 @@ CREATE TABLE "CoachBooking" (
 );
 
 -- CreateTable
-CREATE TABLE "BenchmarkGroup" (
+CREATE TABLE IF NOT EXISTS "BenchmarkGroup" (
     "id" TEXT NOT NULL,
     "key" TEXT NOT NULL,
     "name" TEXT NOT NULL,
@@ -1542,7 +1613,7 @@ CREATE TABLE "BenchmarkGroup" (
 );
 
 -- CreateTable
-CREATE TABLE "BenchmarkSnapshot" (
+CREATE TABLE IF NOT EXISTS "BenchmarkSnapshot" (
     "id" TEXT NOT NULL,
     "groupId" TEXT NOT NULL,
     "periodStart" TIMESTAMP(3) NOT NULL,
@@ -1559,7 +1630,7 @@ CREATE TABLE "BenchmarkSnapshot" (
 );
 
 -- CreateTable
-CREATE TABLE "UserPrivacyProfile" (
+CREATE TABLE IF NOT EXISTS "UserPrivacyProfile" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
     "allowAnonymizedUse" BOOLEAN NOT NULL DEFAULT true,
@@ -1574,7 +1645,7 @@ CREATE TABLE "UserPrivacyProfile" (
 );
 
 -- CreateTable
-CREATE TABLE "OrgPrivacySettings" (
+CREATE TABLE IF NOT EXISTS "OrgPrivacySettings" (
     "id" TEXT NOT NULL,
     "organizationId" TEXT NOT NULL,
     "allowAggregatedTeamInsights" BOOLEAN NOT NULL DEFAULT true,
@@ -1593,7 +1664,7 @@ CREATE TABLE "OrgPrivacySettings" (
 );
 
 -- CreateTable
-CREATE TABLE "DataSubjectRequest" (
+CREATE TABLE IF NOT EXISTS "DataSubjectRequest" (
     "id" TEXT NOT NULL,
     "organizationId" TEXT NOT NULL,
     "userId" TEXT,
@@ -1611,7 +1682,7 @@ CREATE TABLE "DataSubjectRequest" (
 );
 
 -- CreateTable
-CREATE TABLE "DataSubjectExportBundle" (
+CREATE TABLE IF NOT EXISTS "DataSubjectExportBundle" (
     "id" TEXT NOT NULL,
     "requestId" TEXT NOT NULL,
     "storageUrl" TEXT,
@@ -1621,7 +1692,7 @@ CREATE TABLE "DataSubjectExportBundle" (
 );
 
 -- CreateTable
-CREATE TABLE "RetentionPolicy" (
+CREATE TABLE IF NOT EXISTS "RetentionPolicy" (
     "id" TEXT NOT NULL,
     "organizationId" TEXT NOT NULL,
     "dataType" TEXT NOT NULL,
@@ -1634,7 +1705,7 @@ CREATE TABLE "RetentionPolicy" (
 );
 
 -- CreateTable
-CREATE TABLE "LegalHold" (
+CREATE TABLE IF NOT EXISTS "LegalHold" (
     "id" TEXT NOT NULL,
     "organizationId" TEXT NOT NULL,
     "reason" TEXT NOT NULL,
@@ -1648,7 +1719,7 @@ CREATE TABLE "LegalHold" (
 );
 
 -- CreateTable
-CREATE TABLE "ConsentRecord" (
+CREATE TABLE IF NOT EXISTS "ConsentRecord" (
     "id" TEXT NOT NULL,
     "organizationId" TEXT,
     "userId" TEXT,
@@ -1666,7 +1737,7 @@ CREATE TABLE "ConsentRecord" (
 );
 
 -- CreateTable
-CREATE TABLE "ApiClient" (
+CREATE TABLE IF NOT EXISTS "ApiClient" (
     "id" TEXT NOT NULL,
     "organizationId" TEXT NOT NULL,
     "name" TEXT NOT NULL,
@@ -1684,7 +1755,7 @@ CREATE TABLE "ApiClient" (
 );
 
 -- CreateTable
-CREATE TABLE "ApiToken" (
+CREATE TABLE IF NOT EXISTS "ApiToken" (
     "id" TEXT NOT NULL,
     "organizationId" TEXT,
     "apiClientId" TEXT NOT NULL,
@@ -1698,7 +1769,7 @@ CREATE TABLE "ApiToken" (
 );
 
 -- CreateTable
-CREATE TABLE "HRISConnection" (
+CREATE TABLE IF NOT EXISTS "HRISConnection" (
     "id" TEXT NOT NULL,
     "organizationId" TEXT NOT NULL,
     "provider" TEXT NOT NULL,
@@ -1713,7 +1784,7 @@ CREATE TABLE "HRISConnection" (
 );
 
 -- CreateTable
-CREATE TABLE "HRISFieldMapping" (
+CREATE TABLE IF NOT EXISTS "HRISFieldMapping" (
     "id" TEXT NOT NULL,
     "hrisConnectionId" TEXT NOT NULL,
     "hrisField" TEXT NOT NULL,
@@ -1726,7 +1797,7 @@ CREATE TABLE "HRISFieldMapping" (
 );
 
 -- CreateTable
-CREATE TABLE "HRISSyncLog" (
+CREATE TABLE IF NOT EXISTS "HRISSyncLog" (
     "id" TEXT NOT NULL,
     "hrisConnectionId" TEXT NOT NULL,
     "organizationId" TEXT,
@@ -1743,7 +1814,7 @@ CREATE TABLE "HRISSyncLog" (
 );
 
 -- CreateTable
-CREATE TABLE "SSOConnection" (
+CREATE TABLE IF NOT EXISTS "SSOConnection" (
     "id" TEXT NOT NULL,
     "organizationId" TEXT NOT NULL,
     "protocol" TEXT NOT NULL,
@@ -1767,7 +1838,7 @@ CREATE TABLE "SSOConnection" (
 );
 
 -- CreateTable
-CREATE TABLE "SSODomain" (
+CREATE TABLE IF NOT EXISTS "SSODomain" (
     "id" TEXT NOT NULL,
     "organizationId" TEXT NOT NULL,
     "domain" TEXT NOT NULL,
@@ -1778,7 +1849,7 @@ CREATE TABLE "SSODomain" (
 );
 
 -- CreateTable
-CREATE TABLE "SCIMConnection" (
+CREATE TABLE IF NOT EXISTS "SCIMConnection" (
     "id" TEXT NOT NULL,
     "organizationId" TEXT NOT NULL,
     "bearerTokenHash" TEXT NOT NULL,
@@ -1791,7 +1862,7 @@ CREATE TABLE "SCIMConnection" (
 );
 
 -- CreateTable
-CREATE TABLE "SlackWorkspace" (
+CREATE TABLE IF NOT EXISTS "SlackWorkspace" (
     "id" TEXT NOT NULL,
     "organizationId" TEXT NOT NULL,
     "teamId" TEXT NOT NULL,
@@ -1806,7 +1877,7 @@ CREATE TABLE "SlackWorkspace" (
 );
 
 -- CreateTable
-CREATE TABLE "SlackChannelMapping" (
+CREATE TABLE IF NOT EXISTS "SlackChannelMapping" (
     "id" TEXT NOT NULL,
     "slackWorkspaceId" TEXT NOT NULL,
     "type" TEXT NOT NULL,
@@ -1818,7 +1889,7 @@ CREATE TABLE "SlackChannelMapping" (
 );
 
 -- CreateTable
-CREATE TABLE "SlackUserLink" (
+CREATE TABLE IF NOT EXISTS "SlackUserLink" (
     "id" TEXT NOT NULL,
     "slackWorkspaceId" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
@@ -1830,7 +1901,7 @@ CREATE TABLE "SlackUserLink" (
 );
 
 -- CreateTable
-CREATE TABLE "CalendarConnection" (
+CREATE TABLE IF NOT EXISTS "CalendarConnection" (
     "id" TEXT NOT NULL,
     "organizationId" TEXT NOT NULL,
     "userId" TEXT,
@@ -1846,7 +1917,7 @@ CREATE TABLE "CalendarConnection" (
 );
 
 -- CreateTable
-CREATE TABLE "CustomerWarehouseConnection" (
+CREATE TABLE IF NOT EXISTS "CustomerWarehouseConnection" (
     "id" TEXT NOT NULL,
     "organizationId" TEXT NOT NULL,
     "type" TEXT NOT NULL,
@@ -1860,7 +1931,7 @@ CREATE TABLE "CustomerWarehouseConnection" (
 );
 
 -- CreateTable
-CREATE TABLE "ExperimentVariant" (
+CREATE TABLE IF NOT EXISTS "ExperimentVariant" (
     "id" TEXT NOT NULL,
     "experimentId" TEXT NOT NULL,
     "key" TEXT NOT NULL,
@@ -1875,7 +1946,7 @@ CREATE TABLE "ExperimentVariant" (
 );
 
 -- CreateTable
-CREATE TABLE "ExperimentExposure" (
+CREATE TABLE IF NOT EXISTS "ExperimentExposure" (
     "id" TEXT NOT NULL,
     "experimentId" TEXT NOT NULL,
     "variantId" TEXT NOT NULL,
@@ -1890,7 +1961,7 @@ CREATE TABLE "ExperimentExposure" (
 );
 
 -- CreateTable
-CREATE TABLE "ExperimentMetricEvent" (
+CREATE TABLE IF NOT EXISTS "ExperimentMetricEvent" (
     "id" TEXT NOT NULL,
     "experimentId" TEXT NOT NULL,
     "variantId" TEXT NOT NULL,
@@ -1908,7 +1979,7 @@ CREATE TABLE "ExperimentMetricEvent" (
 );
 
 -- CreateTable
-CREATE TABLE "ModelRegistry" (
+CREATE TABLE IF NOT EXISTS "ModelRegistry" (
     "id" TEXT NOT NULL,
     "key" TEXT NOT NULL,
     "name" TEXT NOT NULL,
@@ -1922,7 +1993,7 @@ CREATE TABLE "ModelRegistry" (
 );
 
 -- CreateTable
-CREATE TABLE "ModelVersion" (
+CREATE TABLE IF NOT EXISTS "ModelVersion" (
     "id" TEXT NOT NULL,
     "registryId" TEXT NOT NULL,
     "version" TEXT NOT NULL,
@@ -1939,7 +2010,7 @@ CREATE TABLE "ModelVersion" (
 );
 
 -- CreateTable
-CREATE TABLE "ModelInferenceLog" (
+CREATE TABLE IF NOT EXISTS "ModelInferenceLog" (
     "id" TEXT NOT NULL,
     "modelVersionId" TEXT NOT NULL,
     "organizationId" TEXT,
@@ -1953,7 +2024,7 @@ CREATE TABLE "ModelInferenceLog" (
 );
 
 -- CreateTable
-CREATE TABLE "AIEvalTask" (
+CREATE TABLE IF NOT EXISTS "AIEvalTask" (
     "id" TEXT NOT NULL,
     "type" TEXT NOT NULL,
     "sourceId" TEXT NOT NULL,
@@ -1968,7 +2039,7 @@ CREATE TABLE "AIEvalTask" (
 );
 
 -- CreateTable
-CREATE TABLE "ResearchNotebook" (
+CREATE TABLE IF NOT EXISTS "ResearchNotebook" (
     "id" TEXT NOT NULL,
     "key" TEXT NOT NULL,
     "name" TEXT NOT NULL,
@@ -1983,7 +2054,7 @@ CREATE TABLE "ResearchNotebook" (
 );
 
 -- CreateTable
-CREATE TABLE "ResearchDataset" (
+CREATE TABLE IF NOT EXISTS "ResearchDataset" (
     "id" TEXT NOT NULL,
     "notebookId" TEXT NOT NULL,
     "type" TEXT NOT NULL,
@@ -1995,7 +2066,7 @@ CREATE TABLE "ResearchDataset" (
 );
 
 -- CreateTable
-CREATE TABLE "ActionCenterItem" (
+CREATE TABLE IF NOT EXISTS "ActionCenterItem" (
     "id" TEXT NOT NULL,
     "organizationId" TEXT NOT NULL,
     "teamId" TEXT,
@@ -2016,8 +2087,22 @@ CREATE TABLE "ActionCenterItem" (
     CONSTRAINT "ActionCenterItem_pkey" PRIMARY KEY ("id")
 );
 
+DO $$
+BEGIN
+    IF to_regclass('public."ActionCenterItem"') IS NOT NULL
+        AND NOT EXISTS (
+            SELECT 1
+            FROM pg_attribute
+            WHERE attrelid = 'public."ActionCenterItem"'::regclass
+              AND attname = 'managerUserId'
+              AND NOT attisdropped
+        ) THEN
+        ALTER TABLE "ActionCenterItem" ADD COLUMN "managerUserId" TEXT;
+    END IF;
+END $$;
+
 -- CreateTable
-CREATE TABLE "TeamStatusSnapshot" (
+CREATE TABLE IF NOT EXISTS "TeamStatusSnapshot" (
     "id" TEXT NOT NULL,
     "organizationId" TEXT NOT NULL,
     "teamId" TEXT NOT NULL,
@@ -2037,7 +2122,7 @@ CREATE TABLE "TeamStatusSnapshot" (
 );
 
 -- CreateTable
-CREATE TABLE "PersonalStatusSnapshot" (
+CREATE TABLE IF NOT EXISTS "PersonalStatusSnapshot" (
     "id" TEXT NOT NULL,
     "organizationId" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
@@ -2057,7 +2142,7 @@ CREATE TABLE "PersonalStatusSnapshot" (
 );
 
 -- CreateTable
-CREATE TABLE "SurveyEngagementSnapshot" (
+CREATE TABLE IF NOT EXISTS "SurveyEngagementSnapshot" (
     "id" TEXT NOT NULL,
     "organizationId" TEXT NOT NULL,
     "surveyId" TEXT,
@@ -2076,7 +2161,7 @@ CREATE TABLE "SurveyEngagementSnapshot" (
 );
 
 -- CreateTable
-CREATE TABLE "SurveyEngagementTimeseriesPoint" (
+CREATE TABLE IF NOT EXISTS "SurveyEngagementTimeseriesPoint" (
     "id" TEXT NOT NULL,
     "snapshotId" TEXT NOT NULL,
     "date" TIMESTAMP(3) NOT NULL,
@@ -2087,812 +2172,1922 @@ CREATE TABLE "SurveyEngagementTimeseriesPoint" (
 );
 
 -- CreateIndex
-CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
+CREATE UNIQUE INDEX IF NOT EXISTS "User_email_key" ON "User"("email");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "SurveyInviteToken_token_key" ON "SurveyInviteToken"("token");
+CREATE UNIQUE INDEX IF NOT EXISTS "SurveyInviteToken_token_key" ON "SurveyInviteToken"("token");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "OrganizationSettings_organizationId_key" ON "OrganizationSettings"("organizationId");
+CREATE UNIQUE INDEX IF NOT EXISTS "OrganizationSettings_organizationId_key" ON "OrganizationSettings"("organizationId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Plan_stripePriceId_key" ON "Plan"("stripePriceId");
+CREATE UNIQUE INDEX IF NOT EXISTS "Plan_stripePriceId_key" ON "Plan"("stripePriceId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Subscription_organizationId_key" ON "Subscription"("organizationId");
+CREATE UNIQUE INDEX IF NOT EXISTS "Subscription_organizationId_key" ON "Subscription"("organizationId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "SlackIntegration_organizationId_key" ON "SlackIntegration"("organizationId");
+CREATE UNIQUE INDEX IF NOT EXISTS "SlackIntegration_organizationId_key" ON "SlackIntegration"("organizationId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Article_slug_key" ON "Article"("slug");
+CREATE UNIQUE INDEX IF NOT EXISTS "Article_slug_key" ON "Article"("slug");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "EmbedConfig_organizationId_key" ON "EmbedConfig"("organizationId");
+CREATE UNIQUE INDEX IF NOT EXISTS "EmbedConfig_organizationId_key" ON "EmbedConfig"("organizationId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "InternalUser_email_key" ON "InternalUser"("email");
+CREATE UNIQUE INDEX IF NOT EXISTS "InternalUser_email_key" ON "InternalUser"("email");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "EmployeeAttributeValue_userId_attributeId_key" ON "EmployeeAttributeValue"("userId", "attributeId");
+CREATE UNIQUE INDEX IF NOT EXISTS "EmployeeAttributeValue_userId_attributeId_key" ON "EmployeeAttributeValue"("userId", "attributeId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "SSOConfig_organizationId_key" ON "SSOConfig"("organizationId");
+CREATE UNIQUE INDEX IF NOT EXISTS "SSOConfig_organizationId_key" ON "SSOConfig"("organizationId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "HRISIntegration_organizationId_key" ON "HRISIntegration"("organizationId");
+CREATE UNIQUE INDEX IF NOT EXISTS "HRISIntegration_organizationId_key" ON "HRISIntegration"("organizationId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Experiment_key_key" ON "Experiment"("key");
+CREATE UNIQUE INDEX IF NOT EXISTS "Experiment_key_key" ON "Experiment"("key");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "SurveyInsight_surveyId_key" ON "SurveyInsight"("surveyId");
+CREATE UNIQUE INDEX IF NOT EXISTS "SurveyInsight_surveyId_key" ON "SurveyInsight"("surveyId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Partner_slug_key" ON "Partner"("slug");
+CREATE UNIQUE INDEX IF NOT EXISTS "Partner_slug_key" ON "Partner"("slug");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "MarketplaceApp_slug_key" ON "MarketplaceApp"("slug");
+CREATE UNIQUE INDEX IF NOT EXISTS "MarketplaceApp_slug_key" ON "MarketplaceApp"("slug");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "AddOn_key_key" ON "AddOn"("key");
+CREATE UNIQUE INDEX IF NOT EXISTS "AddOn_key_key" ON "AddOn"("key");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "DunningState_organizationId_key" ON "DunningState"("organizationId");
+CREATE UNIQUE INDEX IF NOT EXISTS "DunningState_organizationId_key" ON "DunningState"("organizationId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "ReferralProgram_key_key" ON "ReferralProgram"("key");
+CREATE UNIQUE INDEX IF NOT EXISTS "ReferralProgram_key_key" ON "ReferralProgram"("key");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "OrgReferral_referralCode_key" ON "OrgReferral"("referralCode");
+CREATE UNIQUE INDEX IF NOT EXISTS "OrgReferral_referralCode_key" ON "OrgReferral"("referralCode");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "FeatureFlag_key_key" ON "FeatureFlag"("key");
+CREATE UNIQUE INDEX IF NOT EXISTS "FeatureFlag_key_key" ON "FeatureFlag"("key");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "CoachSummary_sessionId_key" ON "CoachSummary"("sessionId");
+CREATE UNIQUE INDEX IF NOT EXISTS "CoachSummary_sessionId_key" ON "CoachSummary"("sessionId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "UserWellbeingPreferences_userId_key" ON "UserWellbeingPreferences"("userId");
+CREATE UNIQUE INDEX IF NOT EXISTS "UserWellbeingPreferences_userId_key" ON "UserWellbeingPreferences"("userId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "OrgSafetySettings_organizationId_key" ON "OrgSafetySettings"("organizationId");
+CREATE UNIQUE INDEX IF NOT EXISTS "OrgSafetySettings_organizationId_key" ON "OrgSafetySettings"("organizationId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "WellbeingResource_slug_key" ON "WellbeingResource"("slug");
+CREATE UNIQUE INDEX IF NOT EXISTS "WellbeingResource_slug_key" ON "WellbeingResource"("slug");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "AcademyCourse_slug_key" ON "AcademyCourse"("slug");
+CREATE UNIQUE INDEX IF NOT EXISTS "AcademyCourse_slug_key" ON "AcademyCourse"("slug");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "AcademyCertificate_enrollmentId_key" ON "AcademyCertificate"("enrollmentId");
+CREATE UNIQUE INDEX IF NOT EXISTS "AcademyCertificate_enrollmentId_key" ON "AcademyCertificate"("enrollmentId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "AcademyCertificate_certificateNumber_key" ON "AcademyCertificate"("certificateNumber");
+CREATE UNIQUE INDEX IF NOT EXISTS "AcademyCertificate_certificateNumber_key" ON "AcademyCertificate"("certificateNumber");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "CommunitySpace_key_key" ON "CommunitySpace"("key");
+CREATE UNIQUE INDEX IF NOT EXISTS "CommunitySpace_key_key" ON "CommunitySpace"("key");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "CommunityUpvote_threadId_userId_key" ON "CommunityUpvote"("threadId", "userId");
+CREATE UNIQUE INDEX IF NOT EXISTS "CommunityUpvote_threadId_userId_key" ON "CommunityUpvote"("threadId", "userId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "BenchmarkGroup_key_key" ON "BenchmarkGroup"("key");
+CREATE UNIQUE INDEX IF NOT EXISTS "BenchmarkGroup_key_key" ON "BenchmarkGroup"("key");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "UserPrivacyProfile_userId_key" ON "UserPrivacyProfile"("userId");
+CREATE UNIQUE INDEX IF NOT EXISTS "UserPrivacyProfile_userId_key" ON "UserPrivacyProfile"("userId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "OrgPrivacySettings_organizationId_key" ON "OrgPrivacySettings"("organizationId");
+CREATE UNIQUE INDEX IF NOT EXISTS "OrgPrivacySettings_organizationId_key" ON "OrgPrivacySettings"("organizationId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "DataSubjectExportBundle_requestId_key" ON "DataSubjectExportBundle"("requestId");
+CREATE UNIQUE INDEX IF NOT EXISTS "DataSubjectExportBundle_requestId_key" ON "DataSubjectExportBundle"("requestId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "ApiClient_clientId_key" ON "ApiClient"("clientId");
+CREATE UNIQUE INDEX IF NOT EXISTS "ApiClient_clientId_key" ON "ApiClient"("clientId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "ApiToken_tokenHash_key" ON "ApiToken"("tokenHash");
+CREATE UNIQUE INDEX IF NOT EXISTS "ApiToken_tokenHash_key" ON "ApiToken"("tokenHash");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "HRISConnection_organizationId_key" ON "HRISConnection"("organizationId");
+CREATE UNIQUE INDEX IF NOT EXISTS "HRISConnection_organizationId_key" ON "HRISConnection"("organizationId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "SSOConnection_organizationId_key" ON "SSOConnection"("organizationId");
+CREATE UNIQUE INDEX IF NOT EXISTS "SSOConnection_organizationId_key" ON "SSOConnection"("organizationId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "SSODomain_domain_key" ON "SSODomain"("domain");
+CREATE UNIQUE INDEX IF NOT EXISTS "SSODomain_domain_key" ON "SSODomain"("domain");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "SCIMConnection_organizationId_key" ON "SCIMConnection"("organizationId");
+CREATE UNIQUE INDEX IF NOT EXISTS "SCIMConnection_organizationId_key" ON "SCIMConnection"("organizationId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "SlackWorkspace_organizationId_key" ON "SlackWorkspace"("organizationId");
+CREATE UNIQUE INDEX IF NOT EXISTS "SlackWorkspace_organizationId_key" ON "SlackWorkspace"("organizationId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "CustomerWarehouseConnection_organizationId_key" ON "CustomerWarehouseConnection"("organizationId");
+CREATE UNIQUE INDEX IF NOT EXISTS "CustomerWarehouseConnection_organizationId_key" ON "CustomerWarehouseConnection"("organizationId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "ModelRegistry_key_key" ON "ModelRegistry"("key");
+CREATE UNIQUE INDEX IF NOT EXISTS "ModelRegistry_key_key" ON "ModelRegistry"("key");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "ResearchNotebook_key_key" ON "ResearchNotebook"("key");
+CREATE UNIQUE INDEX IF NOT EXISTS "ResearchNotebook_key_key" ON "ResearchNotebook"("key");
 
 -- CreateIndex
-CREATE INDEX "ActionCenterItem_organizationId_idx" ON "ActionCenterItem"("organizationId");
+CREATE INDEX IF NOT EXISTS "ActionCenterItem_organizationId_idx" ON "ActionCenterItem"("organizationId");
 
 -- CreateIndex
-CREATE INDEX "ActionCenterItem_teamId_idx" ON "ActionCenterItem"("teamId");
+CREATE INDEX IF NOT EXISTS "ActionCenterItem_teamId_idx" ON "ActionCenterItem"("teamId");
 
 -- CreateIndex
-CREATE INDEX "ActionCenterItem_managerUserId_idx" ON "ActionCenterItem"("managerUserId");
+CREATE INDEX IF NOT EXISTS "ActionCenterItem_managerUserId_idx" ON "ActionCenterItem"("managerUserId");
 
 -- CreateIndex
-CREATE INDEX "ActionCenterItem_userId_idx" ON "ActionCenterItem"("userId");
+CREATE INDEX IF NOT EXISTS "ActionCenterItem_userId_idx" ON "ActionCenterItem"("userId");
 
 -- CreateIndex
-CREATE INDEX "ActionCenterItem_status_idx" ON "ActionCenterItem"("status");
+CREATE INDEX IF NOT EXISTS "ActionCenterItem_status_idx" ON "ActionCenterItem"("status");
 
 -- CreateIndex
-CREATE INDEX "TeamStatusSnapshot_organizationId_idx" ON "TeamStatusSnapshot"("organizationId");
+CREATE INDEX IF NOT EXISTS "TeamStatusSnapshot_organizationId_idx" ON "TeamStatusSnapshot"("organizationId");
 
 -- CreateIndex
-CREATE INDEX "TeamStatusSnapshot_teamId_idx" ON "TeamStatusSnapshot"("teamId");
+CREATE INDEX IF NOT EXISTS "TeamStatusSnapshot_teamId_idx" ON "TeamStatusSnapshot"("teamId");
 
 -- CreateIndex
-CREATE INDEX "TeamStatusSnapshot_periodStart_idx" ON "TeamStatusSnapshot"("periodStart");
+CREATE INDEX IF NOT EXISTS "TeamStatusSnapshot_periodStart_idx" ON "TeamStatusSnapshot"("periodStart");
 
 -- CreateIndex
-CREATE INDEX "PersonalStatusSnapshot_organizationId_userId_periodStart_idx" ON "PersonalStatusSnapshot"("organizationId", "userId", "periodStart");
-
--- AddForeignKey
-ALTER TABLE "User" ADD CONSTRAINT "User_managerId_fkey" FOREIGN KEY ("managerId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "User" ADD CONSTRAINT "User_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "Team" ADD CONSTRAINT "Team_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "UserTeam" ADD CONSTRAINT "UserTeam_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "UserTeam" ADD CONSTRAINT "UserTeam_teamId_fkey" FOREIGN KEY ("teamId") REFERENCES "Team"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "SurveyTemplate" ADD CONSTRAINT "SurveyTemplate_parentTemplateId_fkey" FOREIGN KEY ("parentTemplateId") REFERENCES "SurveyTemplate"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "TemplateQuestion" ADD CONSTRAINT "TemplateQuestion_templateId_fkey" FOREIGN KEY ("templateId") REFERENCES "SurveyTemplate"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "Survey" ADD CONSTRAINT "Survey_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "Survey" ADD CONSTRAINT "Survey_templateId_fkey" FOREIGN KEY ("templateId") REFERENCES "SurveyTemplate"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "Survey" ADD CONSTRAINT "Survey_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "Survey" ADD CONSTRAINT "Survey_scheduleId_fkey" FOREIGN KEY ("scheduleId") REFERENCES "SurveySchedule"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "SurveyQuestion" ADD CONSTRAINT "SurveyQuestion_surveyId_fkey" FOREIGN KEY ("surveyId") REFERENCES "Survey"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "SurveyTarget" ADD CONSTRAINT "SurveyTarget_surveyId_fkey" FOREIGN KEY ("surveyId") REFERENCES "Survey"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "SurveyTarget" ADD CONSTRAINT "SurveyTarget_teamId_fkey" FOREIGN KEY ("teamId") REFERENCES "Team"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "SurveyInviteToken" ADD CONSTRAINT "SurveyInviteToken_surveyId_fkey" FOREIGN KEY ("surveyId") REFERENCES "Survey"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "SurveyInviteToken" ADD CONSTRAINT "SurveyInviteToken_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "SurveySchedule" ADD CONSTRAINT "SurveySchedule_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "SurveySchedule" ADD CONSTRAINT "SurveySchedule_templateId_fkey" FOREIGN KEY ("templateId") REFERENCES "SurveyTemplate"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "SurveySchedule" ADD CONSTRAINT "SurveySchedule_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "Notification" ADD CONSTRAINT "Notification_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "Notification" ADD CONSTRAINT "Notification_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "SurveyScheduleTarget" ADD CONSTRAINT "SurveyScheduleTarget_scheduleId_fkey" FOREIGN KEY ("scheduleId") REFERENCES "SurveySchedule"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "SurveyScheduleTarget" ADD CONSTRAINT "SurveyScheduleTarget_teamId_fkey" FOREIGN KEY ("teamId") REFERENCES "Team"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "SurveyResponse" ADD CONSTRAINT "SurveyResponse_surveyId_fkey" FOREIGN KEY ("surveyId") REFERENCES "Survey"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "SurveyResponse" ADD CONSTRAINT "SurveyResponse_inviteTokenId_fkey" FOREIGN KEY ("inviteTokenId") REFERENCES "SurveyInviteToken"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "SurveyResponse" ADD CONSTRAINT "SurveyResponse_kioskSessionId_fkey" FOREIGN KEY ("kioskSessionId") REFERENCES "KioskSession"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "SurveyAnswer" ADD CONSTRAINT "SurveyAnswer_responseId_fkey" FOREIGN KEY ("responseId") REFERENCES "SurveyResponse"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "SurveyAnswer" ADD CONSTRAINT "SurveyAnswer_questionId_fkey" FOREIGN KEY ("questionId") REFERENCES "SurveyQuestion"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "OrganizationSettings" ADD CONSTRAINT "OrganizationSettings_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "AuditLog" ADD CONSTRAINT "AuditLog_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "AuditLog" ADD CONSTRAINT "AuditLog_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "Subscription" ADD CONSTRAINT "Subscription_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "Subscription" ADD CONSTRAINT "Subscription_planId_fkey" FOREIGN KEY ("planId") REFERENCES "Plan"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "SlackIntegration" ADD CONSTRAINT "SlackIntegration_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "ApiKey" ADD CONSTRAINT "ApiKey_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "ApiKey" ADD CONSTRAINT "ApiKey_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "WebhookEndpoint" ADD CONSTRAINT "WebhookEndpoint_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "WebhookDelivery" ADD CONSTRAINT "WebhookDelivery_endpointId_fkey" FOREIGN KEY ("endpointId") REFERENCES "WebhookEndpoint"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "EmbedConfig" ADD CONSTRAINT "EmbedConfig_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "Role" ADD CONSTRAINT "Role_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "UserRole" ADD CONSTRAINT "UserRole_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "UserRole" ADD CONSTRAINT "UserRole_roleId_fkey" FOREIGN KEY ("roleId") REFERENCES "Role"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "Playbook" ADD CONSTRAINT "Playbook_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "Playbook" ADD CONSTRAINT "Playbook_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "PlaybookStep" ADD CONSTRAINT "PlaybookStep_playbookId_fkey" FOREIGN KEY ("playbookId") REFERENCES "Playbook"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "ActionItem" ADD CONSTRAINT "ActionItem_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "ActionItem" ADD CONSTRAINT "ActionItem_surveyId_fkey" FOREIGN KEY ("surveyId") REFERENCES "Survey"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "ActionItem" ADD CONSTRAINT "ActionItem_teamId_fkey" FOREIGN KEY ("teamId") REFERENCES "Team"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "ActionItem" ADD CONSTRAINT "ActionItem_assigneeId_fkey" FOREIGN KEY ("assigneeId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "ActionItem" ADD CONSTRAINT "ActionItem_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "DwhExportCursor" ADD CONSTRAINT "DwhExportCursor_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "EmailTemplate" ADD CONSTRAINT "EmailTemplate_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "KioskSession" ADD CONSTRAINT "KioskSession_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "KioskSession" ADD CONSTRAINT "KioskSession_surveyId_fkey" FOREIGN KEY ("surveyId") REFERENCES "Survey"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "KioskSession" ADD CONSTRAINT "KioskSession_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "ProductEvent" ADD CONSTRAINT "ProductEvent_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "ProductEvent" ADD CONSTRAINT "ProductEvent_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "EmployeeAttributeDefinition" ADD CONSTRAINT "EmployeeAttributeDefinition_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "EmployeeAttributeValue" ADD CONSTRAINT "EmployeeAttributeValue_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "EmployeeAttributeValue" ADD CONSTRAINT "EmployeeAttributeValue_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "EmployeeAttributeValue" ADD CONSTRAINT "EmployeeAttributeValue_attributeId_fkey" FOREIGN KEY ("attributeId") REFERENCES "EmployeeAttributeDefinition"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "SSOConfig" ADD CONSTRAINT "SSOConfig_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "HRISIntegration" ADD CONSTRAINT "HRISIntegration_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "TeamRiskSnapshot" ADD CONSTRAINT "TeamRiskSnapshot_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "TeamRiskSnapshot" ADD CONSTRAINT "TeamRiskSnapshot_teamId_fkey" FOREIGN KEY ("teamId") REFERENCES "Team"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "TeamRiskSnapshot" ADD CONSTRAINT "TeamRiskSnapshot_surveyId_fkey" FOREIGN KEY ("surveyId") REFERENCES "Survey"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "OrgRiskSnapshot" ADD CONSTRAINT "OrgRiskSnapshot_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "OrgRiskSnapshot" ADD CONSTRAINT "OrgRiskSnapshot_surveyId_fkey" FOREIGN KEY ("surveyId") REFERENCES "Survey"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "AnomalyEvent" ADD CONSTRAINT "AnomalyEvent_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "AnomalyEvent" ADD CONSTRAINT "AnomalyEvent_teamId_fkey" FOREIGN KEY ("teamId") REFERENCES "Team"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "RecommendationTemplate" ADD CONSTRAINT "RecommendationTemplate_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "NudgeRule" ADD CONSTRAINT "NudgeRule_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "NudgeEvent" ADD CONSTRAINT "NudgeEvent_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "NudgeEvent" ADD CONSTRAINT "NudgeEvent_ruleId_fkey" FOREIGN KEY ("ruleId") REFERENCES "NudgeRule"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "NudgeEvent" ADD CONSTRAINT "NudgeEvent_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "Experiment" ADD CONSTRAINT "Experiment_ownerUserId_fkey" FOREIGN KEY ("ownerUserId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "Experiment" ADD CONSTRAINT "Experiment_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "ExperimentAssignment" ADD CONSTRAINT "ExperimentAssignment_experimentId_fkey" FOREIGN KEY ("experimentId") REFERENCES "Experiment"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "ExperimentAssignment" ADD CONSTRAINT "ExperimentAssignment_variantId_fkey" FOREIGN KEY ("variantId") REFERENCES "ExperimentVariant"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "ExperimentAssignment" ADD CONSTRAINT "ExperimentAssignment_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "ExperimentAssignment" ADD CONSTRAINT "ExperimentAssignment_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "ScaleCalibration" ADD CONSTRAINT "ScaleCalibration_templateId_fkey" FOREIGN KEY ("templateId") REFERENCES "SurveyTemplate"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "SurveyInsight" ADD CONSTRAINT "SurveyInsight_surveyId_fkey" FOREIGN KEY ("surveyId") REFERENCES "Survey"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "OrganizationBrand" ADD CONSTRAINT "OrganizationBrand_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "OrganizationBrand" ADD CONSTRAINT "OrganizationBrand_brandProfileId_fkey" FOREIGN KEY ("brandProfileId") REFERENCES "BrandProfile"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "PartnerUser" ADD CONSTRAINT "PartnerUser_partnerId_fkey" FOREIGN KEY ("partnerId") REFERENCES "Partner"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "PartnerOrganization" ADD CONSTRAINT "PartnerOrganization_partnerId_fkey" FOREIGN KEY ("partnerId") REFERENCES "Partner"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "PartnerOrganization" ADD CONSTRAINT "PartnerOrganization_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "MarketplaceApp" ADD CONSTRAINT "MarketplaceApp_listedByPartnerId_fkey" FOREIGN KEY ("listedByPartnerId") REFERENCES "Partner"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "MarketplaceInstallation" ADD CONSTRAINT "MarketplaceInstallation_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "MarketplaceInstallation" ADD CONSTRAINT "MarketplaceInstallation_appId_fkey" FOREIGN KEY ("appId") REFERENCES "MarketplaceApp"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "MarketplaceInstallation" ADD CONSTRAINT "MarketplaceInstallation_installedById_fkey" FOREIGN KEY ("installedById") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "AutomationWorkflow" ADD CONSTRAINT "AutomationWorkflow_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "AutomationWorkflow" ADD CONSTRAINT "AutomationWorkflow_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "AutomationRun" ADD CONSTRAINT "AutomationRun_workflowId_fkey" FOREIGN KEY ("workflowId") REFERENCES "AutomationWorkflow"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "AutomationRun" ADD CONSTRAINT "AutomationRun_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "ProjectSpace" ADD CONSTRAINT "ProjectSpace_ownerOrgId_fkey" FOREIGN KEY ("ownerOrgId") REFERENCES "Organization"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "ProjectSpace" ADD CONSTRAINT "ProjectSpace_ownerPartnerId_fkey" FOREIGN KEY ("ownerPartnerId") REFERENCES "Partner"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "ProjectMembership" ADD CONSTRAINT "ProjectMembership_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "ProjectSpace"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "OnboardingTask" ADD CONSTRAINT "OnboardingTask_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "UsageRecord" ADD CONSTRAINT "UsageRecord_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "OrganizationAddOn" ADD CONSTRAINT "OrganizationAddOn_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "OrganizationAddOn" ADD CONSTRAINT "OrganizationAddOn_addOnId_fkey" FOREIGN KEY ("addOnId") REFERENCES "AddOn"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "OrgCRMMapping" ADD CONSTRAINT "OrgCRMMapping_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "OrgCRMMapping" ADD CONSTRAINT "OrgCRMMapping_crmIntegrationId_fkey" FOREIGN KEY ("crmIntegrationId") REFERENCES "CRMIntegration"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "Invoice" ADD CONSTRAINT "Invoice_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "InvoiceLineItem" ADD CONSTRAINT "InvoiceLineItem_invoiceId_fkey" FOREIGN KEY ("invoiceId") REFERENCES "Invoice"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "DunningState" ADD CONSTRAINT "DunningState_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "OrgReferral" ADD CONSTRAINT "OrgReferral_referrerOrganizationId_fkey" FOREIGN KEY ("referrerOrganizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "OrgReferral" ADD CONSTRAINT "OrgReferral_referredOrganizationId_fkey" FOREIGN KEY ("referredOrganizationId") REFERENCES "Organization"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "OrgReferral" ADD CONSTRAINT "OrgReferral_referralProgramId_fkey" FOREIGN KEY ("referralProgramId") REFERENCES "ReferralProgram"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "InAppSurveyResponse" ADD CONSTRAINT "InAppSurveyResponse_surveyId_fkey" FOREIGN KEY ("surveyId") REFERENCES "InAppSurvey"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "InAppSurveyResponse" ADD CONSTRAINT "InAppSurveyResponse_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "InAppSurveyResponse" ADD CONSTRAINT "InAppSurveyResponse_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "FeatureFlagOverride" ADD CONSTRAINT "FeatureFlagOverride_featureKey_fkey" FOREIGN KEY ("featureKey") REFERENCES "FeatureFlag"("key") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "FeatureFlagOverride" ADD CONSTRAINT "FeatureFlagOverride_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "FeatureFlagOverride" ADD CONSTRAINT "FeatureFlagOverride_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "CoachSession" ADD CONSTRAINT "CoachSession_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "CoachSession" ADD CONSTRAINT "CoachSession_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "CoachMessage" ADD CONSTRAINT "CoachMessage_sessionId_fkey" FOREIGN KEY ("sessionId") REFERENCES "CoachSession"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "CoachSummary" ADD CONSTRAINT "CoachSummary_sessionId_fkey" FOREIGN KEY ("sessionId") REFERENCES "CoachSession"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "HabitPlan" ADD CONSTRAINT "HabitPlan_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "HabitPlan" ADD CONSTRAINT "HabitPlan_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "HabitTask" ADD CONSTRAINT "HabitTask_planId_fkey" FOREIGN KEY ("planId") REFERENCES "HabitPlan"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "HabitCheckin" ADD CONSTRAINT "HabitCheckin_taskId_fkey" FOREIGN KEY ("taskId") REFERENCES "HabitTask"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "HabitCheckin" ADD CONSTRAINT "HabitCheckin_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "UserWellbeingPreferences" ADD CONSTRAINT "UserWellbeingPreferences_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "SafetyIncident" ADD CONSTRAINT "SafetyIncident_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "SafetyIncident" ADD CONSTRAINT "SafetyIncident_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "OrgSafetySettings" ADD CONSTRAINT "OrgSafetySettings_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "WellbeingResource" ADD CONSTRAINT "WellbeingResource_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "AcademyModule" ADD CONSTRAINT "AcademyModule_courseId_fkey" FOREIGN KEY ("courseId") REFERENCES "AcademyCourse"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "AcademyQuizQuestion" ADD CONSTRAINT "AcademyQuizQuestion_moduleId_fkey" FOREIGN KEY ("moduleId") REFERENCES "AcademyModule"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "AcademyEnrollment" ADD CONSTRAINT "AcademyEnrollment_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "AcademyEnrollment" ADD CONSTRAINT "AcademyEnrollment_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "AcademyEnrollment" ADD CONSTRAINT "AcademyEnrollment_courseId_fkey" FOREIGN KEY ("courseId") REFERENCES "AcademyCourse"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "AcademyProgress" ADD CONSTRAINT "AcademyProgress_enrollmentId_fkey" FOREIGN KEY ("enrollmentId") REFERENCES "AcademyEnrollment"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "AcademyProgress" ADD CONSTRAINT "AcademyProgress_moduleId_fkey" FOREIGN KEY ("moduleId") REFERENCES "AcademyModule"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "AcademyCertificate" ADD CONSTRAINT "AcademyCertificate_enrollmentId_fkey" FOREIGN KEY ("enrollmentId") REFERENCES "AcademyEnrollment"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "LearningProgram" ADD CONSTRAINT "LearningProgram_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "LearningProgram" ADD CONSTRAINT "LearningProgram_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "LearningCohort" ADD CONSTRAINT "LearningCohort_programId_fkey" FOREIGN KEY ("programId") REFERENCES "LearningProgram"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "LearningCohort" ADD CONSTRAINT "LearningCohort_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "LearningCohort" ADD CONSTRAINT "LearningCohort_facilitatorUserId_fkey" FOREIGN KEY ("facilitatorUserId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "LearningCohortMember" ADD CONSTRAINT "LearningCohortMember_cohortId_fkey" FOREIGN KEY ("cohortId") REFERENCES "LearningCohort"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "LearningCohortMember" ADD CONSTRAINT "LearningCohortMember_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "CommunityThread" ADD CONSTRAINT "CommunityThread_spaceId_fkey" FOREIGN KEY ("spaceId") REFERENCES "CommunitySpace"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "CommunityThread" ADD CONSTRAINT "CommunityThread_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "CommunityThread" ADD CONSTRAINT "CommunityThread_authorUserId_fkey" FOREIGN KEY ("authorUserId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "CommunityReply" ADD CONSTRAINT "CommunityReply_threadId_fkey" FOREIGN KEY ("threadId") REFERENCES "CommunityThread"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "CommunityReply" ADD CONSTRAINT "CommunityReply_authorUserId_fkey" FOREIGN KEY ("authorUserId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "CommunityUpvote" ADD CONSTRAINT "CommunityUpvote_threadId_fkey" FOREIGN KEY ("threadId") REFERENCES "CommunityThread"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "CommunityUpvote" ADD CONSTRAINT "CommunityUpvote_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "CoachAvailabilitySlot" ADD CONSTRAINT "CoachAvailabilitySlot_coachId_fkey" FOREIGN KEY ("coachId") REFERENCES "CoachProfile"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "CoachBooking" ADD CONSTRAINT "CoachBooking_coachId_fkey" FOREIGN KEY ("coachId") REFERENCES "CoachProfile"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "CoachBooking" ADD CONSTRAINT "CoachBooking_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "CoachBooking" ADD CONSTRAINT "CoachBooking_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "BenchmarkSnapshot" ADD CONSTRAINT "BenchmarkSnapshot_groupId_fkey" FOREIGN KEY ("groupId") REFERENCES "BenchmarkGroup"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "UserPrivacyProfile" ADD CONSTRAINT "UserPrivacyProfile_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "OrgPrivacySettings" ADD CONSTRAINT "OrgPrivacySettings_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "DataSubjectRequest" ADD CONSTRAINT "DataSubjectRequest_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "DataSubjectRequest" ADD CONSTRAINT "DataSubjectRequest_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "DataSubjectExportBundle" ADD CONSTRAINT "DataSubjectExportBundle_requestId_fkey" FOREIGN KEY ("requestId") REFERENCES "DataSubjectRequest"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "RetentionPolicy" ADD CONSTRAINT "RetentionPolicy_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "LegalHold" ADD CONSTRAINT "LegalHold_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "ConsentRecord" ADD CONSTRAINT "ConsentRecord_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "ConsentRecord" ADD CONSTRAINT "ConsentRecord_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "ApiClient" ADD CONSTRAINT "ApiClient_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "ApiClient" ADD CONSTRAINT "ApiClient_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "ApiToken" ADD CONSTRAINT "ApiToken_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "ApiToken" ADD CONSTRAINT "ApiToken_apiClientId_fkey" FOREIGN KEY ("apiClientId") REFERENCES "ApiClient"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "HRISConnection" ADD CONSTRAINT "HRISConnection_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "HRISFieldMapping" ADD CONSTRAINT "HRISFieldMapping_hrisConnectionId_fkey" FOREIGN KEY ("hrisConnectionId") REFERENCES "HRISConnection"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "HRISSyncLog" ADD CONSTRAINT "HRISSyncLog_hrisConnectionId_fkey" FOREIGN KEY ("hrisConnectionId") REFERENCES "HRISConnection"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "HRISSyncLog" ADD CONSTRAINT "HRISSyncLog_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "SSOConnection" ADD CONSTRAINT "SSOConnection_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "SSODomain" ADD CONSTRAINT "SSODomain_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "SSODomain" ADD CONSTRAINT "SSODomain_ssoConnectionId_fkey" FOREIGN KEY ("ssoConnectionId") REFERENCES "SSOConnection"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "SCIMConnection" ADD CONSTRAINT "SCIMConnection_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "SlackWorkspace" ADD CONSTRAINT "SlackWorkspace_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "SlackChannelMapping" ADD CONSTRAINT "SlackChannelMapping_slackWorkspaceId_fkey" FOREIGN KEY ("slackWorkspaceId") REFERENCES "SlackWorkspace"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "SlackChannelMapping" ADD CONSTRAINT "SlackChannelMapping_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "SlackUserLink" ADD CONSTRAINT "SlackUserLink_slackWorkspaceId_fkey" FOREIGN KEY ("slackWorkspaceId") REFERENCES "SlackWorkspace"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "SlackUserLink" ADD CONSTRAINT "SlackUserLink_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "SlackUserLink" ADD CONSTRAINT "SlackUserLink_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "CalendarConnection" ADD CONSTRAINT "CalendarConnection_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "CalendarConnection" ADD CONSTRAINT "CalendarConnection_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "CustomerWarehouseConnection" ADD CONSTRAINT "CustomerWarehouseConnection_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "ExperimentVariant" ADD CONSTRAINT "ExperimentVariant_experimentId_fkey" FOREIGN KEY ("experimentId") REFERENCES "Experiment"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "ExperimentExposure" ADD CONSTRAINT "ExperimentExposure_experimentId_fkey" FOREIGN KEY ("experimentId") REFERENCES "Experiment"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "ExperimentExposure" ADD CONSTRAINT "ExperimentExposure_variantId_fkey" FOREIGN KEY ("variantId") REFERENCES "ExperimentVariant"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "ExperimentExposure" ADD CONSTRAINT "ExperimentExposure_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "ExperimentExposure" ADD CONSTRAINT "ExperimentExposure_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "ExperimentMetricEvent" ADD CONSTRAINT "ExperimentMetricEvent_experimentId_fkey" FOREIGN KEY ("experimentId") REFERENCES "Experiment"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "ExperimentMetricEvent" ADD CONSTRAINT "ExperimentMetricEvent_variantId_fkey" FOREIGN KEY ("variantId") REFERENCES "ExperimentVariant"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "ExperimentMetricEvent" ADD CONSTRAINT "ExperimentMetricEvent_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "ExperimentMetricEvent" ADD CONSTRAINT "ExperimentMetricEvent_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "ModelVersion" ADD CONSTRAINT "ModelVersion_registryId_fkey" FOREIGN KEY ("registryId") REFERENCES "ModelRegistry"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "ModelInferenceLog" ADD CONSTRAINT "ModelInferenceLog_modelVersionId_fkey" FOREIGN KEY ("modelVersionId") REFERENCES "ModelVersion"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "ModelInferenceLog" ADD CONSTRAINT "ModelInferenceLog_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "ModelInferenceLog" ADD CONSTRAINT "ModelInferenceLog_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "AIEvalTask" ADD CONSTRAINT "AIEvalTask_modelVersionId_fkey" FOREIGN KEY ("modelVersionId") REFERENCES "ModelVersion"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "ResearchNotebook" ADD CONSTRAINT "ResearchNotebook_ownerUserId_fkey" FOREIGN KEY ("ownerUserId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "ResearchDataset" ADD CONSTRAINT "ResearchDataset_notebookId_fkey" FOREIGN KEY ("notebookId") REFERENCES "ResearchNotebook"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "ActionCenterItem" ADD CONSTRAINT "ActionCenterItem_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "ActionCenterItem" ADD CONSTRAINT "ActionCenterItem_teamId_fkey" FOREIGN KEY ("teamId") REFERENCES "Team"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "ActionCenterItem" ADD CONSTRAINT "ActionCenterItem_managerUserId_fkey" FOREIGN KEY ("managerUserId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "ActionCenterItem" ADD CONSTRAINT "ActionCenterItem_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "ActionCenterItem" ADD CONSTRAINT "ActionCenterItem_completedByUserId_fkey" FOREIGN KEY ("completedByUserId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "TeamStatusSnapshot" ADD CONSTRAINT "TeamStatusSnapshot_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "TeamStatusSnapshot" ADD CONSTRAINT "TeamStatusSnapshot_teamId_fkey" FOREIGN KEY ("teamId") REFERENCES "Team"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "PersonalStatusSnapshot" ADD CONSTRAINT "PersonalStatusSnapshot_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "PersonalStatusSnapshot" ADD CONSTRAINT "PersonalStatusSnapshot_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "SurveyEngagementSnapshot" ADD CONSTRAINT "SurveyEngagementSnapshot_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "SurveyEngagementSnapshot" ADD CONSTRAINT "SurveyEngagementSnapshot_surveyId_fkey" FOREIGN KEY ("surveyId") REFERENCES "Survey"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "SurveyEngagementSnapshot" ADD CONSTRAINT "SurveyEngagementSnapshot_teamId_fkey" FOREIGN KEY ("teamId") REFERENCES "Team"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "SurveyEngagementTimeseriesPoint" ADD CONSTRAINT "SurveyEngagementTimeseriesPoint_snapshotId_fkey" FOREIGN KEY ("snapshotId") REFERENCES "SurveyEngagementSnapshot"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
+CREATE INDEX IF NOT EXISTS "PersonalStatusSnapshot_organizationId_userId_periodStart_idx" ON "PersonalStatusSnapshot"("organizationId", "userId", "periodStart");
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM pg_attribute
+        WHERE attrelid = 'public."User"'::regclass
+          AND attname = 'managerId'
+          AND NOT attisdropped
+    ) AND NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'User_managerId_fkey') THEN
+        ALTER TABLE "User" ADD CONSTRAINT "User_managerId_fkey" FOREIGN KEY ("managerId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'User_organizationId_fkey') THEN
+        ALTER TABLE "User" ADD CONSTRAINT "User_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'Team_organizationId_fkey') THEN
+        ALTER TABLE "Team" ADD CONSTRAINT "Team_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'UserTeam_userId_fkey') THEN
+        ALTER TABLE "UserTeam" ADD CONSTRAINT "UserTeam_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'UserTeam_teamId_fkey') THEN
+        ALTER TABLE "UserTeam" ADD CONSTRAINT "UserTeam_teamId_fkey" FOREIGN KEY ("teamId") REFERENCES "Team"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM pg_attribute
+        WHERE attrelid = 'public."SurveyTemplate"'::regclass
+          AND attname = 'parentTemplateId'
+          AND NOT attisdropped
+    ) AND NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'SurveyTemplate_parentTemplateId_fkey') THEN
+        ALTER TABLE "SurveyTemplate" ADD CONSTRAINT "SurveyTemplate_parentTemplateId_fkey" FOREIGN KEY ("parentTemplateId") REFERENCES "SurveyTemplate"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'TemplateQuestion_templateId_fkey') THEN
+        ALTER TABLE "TemplateQuestion" ADD CONSTRAINT "TemplateQuestion_templateId_fkey" FOREIGN KEY ("templateId") REFERENCES "SurveyTemplate"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'Survey_organizationId_fkey') THEN
+        ALTER TABLE "Survey" ADD CONSTRAINT "Survey_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'Survey_templateId_fkey') THEN
+        ALTER TABLE "Survey" ADD CONSTRAINT "Survey_templateId_fkey" FOREIGN KEY ("templateId") REFERENCES "SurveyTemplate"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'Survey_createdById_fkey') THEN
+        ALTER TABLE "Survey" ADD CONSTRAINT "Survey_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'Survey_scheduleId_fkey') THEN
+        ALTER TABLE "Survey" ADD CONSTRAINT "Survey_scheduleId_fkey" FOREIGN KEY ("scheduleId") REFERENCES "SurveySchedule"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM pg_attribute
+        WHERE attrelid = 'public."SurveyQuestion"'::regclass
+          AND attname = 'surveyId'
+          AND NOT attisdropped
+    ) AND NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'SurveyQuestion_surveyId_fkey') THEN
+        ALTER TABLE "SurveyQuestion" ADD CONSTRAINT "SurveyQuestion_surveyId_fkey" FOREIGN KEY ("surveyId") REFERENCES "Survey"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'SurveyTarget_surveyId_fkey') THEN
+        ALTER TABLE "SurveyTarget" ADD CONSTRAINT "SurveyTarget_surveyId_fkey" FOREIGN KEY ("surveyId") REFERENCES "Survey"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'SurveyTarget_teamId_fkey') THEN
+        ALTER TABLE "SurveyTarget" ADD CONSTRAINT "SurveyTarget_teamId_fkey" FOREIGN KEY ("teamId") REFERENCES "Team"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'SurveyInviteToken_surveyId_fkey') THEN
+        ALTER TABLE "SurveyInviteToken" ADD CONSTRAINT "SurveyInviteToken_surveyId_fkey" FOREIGN KEY ("surveyId") REFERENCES "Survey"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'SurveyInviteToken_userId_fkey') THEN
+        ALTER TABLE "SurveyInviteToken" ADD CONSTRAINT "SurveyInviteToken_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'SurveySchedule_organizationId_fkey') THEN
+        ALTER TABLE "SurveySchedule" ADD CONSTRAINT "SurveySchedule_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'SurveySchedule_templateId_fkey') THEN
+        ALTER TABLE "SurveySchedule" ADD CONSTRAINT "SurveySchedule_templateId_fkey" FOREIGN KEY ("templateId") REFERENCES "SurveyTemplate"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'SurveySchedule_createdById_fkey') THEN
+        ALTER TABLE "SurveySchedule" ADD CONSTRAINT "SurveySchedule_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'Notification_organizationId_fkey') THEN
+        ALTER TABLE "Notification" ADD CONSTRAINT "Notification_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'Notification_userId_fkey') THEN
+        ALTER TABLE "Notification" ADD CONSTRAINT "Notification_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'SurveyScheduleTarget_scheduleId_fkey') THEN
+        ALTER TABLE "SurveyScheduleTarget" ADD CONSTRAINT "SurveyScheduleTarget_scheduleId_fkey" FOREIGN KEY ("scheduleId") REFERENCES "SurveySchedule"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'SurveyScheduleTarget_teamId_fkey') THEN
+        ALTER TABLE "SurveyScheduleTarget" ADD CONSTRAINT "SurveyScheduleTarget_teamId_fkey" FOREIGN KEY ("teamId") REFERENCES "Team"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM pg_attribute
+        WHERE attrelid = 'public."SurveyResponse"'::regclass
+          AND attname = 'surveyId'
+          AND NOT attisdropped
+    ) AND NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'SurveyResponse_surveyId_fkey') THEN
+        ALTER TABLE "SurveyResponse" ADD CONSTRAINT "SurveyResponse_surveyId_fkey" FOREIGN KEY ("surveyId") REFERENCES "Survey"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'SurveyResponse_inviteTokenId_fkey') THEN
+        ALTER TABLE "SurveyResponse" ADD CONSTRAINT "SurveyResponse_inviteTokenId_fkey" FOREIGN KEY ("inviteTokenId") REFERENCES "SurveyInviteToken"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'SurveyResponse_kioskSessionId_fkey') THEN
+        ALTER TABLE "SurveyResponse" ADD CONSTRAINT "SurveyResponse_kioskSessionId_fkey" FOREIGN KEY ("kioskSessionId") REFERENCES "KioskSession"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'SurveyAnswer_responseId_fkey') THEN
+        ALTER TABLE "SurveyAnswer" ADD CONSTRAINT "SurveyAnswer_responseId_fkey" FOREIGN KEY ("responseId") REFERENCES "SurveyResponse"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'SurveyAnswer_questionId_fkey') THEN
+        ALTER TABLE "SurveyAnswer" ADD CONSTRAINT "SurveyAnswer_questionId_fkey" FOREIGN KEY ("questionId") REFERENCES "SurveyQuestion"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'OrganizationSettings_organizationId_fkey') THEN
+        ALTER TABLE "OrganizationSettings" ADD CONSTRAINT "OrganizationSettings_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'AuditLog_organizationId_fkey') THEN
+        ALTER TABLE "AuditLog" ADD CONSTRAINT "AuditLog_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'AuditLog_userId_fkey') THEN
+        ALTER TABLE "AuditLog" ADD CONSTRAINT "AuditLog_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'Subscription_organizationId_fkey') THEN
+        ALTER TABLE "Subscription" ADD CONSTRAINT "Subscription_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'Subscription_planId_fkey') THEN
+        ALTER TABLE "Subscription" ADD CONSTRAINT "Subscription_planId_fkey" FOREIGN KEY ("planId") REFERENCES "Plan"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'SlackIntegration_organizationId_fkey') THEN
+        ALTER TABLE "SlackIntegration" ADD CONSTRAINT "SlackIntegration_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ApiKey_organizationId_fkey') THEN
+        ALTER TABLE "ApiKey" ADD CONSTRAINT "ApiKey_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ApiKey_createdById_fkey') THEN
+        ALTER TABLE "ApiKey" ADD CONSTRAINT "ApiKey_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'WebhookEndpoint_organizationId_fkey') THEN
+        ALTER TABLE "WebhookEndpoint" ADD CONSTRAINT "WebhookEndpoint_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'WebhookDelivery_endpointId_fkey') THEN
+        ALTER TABLE "WebhookDelivery" ADD CONSTRAINT "WebhookDelivery_endpointId_fkey" FOREIGN KEY ("endpointId") REFERENCES "WebhookEndpoint"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'EmbedConfig_organizationId_fkey') THEN
+        ALTER TABLE "EmbedConfig" ADD CONSTRAINT "EmbedConfig_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'Role_organizationId_fkey') THEN
+        ALTER TABLE "Role" ADD CONSTRAINT "Role_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF to_regclass('public."UserRole"') IS NOT NULL
+        AND NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'UserRole_userId_fkey') THEN
+        ALTER TABLE "UserRole" ADD CONSTRAINT "UserRole_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF to_regclass('public."UserRole"') IS NOT NULL
+        AND NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'UserRole_roleId_fkey') THEN
+        ALTER TABLE "UserRole" ADD CONSTRAINT "UserRole_roleId_fkey" FOREIGN KEY ("roleId") REFERENCES "Role"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'Playbook_organizationId_fkey') THEN
+        ALTER TABLE "Playbook" ADD CONSTRAINT "Playbook_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'Playbook_createdById_fkey') THEN
+        ALTER TABLE "Playbook" ADD CONSTRAINT "Playbook_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'PlaybookStep_playbookId_fkey') THEN
+        ALTER TABLE "PlaybookStep" ADD CONSTRAINT "PlaybookStep_playbookId_fkey" FOREIGN KEY ("playbookId") REFERENCES "Playbook"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ActionItem_organizationId_fkey') THEN
+        ALTER TABLE "ActionItem" ADD CONSTRAINT "ActionItem_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ActionItem_surveyId_fkey') THEN
+        ALTER TABLE "ActionItem" ADD CONSTRAINT "ActionItem_surveyId_fkey" FOREIGN KEY ("surveyId") REFERENCES "Survey"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ActionItem_teamId_fkey') THEN
+        ALTER TABLE "ActionItem" ADD CONSTRAINT "ActionItem_teamId_fkey" FOREIGN KEY ("teamId") REFERENCES "Team"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ActionItem_assigneeId_fkey') THEN
+        ALTER TABLE "ActionItem" ADD CONSTRAINT "ActionItem_assigneeId_fkey" FOREIGN KEY ("assigneeId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ActionItem_createdById_fkey') THEN
+        ALTER TABLE "ActionItem" ADD CONSTRAINT "ActionItem_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'DwhExportCursor_organizationId_fkey') THEN
+        ALTER TABLE "DwhExportCursor" ADD CONSTRAINT "DwhExportCursor_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'EmailTemplate_organizationId_fkey') THEN
+        ALTER TABLE "EmailTemplate" ADD CONSTRAINT "EmailTemplate_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'KioskSession_organizationId_fkey') THEN
+        ALTER TABLE "KioskSession" ADD CONSTRAINT "KioskSession_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'KioskSession_surveyId_fkey') THEN
+        ALTER TABLE "KioskSession" ADD CONSTRAINT "KioskSession_surveyId_fkey" FOREIGN KEY ("surveyId") REFERENCES "Survey"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'KioskSession_createdById_fkey') THEN
+        ALTER TABLE "KioskSession" ADD CONSTRAINT "KioskSession_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ProductEvent_organizationId_fkey') THEN
+        ALTER TABLE "ProductEvent" ADD CONSTRAINT "ProductEvent_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ProductEvent_userId_fkey') THEN
+        ALTER TABLE "ProductEvent" ADD CONSTRAINT "ProductEvent_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'EmployeeAttributeDefinition_organizationId_fkey') THEN
+        ALTER TABLE "EmployeeAttributeDefinition" ADD CONSTRAINT "EmployeeAttributeDefinition_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'EmployeeAttributeValue_organizationId_fkey') THEN
+        ALTER TABLE "EmployeeAttributeValue" ADD CONSTRAINT "EmployeeAttributeValue_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'EmployeeAttributeValue_userId_fkey') THEN
+        ALTER TABLE "EmployeeAttributeValue" ADD CONSTRAINT "EmployeeAttributeValue_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'EmployeeAttributeValue_attributeId_fkey') THEN
+        ALTER TABLE "EmployeeAttributeValue" ADD CONSTRAINT "EmployeeAttributeValue_attributeId_fkey" FOREIGN KEY ("attributeId") REFERENCES "EmployeeAttributeDefinition"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'SSOConfig_organizationId_fkey') THEN
+        ALTER TABLE "SSOConfig" ADD CONSTRAINT "SSOConfig_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'HRISIntegration_organizationId_fkey') THEN
+        ALTER TABLE "HRISIntegration" ADD CONSTRAINT "HRISIntegration_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'TeamRiskSnapshot_organizationId_fkey') THEN
+        ALTER TABLE "TeamRiskSnapshot" ADD CONSTRAINT "TeamRiskSnapshot_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'TeamRiskSnapshot_teamId_fkey') THEN
+        ALTER TABLE "TeamRiskSnapshot" ADD CONSTRAINT "TeamRiskSnapshot_teamId_fkey" FOREIGN KEY ("teamId") REFERENCES "Team"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'TeamRiskSnapshot_surveyId_fkey') THEN
+        ALTER TABLE "TeamRiskSnapshot" ADD CONSTRAINT "TeamRiskSnapshot_surveyId_fkey" FOREIGN KEY ("surveyId") REFERENCES "Survey"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'OrgRiskSnapshot_organizationId_fkey') THEN
+        ALTER TABLE "OrgRiskSnapshot" ADD CONSTRAINT "OrgRiskSnapshot_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'OrgRiskSnapshot_surveyId_fkey') THEN
+        ALTER TABLE "OrgRiskSnapshot" ADD CONSTRAINT "OrgRiskSnapshot_surveyId_fkey" FOREIGN KEY ("surveyId") REFERENCES "Survey"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'AnomalyEvent_organizationId_fkey') THEN
+        ALTER TABLE "AnomalyEvent" ADD CONSTRAINT "AnomalyEvent_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'AnomalyEvent_teamId_fkey') THEN
+        ALTER TABLE "AnomalyEvent" ADD CONSTRAINT "AnomalyEvent_teamId_fkey" FOREIGN KEY ("teamId") REFERENCES "Team"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'RecommendationTemplate_organizationId_fkey') THEN
+        ALTER TABLE "RecommendationTemplate" ADD CONSTRAINT "RecommendationTemplate_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'NudgeRule_organizationId_fkey') THEN
+        ALTER TABLE "NudgeRule" ADD CONSTRAINT "NudgeRule_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'NudgeEvent_organizationId_fkey') THEN
+        ALTER TABLE "NudgeEvent" ADD CONSTRAINT "NudgeEvent_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'NudgeEvent_ruleId_fkey') THEN
+        ALTER TABLE "NudgeEvent" ADD CONSTRAINT "NudgeEvent_ruleId_fkey" FOREIGN KEY ("ruleId") REFERENCES "NudgeRule"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'NudgeEvent_userId_fkey') THEN
+        ALTER TABLE "NudgeEvent" ADD CONSTRAINT "NudgeEvent_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'Experiment_ownerUserId_fkey') THEN
+        ALTER TABLE "Experiment" ADD CONSTRAINT "Experiment_ownerUserId_fkey" FOREIGN KEY ("ownerUserId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'Experiment_organizationId_fkey') THEN
+        ALTER TABLE "Experiment" ADD CONSTRAINT "Experiment_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ExperimentAssignment_experimentId_fkey') THEN
+        ALTER TABLE "ExperimentAssignment" ADD CONSTRAINT "ExperimentAssignment_experimentId_fkey" FOREIGN KEY ("experimentId") REFERENCES "Experiment"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ExperimentAssignment_variantId_fkey') THEN
+        ALTER TABLE "ExperimentAssignment" ADD CONSTRAINT "ExperimentAssignment_variantId_fkey" FOREIGN KEY ("variantId") REFERENCES "ExperimentVariant"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ExperimentAssignment_organizationId_fkey') THEN
+        ALTER TABLE "ExperimentAssignment" ADD CONSTRAINT "ExperimentAssignment_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ExperimentAssignment_userId_fkey') THEN
+        ALTER TABLE "ExperimentAssignment" ADD CONSTRAINT "ExperimentAssignment_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ScaleCalibration_templateId_fkey') THEN
+        ALTER TABLE "ScaleCalibration" ADD CONSTRAINT "ScaleCalibration_templateId_fkey" FOREIGN KEY ("templateId") REFERENCES "SurveyTemplate"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'SurveyInsight_surveyId_fkey') THEN
+        ALTER TABLE "SurveyInsight" ADD CONSTRAINT "SurveyInsight_surveyId_fkey" FOREIGN KEY ("surveyId") REFERENCES "Survey"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'OrganizationBrand_organizationId_fkey') THEN
+        ALTER TABLE "OrganizationBrand" ADD CONSTRAINT "OrganizationBrand_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'OrganizationBrand_brandProfileId_fkey') THEN
+        ALTER TABLE "OrganizationBrand" ADD CONSTRAINT "OrganizationBrand_brandProfileId_fkey" FOREIGN KEY ("brandProfileId") REFERENCES "BrandProfile"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'PartnerUser_partnerId_fkey') THEN
+        ALTER TABLE "PartnerUser" ADD CONSTRAINT "PartnerUser_partnerId_fkey" FOREIGN KEY ("partnerId") REFERENCES "Partner"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'PartnerOrganization_partnerId_fkey') THEN
+        ALTER TABLE "PartnerOrganization" ADD CONSTRAINT "PartnerOrganization_partnerId_fkey" FOREIGN KEY ("partnerId") REFERENCES "Partner"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'PartnerOrganization_organizationId_fkey') THEN
+        ALTER TABLE "PartnerOrganization" ADD CONSTRAINT "PartnerOrganization_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'MarketplaceApp_listedByPartnerId_fkey') THEN
+        ALTER TABLE "MarketplaceApp" ADD CONSTRAINT "MarketplaceApp_listedByPartnerId_fkey" FOREIGN KEY ("listedByPartnerId") REFERENCES "Partner"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'MarketplaceInstallation_organizationId_fkey') THEN
+        ALTER TABLE "MarketplaceInstallation" ADD CONSTRAINT "MarketplaceInstallation_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'MarketplaceInstallation_appId_fkey') THEN
+        ALTER TABLE "MarketplaceInstallation" ADD CONSTRAINT "MarketplaceInstallation_appId_fkey" FOREIGN KEY ("appId") REFERENCES "MarketplaceApp"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'MarketplaceInstallation_installedById_fkey') THEN
+        ALTER TABLE "MarketplaceInstallation" ADD CONSTRAINT "MarketplaceInstallation_installedById_fkey" FOREIGN KEY ("installedById") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'AutomationWorkflow_organizationId_fkey') THEN
+        ALTER TABLE "AutomationWorkflow" ADD CONSTRAINT "AutomationWorkflow_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'AutomationWorkflow_createdById_fkey') THEN
+        ALTER TABLE "AutomationWorkflow" ADD CONSTRAINT "AutomationWorkflow_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'AutomationRun_workflowId_fkey') THEN
+        ALTER TABLE "AutomationRun" ADD CONSTRAINT "AutomationRun_workflowId_fkey" FOREIGN KEY ("workflowId") REFERENCES "AutomationWorkflow"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'AutomationRun_organizationId_fkey') THEN
+        ALTER TABLE "AutomationRun" ADD CONSTRAINT "AutomationRun_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ProjectSpace_ownerOrgId_fkey') THEN
+        ALTER TABLE "ProjectSpace" ADD CONSTRAINT "ProjectSpace_ownerOrgId_fkey" FOREIGN KEY ("ownerOrgId") REFERENCES "Organization"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ProjectSpace_ownerPartnerId_fkey') THEN
+        ALTER TABLE "ProjectSpace" ADD CONSTRAINT "ProjectSpace_ownerPartnerId_fkey" FOREIGN KEY ("ownerPartnerId") REFERENCES "Partner"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ProjectMembership_projectId_fkey') THEN
+        ALTER TABLE "ProjectMembership" ADD CONSTRAINT "ProjectMembership_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "ProjectSpace"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'OnboardingTask_organizationId_fkey') THEN
+        ALTER TABLE "OnboardingTask" ADD CONSTRAINT "OnboardingTask_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'UsageRecord_organizationId_fkey') THEN
+        ALTER TABLE "UsageRecord" ADD CONSTRAINT "UsageRecord_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'OrganizationAddOn_organizationId_fkey') THEN
+        ALTER TABLE "OrganizationAddOn" ADD CONSTRAINT "OrganizationAddOn_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'OrganizationAddOn_addOnId_fkey') THEN
+        ALTER TABLE "OrganizationAddOn" ADD CONSTRAINT "OrganizationAddOn_addOnId_fkey" FOREIGN KEY ("addOnId") REFERENCES "AddOn"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'OrgCRMMapping_organizationId_fkey') THEN
+        ALTER TABLE "OrgCRMMapping" ADD CONSTRAINT "OrgCRMMapping_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'OrgCRMMapping_crmIntegrationId_fkey') THEN
+        ALTER TABLE "OrgCRMMapping" ADD CONSTRAINT "OrgCRMMapping_crmIntegrationId_fkey" FOREIGN KEY ("crmIntegrationId") REFERENCES "CRMIntegration"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'Invoice_organizationId_fkey') THEN
+        ALTER TABLE "Invoice" ADD CONSTRAINT "Invoice_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'InvoiceLineItem_invoiceId_fkey') THEN
+        ALTER TABLE "InvoiceLineItem" ADD CONSTRAINT "InvoiceLineItem_invoiceId_fkey" FOREIGN KEY ("invoiceId") REFERENCES "Invoice"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'DunningState_organizationId_fkey') THEN
+        ALTER TABLE "DunningState" ADD CONSTRAINT "DunningState_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'OrgReferral_referrerOrganizationId_fkey') THEN
+        ALTER TABLE "OrgReferral" ADD CONSTRAINT "OrgReferral_referrerOrganizationId_fkey" FOREIGN KEY ("referrerOrganizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'OrgReferral_referredOrganizationId_fkey') THEN
+        ALTER TABLE "OrgReferral" ADD CONSTRAINT "OrgReferral_referredOrganizationId_fkey" FOREIGN KEY ("referredOrganizationId") REFERENCES "Organization"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'OrgReferral_referralProgramId_fkey') THEN
+        ALTER TABLE "OrgReferral" ADD CONSTRAINT "OrgReferral_referralProgramId_fkey" FOREIGN KEY ("referralProgramId") REFERENCES "ReferralProgram"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'InAppSurveyResponse_surveyId_fkey') THEN
+        ALTER TABLE "InAppSurveyResponse" ADD CONSTRAINT "InAppSurveyResponse_surveyId_fkey" FOREIGN KEY ("surveyId") REFERENCES "InAppSurvey"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'InAppSurveyResponse_userId_fkey') THEN
+        ALTER TABLE "InAppSurveyResponse" ADD CONSTRAINT "InAppSurveyResponse_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'InAppSurveyResponse_organizationId_fkey') THEN
+        ALTER TABLE "InAppSurveyResponse" ADD CONSTRAINT "InAppSurveyResponse_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'FeatureFlagOverride_featureKey_fkey') THEN
+        ALTER TABLE "FeatureFlagOverride" ADD CONSTRAINT "FeatureFlagOverride_featureKey_fkey" FOREIGN KEY ("featureKey") REFERENCES "FeatureFlag"("key") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'FeatureFlagOverride_organizationId_fkey') THEN
+        ALTER TABLE "FeatureFlagOverride" ADD CONSTRAINT "FeatureFlagOverride_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'FeatureFlagOverride_userId_fkey') THEN
+        ALTER TABLE "FeatureFlagOverride" ADD CONSTRAINT "FeatureFlagOverride_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'CoachSession_organizationId_fkey') THEN
+        ALTER TABLE "CoachSession" ADD CONSTRAINT "CoachSession_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'CoachSession_userId_fkey') THEN
+        ALTER TABLE "CoachSession" ADD CONSTRAINT "CoachSession_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'CoachMessage_sessionId_fkey') THEN
+        ALTER TABLE "CoachMessage" ADD CONSTRAINT "CoachMessage_sessionId_fkey" FOREIGN KEY ("sessionId") REFERENCES "CoachSession"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'CoachSummary_sessionId_fkey') THEN
+        ALTER TABLE "CoachSummary" ADD CONSTRAINT "CoachSummary_sessionId_fkey" FOREIGN KEY ("sessionId") REFERENCES "CoachSession"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'HabitPlan_organizationId_fkey') THEN
+        ALTER TABLE "HabitPlan" ADD CONSTRAINT "HabitPlan_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'HabitPlan_userId_fkey') THEN
+        ALTER TABLE "HabitPlan" ADD CONSTRAINT "HabitPlan_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'HabitTask_planId_fkey') THEN
+        ALTER TABLE "HabitTask" ADD CONSTRAINT "HabitTask_planId_fkey" FOREIGN KEY ("planId") REFERENCES "HabitPlan"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'HabitCheckin_taskId_fkey') THEN
+        ALTER TABLE "HabitCheckin" ADD CONSTRAINT "HabitCheckin_taskId_fkey" FOREIGN KEY ("taskId") REFERENCES "HabitTask"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'HabitCheckin_userId_fkey') THEN
+        ALTER TABLE "HabitCheckin" ADD CONSTRAINT "HabitCheckin_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'UserWellbeingPreferences_userId_fkey') THEN
+        ALTER TABLE "UserWellbeingPreferences" ADD CONSTRAINT "UserWellbeingPreferences_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'SafetyIncident_organizationId_fkey') THEN
+        ALTER TABLE "SafetyIncident" ADD CONSTRAINT "SafetyIncident_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'SafetyIncident_userId_fkey') THEN
+        ALTER TABLE "SafetyIncident" ADD CONSTRAINT "SafetyIncident_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'OrgSafetySettings_organizationId_fkey') THEN
+        ALTER TABLE "OrgSafetySettings" ADD CONSTRAINT "OrgSafetySettings_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'WellbeingResource_organizationId_fkey') THEN
+        ALTER TABLE "WellbeingResource" ADD CONSTRAINT "WellbeingResource_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'AcademyModule_courseId_fkey') THEN
+        ALTER TABLE "AcademyModule" ADD CONSTRAINT "AcademyModule_courseId_fkey" FOREIGN KEY ("courseId") REFERENCES "AcademyCourse"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'AcademyQuizQuestion_moduleId_fkey') THEN
+        ALTER TABLE "AcademyQuizQuestion" ADD CONSTRAINT "AcademyQuizQuestion_moduleId_fkey" FOREIGN KEY ("moduleId") REFERENCES "AcademyModule"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'AcademyEnrollment_organizationId_fkey') THEN
+        ALTER TABLE "AcademyEnrollment" ADD CONSTRAINT "AcademyEnrollment_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'AcademyEnrollment_userId_fkey') THEN
+        ALTER TABLE "AcademyEnrollment" ADD CONSTRAINT "AcademyEnrollment_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'AcademyEnrollment_courseId_fkey') THEN
+        ALTER TABLE "AcademyEnrollment" ADD CONSTRAINT "AcademyEnrollment_courseId_fkey" FOREIGN KEY ("courseId") REFERENCES "AcademyCourse"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'AcademyProgress_enrollmentId_fkey') THEN
+        ALTER TABLE "AcademyProgress" ADD CONSTRAINT "AcademyProgress_enrollmentId_fkey" FOREIGN KEY ("enrollmentId") REFERENCES "AcademyEnrollment"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'AcademyProgress_moduleId_fkey') THEN
+        ALTER TABLE "AcademyProgress" ADD CONSTRAINT "AcademyProgress_moduleId_fkey" FOREIGN KEY ("moduleId") REFERENCES "AcademyModule"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'AcademyCertificate_enrollmentId_fkey') THEN
+        ALTER TABLE "AcademyCertificate" ADD CONSTRAINT "AcademyCertificate_enrollmentId_fkey" FOREIGN KEY ("enrollmentId") REFERENCES "AcademyEnrollment"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'LearningProgram_organizationId_fkey') THEN
+        ALTER TABLE "LearningProgram" ADD CONSTRAINT "LearningProgram_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'LearningProgram_createdById_fkey') THEN
+        ALTER TABLE "LearningProgram" ADD CONSTRAINT "LearningProgram_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'LearningCohort_programId_fkey') THEN
+        ALTER TABLE "LearningCohort" ADD CONSTRAINT "LearningCohort_programId_fkey" FOREIGN KEY ("programId") REFERENCES "LearningProgram"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'LearningCohort_organizationId_fkey') THEN
+        ALTER TABLE "LearningCohort" ADD CONSTRAINT "LearningCohort_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'LearningCohort_facilitatorUserId_fkey') THEN
+        ALTER TABLE "LearningCohort" ADD CONSTRAINT "LearningCohort_facilitatorUserId_fkey" FOREIGN KEY ("facilitatorUserId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'LearningCohortMember_cohortId_fkey') THEN
+        ALTER TABLE "LearningCohortMember" ADD CONSTRAINT "LearningCohortMember_cohortId_fkey" FOREIGN KEY ("cohortId") REFERENCES "LearningCohort"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'LearningCohortMember_userId_fkey') THEN
+        ALTER TABLE "LearningCohortMember" ADD CONSTRAINT "LearningCohortMember_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'CommunityThread_spaceId_fkey') THEN
+        ALTER TABLE "CommunityThread" ADD CONSTRAINT "CommunityThread_spaceId_fkey" FOREIGN KEY ("spaceId") REFERENCES "CommunitySpace"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'CommunityThread_organizationId_fkey') THEN
+        ALTER TABLE "CommunityThread" ADD CONSTRAINT "CommunityThread_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'CommunityThread_authorUserId_fkey') THEN
+        ALTER TABLE "CommunityThread" ADD CONSTRAINT "CommunityThread_authorUserId_fkey" FOREIGN KEY ("authorUserId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'CommunityReply_threadId_fkey') THEN
+        ALTER TABLE "CommunityReply" ADD CONSTRAINT "CommunityReply_threadId_fkey" FOREIGN KEY ("threadId") REFERENCES "CommunityThread"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'CommunityReply_authorUserId_fkey') THEN
+        ALTER TABLE "CommunityReply" ADD CONSTRAINT "CommunityReply_authorUserId_fkey" FOREIGN KEY ("authorUserId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'CommunityUpvote_threadId_fkey') THEN
+        ALTER TABLE "CommunityUpvote" ADD CONSTRAINT "CommunityUpvote_threadId_fkey" FOREIGN KEY ("threadId") REFERENCES "CommunityThread"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'CommunityUpvote_userId_fkey') THEN
+        ALTER TABLE "CommunityUpvote" ADD CONSTRAINT "CommunityUpvote_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'CoachAvailabilitySlot_coachId_fkey') THEN
+        ALTER TABLE "CoachAvailabilitySlot" ADD CONSTRAINT "CoachAvailabilitySlot_coachId_fkey" FOREIGN KEY ("coachId") REFERENCES "CoachProfile"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'CoachBooking_coachId_fkey') THEN
+        ALTER TABLE "CoachBooking" ADD CONSTRAINT "CoachBooking_coachId_fkey" FOREIGN KEY ("coachId") REFERENCES "CoachProfile"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'CoachBooking_organizationId_fkey') THEN
+        ALTER TABLE "CoachBooking" ADD CONSTRAINT "CoachBooking_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'CoachBooking_userId_fkey') THEN
+        ALTER TABLE "CoachBooking" ADD CONSTRAINT "CoachBooking_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'BenchmarkSnapshot_groupId_fkey') THEN
+        ALTER TABLE "BenchmarkSnapshot" ADD CONSTRAINT "BenchmarkSnapshot_groupId_fkey" FOREIGN KEY ("groupId") REFERENCES "BenchmarkGroup"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'UserPrivacyProfile_userId_fkey') THEN
+        ALTER TABLE "UserPrivacyProfile" ADD CONSTRAINT "UserPrivacyProfile_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'OrgPrivacySettings_organizationId_fkey') THEN
+        ALTER TABLE "OrgPrivacySettings" ADD CONSTRAINT "OrgPrivacySettings_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'DataSubjectRequest_organizationId_fkey') THEN
+        ALTER TABLE "DataSubjectRequest" ADD CONSTRAINT "DataSubjectRequest_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'DataSubjectRequest_userId_fkey') THEN
+        ALTER TABLE "DataSubjectRequest" ADD CONSTRAINT "DataSubjectRequest_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'DataSubjectExportBundle_requestId_fkey') THEN
+        ALTER TABLE "DataSubjectExportBundle" ADD CONSTRAINT "DataSubjectExportBundle_requestId_fkey" FOREIGN KEY ("requestId") REFERENCES "DataSubjectRequest"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'RetentionPolicy_organizationId_fkey') THEN
+        ALTER TABLE "RetentionPolicy" ADD CONSTRAINT "RetentionPolicy_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'LegalHold_organizationId_fkey') THEN
+        ALTER TABLE "LegalHold" ADD CONSTRAINT "LegalHold_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ConsentRecord_organizationId_fkey') THEN
+        ALTER TABLE "ConsentRecord" ADD CONSTRAINT "ConsentRecord_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ConsentRecord_userId_fkey') THEN
+        ALTER TABLE "ConsentRecord" ADD CONSTRAINT "ConsentRecord_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ApiClient_organizationId_fkey') THEN
+        ALTER TABLE "ApiClient" ADD CONSTRAINT "ApiClient_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ApiClient_createdById_fkey') THEN
+        ALTER TABLE "ApiClient" ADD CONSTRAINT "ApiClient_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ApiToken_organizationId_fkey') THEN
+        ALTER TABLE "ApiToken" ADD CONSTRAINT "ApiToken_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ApiToken_apiClientId_fkey') THEN
+        ALTER TABLE "ApiToken" ADD CONSTRAINT "ApiToken_apiClientId_fkey" FOREIGN KEY ("apiClientId") REFERENCES "ApiClient"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'HRISConnection_organizationId_fkey') THEN
+        ALTER TABLE "HRISConnection" ADD CONSTRAINT "HRISConnection_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'HRISFieldMapping_hrisConnectionId_fkey') THEN
+        ALTER TABLE "HRISFieldMapping" ADD CONSTRAINT "HRISFieldMapping_hrisConnectionId_fkey" FOREIGN KEY ("hrisConnectionId") REFERENCES "HRISConnection"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'HRISSyncLog_hrisConnectionId_fkey') THEN
+        ALTER TABLE "HRISSyncLog" ADD CONSTRAINT "HRISSyncLog_hrisConnectionId_fkey" FOREIGN KEY ("hrisConnectionId") REFERENCES "HRISConnection"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'HRISSyncLog_organizationId_fkey') THEN
+        ALTER TABLE "HRISSyncLog" ADD CONSTRAINT "HRISSyncLog_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'SSOConnection_organizationId_fkey') THEN
+        ALTER TABLE "SSOConnection" ADD CONSTRAINT "SSOConnection_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'SSODomain_organizationId_fkey') THEN
+        ALTER TABLE "SSODomain" ADD CONSTRAINT "SSODomain_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'SSODomain_ssoConnectionId_fkey') THEN
+        ALTER TABLE "SSODomain" ADD CONSTRAINT "SSODomain_ssoConnectionId_fkey" FOREIGN KEY ("ssoConnectionId") REFERENCES "SSOConnection"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'SCIMConnection_organizationId_fkey') THEN
+        ALTER TABLE "SCIMConnection" ADD CONSTRAINT "SCIMConnection_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'SlackWorkspace_organizationId_fkey') THEN
+        ALTER TABLE "SlackWorkspace" ADD CONSTRAINT "SlackWorkspace_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'SlackChannelMapping_slackWorkspaceId_fkey') THEN
+        ALTER TABLE "SlackChannelMapping" ADD CONSTRAINT "SlackChannelMapping_slackWorkspaceId_fkey" FOREIGN KEY ("slackWorkspaceId") REFERENCES "SlackWorkspace"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'SlackChannelMapping_organizationId_fkey') THEN
+        ALTER TABLE "SlackChannelMapping" ADD CONSTRAINT "SlackChannelMapping_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'SlackUserLink_slackWorkspaceId_fkey') THEN
+        ALTER TABLE "SlackUserLink" ADD CONSTRAINT "SlackUserLink_slackWorkspaceId_fkey" FOREIGN KEY ("slackWorkspaceId") REFERENCES "SlackWorkspace"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'SlackUserLink_userId_fkey') THEN
+        ALTER TABLE "SlackUserLink" ADD CONSTRAINT "SlackUserLink_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'SlackUserLink_organizationId_fkey') THEN
+        ALTER TABLE "SlackUserLink" ADD CONSTRAINT "SlackUserLink_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'CalendarConnection_organizationId_fkey') THEN
+        ALTER TABLE "CalendarConnection" ADD CONSTRAINT "CalendarConnection_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'CalendarConnection_userId_fkey') THEN
+        ALTER TABLE "CalendarConnection" ADD CONSTRAINT "CalendarConnection_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'CustomerWarehouseConnection_organizationId_fkey') THEN
+        ALTER TABLE "CustomerWarehouseConnection" ADD CONSTRAINT "CustomerWarehouseConnection_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ExperimentVariant_experimentId_fkey') THEN
+        ALTER TABLE "ExperimentVariant" ADD CONSTRAINT "ExperimentVariant_experimentId_fkey" FOREIGN KEY ("experimentId") REFERENCES "Experiment"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ExperimentExposure_experimentId_fkey') THEN
+        ALTER TABLE "ExperimentExposure" ADD CONSTRAINT "ExperimentExposure_experimentId_fkey" FOREIGN KEY ("experimentId") REFERENCES "Experiment"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ExperimentExposure_variantId_fkey') THEN
+        ALTER TABLE "ExperimentExposure" ADD CONSTRAINT "ExperimentExposure_variantId_fkey" FOREIGN KEY ("variantId") REFERENCES "ExperimentVariant"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ExperimentExposure_organizationId_fkey') THEN
+        ALTER TABLE "ExperimentExposure" ADD CONSTRAINT "ExperimentExposure_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ExperimentExposure_userId_fkey') THEN
+        ALTER TABLE "ExperimentExposure" ADD CONSTRAINT "ExperimentExposure_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ExperimentMetricEvent_experimentId_fkey') THEN
+        ALTER TABLE "ExperimentMetricEvent" ADD CONSTRAINT "ExperimentMetricEvent_experimentId_fkey" FOREIGN KEY ("experimentId") REFERENCES "Experiment"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ExperimentMetricEvent_variantId_fkey') THEN
+        ALTER TABLE "ExperimentMetricEvent" ADD CONSTRAINT "ExperimentMetricEvent_variantId_fkey" FOREIGN KEY ("variantId") REFERENCES "ExperimentVariant"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ExperimentMetricEvent_organizationId_fkey') THEN
+        ALTER TABLE "ExperimentMetricEvent" ADD CONSTRAINT "ExperimentMetricEvent_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ExperimentMetricEvent_userId_fkey') THEN
+        ALTER TABLE "ExperimentMetricEvent" ADD CONSTRAINT "ExperimentMetricEvent_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ModelVersion_registryId_fkey') THEN
+        ALTER TABLE "ModelVersion" ADD CONSTRAINT "ModelVersion_registryId_fkey" FOREIGN KEY ("registryId") REFERENCES "ModelRegistry"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ModelInferenceLog_modelVersionId_fkey') THEN
+        ALTER TABLE "ModelInferenceLog" ADD CONSTRAINT "ModelInferenceLog_modelVersionId_fkey" FOREIGN KEY ("modelVersionId") REFERENCES "ModelVersion"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ModelInferenceLog_organizationId_fkey') THEN
+        ALTER TABLE "ModelInferenceLog" ADD CONSTRAINT "ModelInferenceLog_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ModelInferenceLog_userId_fkey') THEN
+        ALTER TABLE "ModelInferenceLog" ADD CONSTRAINT "ModelInferenceLog_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'AIEvalTask_modelVersionId_fkey') THEN
+        ALTER TABLE "AIEvalTask" ADD CONSTRAINT "AIEvalTask_modelVersionId_fkey" FOREIGN KEY ("modelVersionId") REFERENCES "ModelVersion"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ResearchNotebook_ownerUserId_fkey') THEN
+        ALTER TABLE "ResearchNotebook" ADD CONSTRAINT "ResearchNotebook_ownerUserId_fkey" FOREIGN KEY ("ownerUserId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ResearchDataset_notebookId_fkey') THEN
+        ALTER TABLE "ResearchDataset" ADD CONSTRAINT "ResearchDataset_notebookId_fkey" FOREIGN KEY ("notebookId") REFERENCES "ResearchNotebook"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ActionCenterItem_organizationId_fkey') THEN
+        ALTER TABLE "ActionCenterItem" ADD CONSTRAINT "ActionCenterItem_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ActionCenterItem_teamId_fkey') THEN
+        ALTER TABLE "ActionCenterItem" ADD CONSTRAINT "ActionCenterItem_teamId_fkey" FOREIGN KEY ("teamId") REFERENCES "Team"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ActionCenterItem_managerUserId_fkey') THEN
+        ALTER TABLE "ActionCenterItem" ADD CONSTRAINT "ActionCenterItem_managerUserId_fkey" FOREIGN KEY ("managerUserId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ActionCenterItem_userId_fkey') THEN
+        ALTER TABLE "ActionCenterItem" ADD CONSTRAINT "ActionCenterItem_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ActionCenterItem_completedByUserId_fkey') THEN
+        ALTER TABLE "ActionCenterItem" ADD CONSTRAINT "ActionCenterItem_completedByUserId_fkey" FOREIGN KEY ("completedByUserId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'TeamStatusSnapshot_organizationId_fkey') THEN
+        ALTER TABLE "TeamStatusSnapshot" ADD CONSTRAINT "TeamStatusSnapshot_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'TeamStatusSnapshot_teamId_fkey') THEN
+        ALTER TABLE "TeamStatusSnapshot" ADD CONSTRAINT "TeamStatusSnapshot_teamId_fkey" FOREIGN KEY ("teamId") REFERENCES "Team"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'PersonalStatusSnapshot_organizationId_fkey') THEN
+        ALTER TABLE "PersonalStatusSnapshot" ADD CONSTRAINT "PersonalStatusSnapshot_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'PersonalStatusSnapshot_userId_fkey') THEN
+        ALTER TABLE "PersonalStatusSnapshot" ADD CONSTRAINT "PersonalStatusSnapshot_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'SurveyEngagementSnapshot_organizationId_fkey') THEN
+        ALTER TABLE "SurveyEngagementSnapshot" ADD CONSTRAINT "SurveyEngagementSnapshot_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'SurveyEngagementSnapshot_surveyId_fkey') THEN
+        ALTER TABLE "SurveyEngagementSnapshot" ADD CONSTRAINT "SurveyEngagementSnapshot_surveyId_fkey" FOREIGN KEY ("surveyId") REFERENCES "Survey"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'SurveyEngagementSnapshot_teamId_fkey') THEN
+        ALTER TABLE "SurveyEngagementSnapshot" ADD CONSTRAINT "SurveyEngagementSnapshot_teamId_fkey" FOREIGN KEY ("teamId") REFERENCES "Team"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'SurveyEngagementTimeseriesPoint_snapshotId_fkey') THEN
+        ALTER TABLE "SurveyEngagementTimeseriesPoint" ADD CONSTRAINT "SurveyEngagementTimeseriesPoint_snapshotId_fkey" FOREIGN KEY ("snapshotId") REFERENCES "SurveyEngagementSnapshot"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END $$;
