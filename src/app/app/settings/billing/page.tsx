@@ -84,7 +84,7 @@ export default async function BillingPage() {
   const nextPaymentDate = nextInvoice?.periodEnd ? new Date(nextInvoice.periodEnd) : null;
   const nextPeriodStart = nextInvoice?.periodStart ? new Date(nextInvoice.periodStart) : null;
   const nextAmountValue = Number.isFinite(monthlyTotal) ? monthlyTotal : null;
-  const gateStatus = await getBillingGateStatus(orgId, (user as any)?.organization?.createdAt ?? null);
+  const gateStatus = await getBillingGateStatus(orgId, (user as any)?.organization?.createdAt ?? null, { userRole: user.role });
   const trialDaysLeft = gateStatus.trialActive
     ? Math.max(0, differenceInCalendarDays(gateStatus.trialEndsAt, new Date()))
     : null;

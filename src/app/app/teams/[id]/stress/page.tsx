@@ -23,7 +23,7 @@ export default async function TeamStressPage({ params }: Props) {
   if (!team) notFound();
 
   const orgCreatedAt = (user as any)?.organization?.createdAt ? new Date((user as any).organization.createdAt) : new Date();
-  const gateStatus = await getBillingGateStatus(user.organizationId, orgCreatedAt);
+  const gateStatus = await getBillingGateStatus(user.organizationId, orgCreatedAt, { userRole: user.role });
   const aiEnabled = gateStatus.hasPaidAccess || env.isDev;
 
   const history = await prisma.teamMetricsHistory.findMany({

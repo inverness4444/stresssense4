@@ -13,7 +13,7 @@ export default async function MyHomePage() {
   const data = await getMyHomeData();
   const locale = await getLocale();
   const orgCreatedAt = (user as any)?.organization?.createdAt ? new Date((user as any).organization.createdAt) : new Date();
-  const gateStatus = await getBillingGateStatus(user.organizationId, orgCreatedAt);
+  const gateStatus = await getBillingGateStatus(user.organizationId, orgCreatedAt, { userRole: user.role });
   return (
     <MyHomeClient
       data={data}

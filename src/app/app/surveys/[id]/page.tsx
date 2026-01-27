@@ -82,7 +82,7 @@ export default async function SurveyDashboardPage({ params, searchParams }: Prop
   const overlap = survey.targets.some((t: any) => teamIds.includes(t.teamId));
   const canExport = isAdmin || (isManager && overlap && settings.allowManagerAccessToAllSurveys);
   const orgCreatedAt = (user as any)?.organization?.createdAt ? new Date((user as any).organization.createdAt) : new Date();
-  const gateStatus = await getBillingGateStatus(user.organizationId, orgCreatedAt);
+  const gateStatus = await getBillingGateStatus(user.organizationId, orgCreatedAt, { userRole: user.role });
   const aiSummaryEnabled = isFeatureEnabled("aiSummary", settings) && gateStatus.hasPaidAccess;
   let insight = null;
   if (aiSummaryEnabled && env.AI_PROVIDER !== "none") {

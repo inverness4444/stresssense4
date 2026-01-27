@@ -728,6 +728,7 @@ export async function getOrCreateDailySurveyRun(options: {
   allowAi?: boolean;
   timeZone?: string;
   createdByUserId?: string | null;
+  allowMultiplePerDay?: boolean;
 }) {
   const { memberId } = options;
   const date = options.date ?? new Date();
@@ -742,7 +743,8 @@ export async function getOrCreateDailySurveyRun(options: {
   const locale = normalizeLocale(options.locale ?? settings.defaultLanguage);
 
   const dateKey = getDateKey(date, timeZone);
-  const runDate = runDateFromKey(dateKey);
+  const allowMultiplePerDay = Boolean(options.allowMultiplePerDay);
+  const runDate = allowMultiplePerDay ? date : runDateFromKey(dateKey);
 
   let allowAi = options.allowAi;
   if (allowAi === undefined) {
@@ -750,12 +752,14 @@ export async function getOrCreateDailySurveyRun(options: {
     allowAi = gateStatus.hasPaidAccess || env.isDev;
   }
 
-  const existing = await prisma.surveyRun.findFirst({
-    where: { memberId, runDate, runType: "daily" },
-    include: { template: { include: { questions: true } }, responses: { select: { id: true } } },
-  });
-  if (existing) {
-    return maybeUpgradeDailyRunToAi(existing, locale, allowAi);
+  if (!allowMultiplePerDay) {
+    const existing = await prisma.surveyRun.findFirst({
+      where: { memberId, runDate, runType: "daily" },
+      include: { template: { include: { questions: true } }, responses: { select: { id: true } } },
+    });
+    if (existing) {
+      return maybeUpgradeDailyRunToAi(existing, locale, allowAi);
+    }
   }
 
   const priorRuns = await prisma.surveyRun.count({

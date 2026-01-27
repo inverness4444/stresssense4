@@ -30,7 +30,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const role = (user.role ?? "").toUpperCase();
   const isAdminRole = ["ADMIN", "HR", "SUPER_ADMIN"].includes(role);
   const orgCreatedAt = (user as any)?.organization?.createdAt ? new Date((user as any).organization.createdAt) : new Date();
-  const gateStatus = await getBillingGateStatus(user.organizationId, orgCreatedAt);
+  const gateStatus = await getBillingGateStatus(user.organizationId, orgCreatedAt, { userRole: user.role });
   const isDemo = Boolean((user as any)?.organization?.isDemo);
   const aiEnabled = gateStatus.hasPaidAccess || env.isDev;
   const blockedReason = gateStatus.blockedReason as "trial_expired" | "subscription_inactive" | null;

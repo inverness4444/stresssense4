@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { isSuperAdmin } from "@/lib/roles";
 
 const INVOICE_GRACE_DAYS = 35;
 
@@ -109,7 +110,11 @@ export function computeBillingGateStatus(input: BillingGateInput) {
   };
 }
 
-export async function getBillingGateStatus(organizationId: string, organizationCreatedAt?: Date | null) {
+export async function getBillingGateStatus(
+  organizationId: string,
+  organizationCreatedAt?: Date | null,
+  options?: { userRole?: string | null }
+) {
   let resolvedOrgCreatedAt = organizationCreatedAt ?? null;
   if (!resolvedOrgCreatedAt) {
     const org = await prisma.organization.findUnique({
@@ -134,10 +139,21 @@ export async function getBillingGateStatus(organizationId: string, organizationC
     }),
   ]);
 
-  return computeBillingGateStatus({
+  const base = computeBillingGateStatus({
     subscription,
     settings,
     paidInvoice,
     organizationCreatedAt: resolvedOrgCreatedAt,
   });
+  if (options?.userRole && isSuperAdmin(options.userRole)) {
+    return {
+      ...base,
+      trialActive: true,
+      hasPaidAccess: true,
+      blocked: false,
+      blockedReason: null,
+      subscriptionActive: true,
+    };
+  }
+  return base;
 }

@@ -40,7 +40,7 @@ export default async function OverviewPage({ searchParams }: OverviewPageProps) 
   const createdAt = (user as any)?.organization?.createdAt ? new Date((user as any).organization.createdAt) : new Date();
   const diffDays = Math.max(0, Math.ceil((7 * 24 * 60 * 60 * 1000 - (Date.now() - createdAt.getTime())) / (24 * 60 * 60 * 1000)));
   const gateAdvanced = !isDemo && diffDays > 0;
-  const gateStatus = await getBillingGateStatus(user.organizationId, createdAt);
+  const gateStatus = await getBillingGateStatus(user.organizationId, createdAt, { userRole: user.role });
   const aiEnabled = gateStatus.hasPaidAccess || env.isDev;
 
   const teams = await prisma.team.findMany({ where: { organizationId: user.organizationId }, orderBy: { createdAt: "desc" } });

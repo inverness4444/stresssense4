@@ -496,7 +496,7 @@ export async function POST(req: Request) {
   }
 
   const orgCreatedAt = (user as any)?.organization?.createdAt ? new Date((user as any).organization.createdAt) : undefined;
-  const gateStatus = await getBillingGateStatus(user.organizationId, orgCreatedAt);
+  const gateStatus = await getBillingGateStatus(user.organizationId, orgCreatedAt, { userRole: user.role });
   if (!gateStatus.hasPaidAccess && !env.isDev) {
     return NextResponse.json({ error: "payment_required", disabled: true }, { status: 402 });
   }

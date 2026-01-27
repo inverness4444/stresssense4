@@ -18,6 +18,7 @@ import { getBillingGateStatus } from "@/lib/billingGate";
 import { computeStatsForResponses } from "@/lib/ai/analysisAggregates";
 import { updateMemberFromPulse, updateTeamMetricsFromSurvey } from "@/lib/orgData";
 import { env } from "@/config/env";
+import { isSuperAdmin } from "@/lib/roles";
 
 const SURVEY_ROLES = new Set(["EMPLOYEE", "MANAGER", "HR", "ADMIN", "SUPER_ADMIN"]);
 const BACKFILL_EMAIL = "abuzada@mail.ru";
@@ -92,6 +93,7 @@ export async function getDailySurveyPageData() {
   const user = await getCurrentUser();
   if (!user) throw new Error("Unauthorized");
   const role = assertSurveyAccess(user);
+  const isSuper = isSuperAdmin(user.role);
   const locale = normalizeLocale(await getLocale());
 
   const member = user.member ?? (await ensureMemberForUser(user));
@@ -105,8 +107,8 @@ export async function getDailySurveyPageData() {
     }),
   ]);
 
-  const gateStatus = await getBillingGateStatus(member.organizationId, orgMeta?.createdAt ?? null);
-  const surveyOverride = isBackfillUser(user.email);
+  const gateStatus = await getBillingGateStatus(member.organizationId, orgMeta?.createdAt ?? null, { userRole: user.role });
+  const surveyOverride = isBackfillUser(user.email) || isSuper;
 
   const now = new Date();
   const backfillActive = isBackfillUser(user.email);
@@ -150,6 +152,7 @@ export async function getDailySurveyPageData() {
     locale,
     createdByUserId: user.id,
     allowAi: gateStatus.hasPaidAccess || env.isDev || surveyOverride,
+    allowMultiplePerDay: isSuper,
   });
   const todaySurvey = activeRun ? await serializeDailySurvey(activeRun) : null;
   let todayCompletedAt: string | null = null;
@@ -205,6 +208,7 @@ export async function getTodayDailySurvey() {
   const user = await getCurrentUser();
   if (!user) throw new Error("Unauthorized");
   assertSurveyAccess(user);
+  const isSuper = isSuperAdmin(user.role);
   const member = user.member ?? (await ensureMemberForUser(user));
   if (!member) throw new Error("Member not found");
   const locale = normalizeLocale(await getLocale());
@@ -212,8 +216,8 @@ export async function getTodayDailySurvey() {
     where: { id: member.organizationId },
     select: { createdAt: true },
   });
-  const gateStatus = await getBillingGateStatus(member.organizationId, orgMeta?.createdAt ?? null);
-  const surveyOverride = isBackfillUser(user.email);
+  const gateStatus = await getBillingGateStatus(member.organizationId, orgMeta?.createdAt ?? null, { userRole: user.role });
+  const surveyOverride = isBackfillUser(user.email) || isSuper;
   const now = new Date();
   const backfillActive = isBackfillUser(user.email);
   let pendingRun = null;
@@ -256,6 +260,7 @@ export async function getTodayDailySurvey() {
     locale,
     createdByUserId: user.id,
     allowAi: gateStatus.hasPaidAccess || env.isDev || surveyOverride,
+    allowMultiplePerDay: isSuper,
   });
   if (!run) return null;
   return serializeDailySurvey(run);
