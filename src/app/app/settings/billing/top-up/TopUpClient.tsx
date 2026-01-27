@@ -18,10 +18,19 @@ export default function TopUpClient({ initialAmount, isRu }: TopUpClientProps) {
   const [network, setNetwork] = useState<"ERC20" | "TRC20">("ERC20");
   const [formState, formAction] = useActionState<TopUpFormState>(createTopUpRequest, { status: "idle" });
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [submitLocked, setSubmitLocked] = useState(false);
 
   useEffect(() => {
     setAmountInput(initialAmount);
   }, [initialAmount]);
+  useEffect(() => {
+    if (formState.status === "error") {
+      setSubmitLocked(false);
+    }
+    if (formState.status === "ok") {
+      setSubmitLocked(true);
+    }
+  }, [formState.status]);
 
   const paymentCurrency = method === "card" ? BASE_CURRENCY : "USDT";
 
@@ -81,6 +90,12 @@ export default function TopUpClient({ initialAmount, isRu }: TopUpClientProps) {
           ? "Не удалось отправить заявку. Проверьте сумму и попробуйте снова."
           : "Could not send request. Check the amount and try again."
         : null;
+  const pendingMessage =
+    submitLocked && formState.status === "idle"
+      ? isRu
+        ? "Спасибо! Мы проверяем поступление. Обычно это занимает пару минут."
+        : "Thanks! We are checking the payment. It usually takes a couple of minutes."
+      : null;
 
   const copyLabel = isRu ? "Скопировать" : "Copy";
   const copiedLabel = isRu ? "Скопировано" : "Copied";
@@ -133,6 +148,14 @@ export default function TopUpClient({ initialAmount, isRu }: TopUpClientProps) {
   const methodTabLabel = (value: "card" | "crypto") =>
     value === "card" ? (isRu ? "Карта" : "Card") : isRu ? "Крипто" : "Crypto";
   const payLabel = isRu ? "Оплатить картой" : "Pay by card";
+  const paidButtonLabel = submitLocked
+    ? isRu
+      ? "Проверяем платеж..."
+      : "Checking payment..."
+    : isRu
+      ? "Я оплатил"
+      : "I paid";
+  const isSubmitDisabled = !isAmountValid || submitLocked;
 
   return (
     <div className="space-y-6">
@@ -165,6 +188,11 @@ export default function TopUpClient({ initialAmount, isRu }: TopUpClientProps) {
         </Link>
       </div>
 
+      {pendingMessage && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          {pendingMessage}
+        </div>
+      )}
       {statusMessage && (
         <div
           className={`rounded-2xl border px-4 py-3 text-sm ${
@@ -252,15 +280,24 @@ export default function TopUpClient({ initialAmount, isRu }: TopUpClientProps) {
             <p className="mt-3 text-xs text-slate-500">
               {isRu ? "После оплаты нажмите «Я оплатил»." : "After payment, click “I paid”."}
             </p>
-            <form action={formAction}>
+            <form
+              action={formAction}
+              onSubmit={(event) => {
+                if (submitLocked || !isAmountValid) {
+                  event.preventDefault();
+                  return;
+                }
+                setSubmitLocked(true);
+              }}
+            >
               <input type="hidden" name="amount" value={amountValue.toFixed(2)} />
               <input type="hidden" name="method" value="crypto" />
               <input type="hidden" name="network" value={network} />
               <button
-                disabled={!isAmountValid}
+                disabled={isSubmitDisabled}
                 className="mt-3 w-full rounded-full bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm disabled:bg-slate-200 disabled:text-slate-500"
               >
-                {isRu ? "Я оплатил" : "I paid"}
+                {paidButtonLabel}
               </button>
             </form>
           </div>

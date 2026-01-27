@@ -94,7 +94,7 @@ export async function approveTopupRequest(formData: FormData) {
     let conversionNote = "";
     if (requestCurrency !== baseCurrency) {
       const rate =
-        requestCurrency === "USD" && baseCurrency === "RUB"
+        (requestCurrency === "USD" || requestCurrency === "USDT") && baseCurrency === "RUB"
           ? USD_TO_RUB_RATE
           : 1;
       normalizedAmount = amountValue * rate;
