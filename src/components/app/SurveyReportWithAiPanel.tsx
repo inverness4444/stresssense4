@@ -30,6 +30,9 @@ export function SurveyReportWithAiPanel({
   const requestIdRef = useRef(0);
   const insightsError = t(locale, "aiInsightsError");
   const paymentError = t(locale, "aiDisabledNoSubscription");
+  const trialDaysRequired = 7;
+  const trialRequiresError = t(locale, "aiTrialRequiresDays").replace("{{count}}", String(trialDaysRequired));
+  const trialUsedError = t(locale, "aiTrialAlreadyUsed");
   const buildRangeKey = (nextRange: { from: string; to: string }) =>
     `${scope}:${scopeId ?? ""}:${locale}:${nextRange.from}:${nextRange.to}`;
 
@@ -45,9 +48,22 @@ export function SurveyReportWithAiPanel({
     const deltaEngagement = engagementMetric?.delta ?? 0;
     const trends =
       (stressMetric?.trendPoints?.length ? stressMetric.trendPoints : engagementMetric?.trendPoints ?? []) as any;
-    const drivers = computed.drivers ?? [];
-    const positiveDrivers = [...drivers].sort((a, b) => b.delta - a.delta).slice(0, 3);
-    const riskDrivers = [...drivers].sort((a, b) => a.delta - b.delta).slice(0, 3);
+    const drivers = (computed.drivers ?? []).filter((d) => (d.sampleSize ?? 0) > 0);
+    const positiveDriversByDelta = [...drivers]
+      .filter((d) => typeof d.delta === "number" && d.delta > 0)
+      .sort((a, b) => (b.delta ?? 0) - (a.delta ?? 0))
+      .slice(0, 3);
+    const riskDriversByDelta = [...drivers]
+      .filter((d) => typeof d.delta === "number" && d.delta < 0)
+      .sort((a, b) => (a.delta ?? 0) - (b.delta ?? 0))
+      .slice(0, 3);
+    const scoredDrivers = [...drivers].filter((d) => typeof d.avgScore === "number");
+    const positiveDrivers = positiveDriversByDelta.length
+      ? positiveDriversByDelta
+      : scoredDrivers.sort((a, b) => (b.avgScore ?? 0) - (a.avgScore ?? 0)).slice(0, 3);
+    const riskDrivers = riskDriversByDelta.length
+      ? riskDriversByDelta
+      : scoredDrivers.sort((a, b) => (a.avgScore ?? 0) - (b.avgScore ?? 0)).slice(0, 3);
     const driversSummary = locale === "ru"
       ? `Рост: ${positiveDrivers.map((d) => d.label).filter(Boolean).join(", ") || "нет выраженных"}; риски: ${riskDrivers.map((d) => d.label).filter(Boolean).join(", ") || "не выделяются"}.`
       : `Gains: ${positiveDrivers.map((d) => d.label).filter(Boolean).join(", ") || "no clear drivers"}; risks: ${riskDrivers.map((d) => d.label).filter(Boolean).join(", ") || "no clear risks"}.`;
@@ -189,6 +205,50 @@ export function SurveyReportWithAiPanel({
     return createEmptyAiEngagementReport(fallbackRange, locale);
   }, [analysis, locale, fallbackRange]);
 
+  const trendSeries = useMemo(() => {
+    const formatter = new Intl.DateTimeFormat(locale === "ru" ? "ru-RU" : "en-US", { day: "numeric", month: "short" });
+    const normalized = (series ?? [])
+      .map((point, idx) => {
+        const value = typeof point.value === "number" && Number.isFinite(point.value) ? Number(point.value.toFixed(2)) : null;
+        if (value === null) return null;
+        let label = point.label;
+        if (!label && point.date) {
+          const parsed = new Date(point.date);
+          if (!Number.isNaN(parsed.getTime())) {
+            label = formatter.format(parsed);
+          }
+        }
+        if (!label) label = `#${idx + 1}`;
+        return { label, value, date: point.date };
+      })
+      .filter(Boolean) as { label: string; value: number; date?: string | number | Date }[];
+
+    if (normalized.length >= 2) return normalized;
+    if (normalized.length === 0) return normalized;
+
+    const safeRange = range?.from && range?.to ? range : fallbackRange;
+    const fromDate = new Date(safeRange.from);
+    const toDate = new Date(safeRange.to);
+    const fromValid = !Number.isNaN(fromDate.getTime());
+    const toValid = !Number.isNaN(toDate.getTime());
+    const firstLabel = fromValid ? formatter.format(fromDate) : normalized[0].label;
+    let secondDate = toValid ? toDate : fromValid ? new Date(fromDate.getTime() + 86400000) : undefined;
+    if (secondDate && fromValid && secondDate.getTime() === fromDate.getTime()) {
+      secondDate = new Date(fromDate.getTime() + 86400000);
+    }
+    const secondLabel = secondDate ? formatter.format(secondDate) : normalized[0].label;
+    return [
+      { ...normalized[0], label: firstLabel, date: fromValid ? fromDate.toISOString() : normalized[0].date },
+      { label: secondLabel, value: normalized[0].value, date: secondDate ? secondDate.toISOString() : normalized[0].date },
+    ];
+  }, [series, locale, range?.from, range?.to, fallbackRange]);
+
+  const reportForPanel = useMemo(() => {
+    if (!aiReport) return aiReport;
+    if (trendSeries.length === 0) return aiReport;
+    return { ...aiReport, trends: trendSeries };
+  }, [aiReport, trendSeries]);
+
   const handleAnalyze = async (nextRange: { from: string; to: string }) => {
     if (!aiEnabled) return;
     const rangeKey = buildRangeKey(nextRange);
@@ -225,6 +285,20 @@ export function SurveyReportWithAiPanel({
       if (!response.ok) {
         if (response.status === 402) {
           setError(paymentError);
+          return;
+        }
+        const serverMessage = typeof payload?.message === "string" ? payload.message : "";
+        const serverCode = typeof payload?.error === "string" ? payload.error : "";
+        if (serverMessage) {
+          setError(serverMessage);
+          return;
+        }
+        if (serverCode === "trial_ai_min_days") {
+          setError(trialRequiresError);
+          return;
+        }
+        if (serverCode === "trial_ai_used") {
+          setError(trialUsedError);
           return;
         }
         throw new Error(payload?.error ?? "AI request failed");
@@ -270,7 +344,7 @@ export function SurveyReportWithAiPanel({
       <AiEngagementReportPanel
         open={open}
         onClose={() => setOpen(false)}
-        report={aiReport}
+        report={reportForPanel}
         locale={locale}
         loading={loading}
         errorMessage={error}

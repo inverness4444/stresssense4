@@ -131,7 +131,7 @@ export function AiEngagementReportPanel({
   const focusTitleKey = audience === "employee" ? "aiEmployeeFocusTitle" : "aiManagerFocusTitle";
   const isEmpty = report.isEmpty === true;
   const isLoading = loading === true;
-  const showSkeleton = isLoading && report.summary === "" && report.trends.length === 0;
+  const showLoadingScreen = isLoading;
   const stressDeltaTone =
     report.deltaStress > 0 ? "text-emerald-700" : report.deltaStress < 0 ? "text-rose-600" : "text-slate-600";
 
@@ -177,14 +177,11 @@ export function AiEngagementReportPanel({
               {errorMessage}
             </div>
           )}
-          {showSkeleton ? (
-            <section className="space-y-4">
-              <div className="h-24 rounded-3xl border border-slate-200 bg-slate-100/60 animate-pulse" />
-              <div className="grid gap-3 md:grid-cols-2">
-                <div className="h-28 rounded-2xl border border-slate-200 bg-slate-100/60 animate-pulse" />
-                <div className="h-28 rounded-2xl border border-slate-200 bg-slate-100/60 animate-pulse" />
-              </div>
-              <div className="h-40 rounded-3xl border border-slate-200 bg-slate-100/60 animate-pulse" />
+          {showLoadingScreen ? (
+            <section className="flex flex-col items-center justify-center gap-3 rounded-3xl border border-slate-200 bg-slate-50/70 px-6 py-16 text-center shadow-sm">
+              <div className="h-10 w-10 animate-spin rounded-full border-2 border-slate-200 border-t-primary" />
+              <p className="text-sm font-semibold text-slate-900">{t(locale, "aiReportLoadingTitle")}</p>
+              <p className="text-xs text-slate-500">{t(locale, "aiReportLoadingSubtitle")}</p>
             </section>
           ) : isEmpty ? (
             <section className="rounded-3xl border border-dashed border-slate-200 bg-slate-50/60 p-6 text-center shadow-sm">
@@ -319,15 +316,27 @@ export function AiEngagementReportPanel({
                 <div className="mt-3 grid gap-3 md:grid-cols-2">
                   <div className="space-y-2">
                     <p className="text-xs font-semibold uppercase tracking-[0.14em] text-emerald-600">{t(locale, "aiDriversPositive")}</p>
-                    {report.driversPositive.map((d, idx) => (
-                      <DriverTag key={`${d.name}-${idx}`} driver={d} locale={locale} />
-                    ))}
+                    {report.driversPositive.length === 0 ? (
+                      <p className="text-sm text-slate-600">
+                        {locale === "ru" ? "Нет выраженных драйверов роста." : "No clear positive drivers."}
+                      </p>
+                    ) : (
+                      report.driversPositive.map((d, idx) => (
+                        <DriverTag key={`${d.name}-${idx}`} driver={d} locale={locale} />
+                      ))
+                    )}
                   </div>
                   <div className="space-y-2">
                     <p className="text-xs font-semibold uppercase tracking-[0.14em] text-amber-600">{t(locale, "aiDriversRisk")}</p>
-                    {report.driversRisk.map((d, idx) => (
-                      <DriverTag key={`${d.name}-${idx}`} driver={d} locale={locale} />
-                    ))}
+                    {report.driversRisk.length === 0 ? (
+                      <p className="text-sm text-slate-600">
+                        {locale === "ru" ? "Явных рисков не выявлено." : "No clear risks detected."}
+                      </p>
+                    ) : (
+                      report.driversRisk.map((d, idx) => (
+                        <DriverTag key={`${d.name}-${idx}`} driver={d} locale={locale} />
+                      ))
+                    )}
                   </div>
                 </div>
                 <p className="mt-3 text-sm text-slate-700">{report.driversSummary}</p>

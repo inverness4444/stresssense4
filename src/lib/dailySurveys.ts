@@ -84,6 +84,44 @@ function getLocalizedQuestionText(question: StressQuestion, locale: "ru" | "en")
   return question.textEn ?? question.text;
 }
 
+function hashString(input: string) {
+  let hash = 0;
+  for (let i = 0; i < input.length; i += 1) {
+    hash = (hash * 31 + input.charCodeAt(i)) | 0;
+  }
+  return Math.abs(hash);
+}
+
+function seededShuffle<T>(items: T[], seed: number) {
+  const result = [...items];
+  let state = seed % 2147483647;
+  if (state <= 0) state += 2147483646;
+  const next = () => {
+    state = (state * 16807) % 2147483647;
+    return (state - 1) / 2147483646;
+  };
+  for (let i = result.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(next() * (i + 1));
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+  return result;
+}
+
+async function getMemberDailyQuestionTexts(memberId: string) {
+  const previousRuns = await prisma.surveyRun.findMany({
+    where: { memberId, runType: "daily" },
+    select: { template: { select: { questions: { select: { text: true } } } } },
+  });
+  const usedTexts = new Set<string>();
+  previousRuns.forEach((run) => {
+    run.template?.questions?.forEach((q) => {
+      const text = q.text?.trim();
+      if (text) usedTexts.add(text);
+    });
+  });
+  return usedTexts;
+}
+
 function normalizeLocale(locale?: string | null): "ru" | "en" {
   return locale === "ru" ? "ru" : "en";
 }
@@ -249,6 +287,71 @@ async function ensureSeedTemplateFallback(orgId: string, dayIndex: number, local
       dayIndex,
       questions: {
         create: day.questions.map((q, idx) => ({
+          order: idx + 1,
+          text: getLocalizedQuestionText(q, locale),
+          description: null,
+          helpText: null,
+          type: "SCALE",
+          scaleMin: 0,
+          scaleMax: 10,
+          dimension: mapDriverToDimension(q.driverKey),
+          driverTag: q.driverTag ?? q.driverKey,
+          driverKey: q.driverKey,
+          polarity: q.polarity,
+          needsReview: false,
+          aiReason: q.aiHint ?? null,
+          required: true,
+        })),
+      },
+    },
+    include: { questions: true },
+  });
+}
+
+async function ensureUniqueSeedTemplateForMember(
+  orgId: string,
+  memberId: string,
+  dayIndex: number,
+  locale: "ru" | "en"
+) {
+  const existing = await prisma.surveyTemplate.findFirst({
+    where: { orgId, dayIndex, source: "seed", language: locale, createdForMemberId: memberId },
+    include: { questions: true },
+  });
+  if (existing) return existing;
+  if (!STRESS_QUESTION_DAYS.length) return null;
+
+  const usedTexts = await getMemberDailyQuestionTexts(memberId);
+
+  const pool = STRESS_QUESTION_DAYS.flatMap((day) => day.questions).map((q) => ({
+    question: q,
+    text: getLocalizedQuestionText(q, locale).trim(),
+  }));
+
+  const uniquePoolMap = new Map<string, StressQuestion>();
+  pool.forEach(({ question, text }) => {
+    if (!text || usedTexts.has(text)) return;
+    if (!uniquePoolMap.has(text)) uniquePoolMap.set(text, question);
+  });
+  const uniquePool = Array.from(uniquePoolMap.values());
+  if (uniquePool.length < QUESTIONS_PER_SURVEY) return null;
+
+  const seed = hashString(`${memberId}:${dayIndex}:${locale}`);
+  const selected = seededShuffle(uniquePool, seed).slice(0, QUESTIONS_PER_SURVEY);
+  const title = locale === "ru" ? `День ${dayIndex} · Новый опрос` : `Day ${dayIndex} · New survey`;
+
+  return prisma.surveyTemplate.create({
+    data: {
+      orgId,
+      name: title,
+      title,
+      description: locale === "ru" ? "Ежедневный стресс-опрос" : "Daily stress pulse",
+      language: locale,
+      source: "seed",
+      dayIndex,
+      createdForMemberId: memberId,
+      questions: {
+        create: selected.map((q, idx) => ({
           order: idx + 1,
           text: getLocalizedQuestionText(q, locale),
           description: null,
@@ -521,14 +624,16 @@ function normalizeAiQuestion(
   }
 
   if (needsReview) {
-    console.warn("AI question needs review", {
-      locale,
-      type: normalizedType,
-      title: question.title,
-      driverKey: resolvedDriverKey,
-      polarity: resolvedPolarity,
-      reason: question.reason ?? null,
-    });
+    if (env.isDev || process.env.AI_DEBUG === "1") {
+      console.warn("AI question needs review", {
+        locale,
+        type: normalizedType,
+        title: question.title,
+        driverKey: resolvedDriverKey,
+        polarity: resolvedPolarity,
+        reason: question.reason ?? null,
+      });
+    }
   }
 
   return {
@@ -558,19 +663,20 @@ async function generateAiTemplate(orgId: string, memberId: string, dayIndex: num
       message.includes("Unterminated string in JSON")
     );
   };
+  const shouldLogAiDebug = env.isDev || process.env.AI_DEBUG === "1";
 
   const fetchQuestions = async (options?: GenerateAiQuestionsOptions) => {
     try {
       return await generateAiQuestions({ ...context, dayIndex }, primaryModel, options);
     } catch (error) {
-      if (env.isDev && !isFormatError(error)) {
+      if (shouldLogAiDebug && !isFormatError(error)) {
         console.warn("AI question generation failed, retrying once", error);
       }
       try {
         const retryModel = fallbackModel ?? primaryModel;
         return await generateAiQuestions({ ...context, dayIndex }, retryModel, options);
       } catch (err) {
-        if (env.isDev && !isFormatError(err)) {
+        if (shouldLogAiDebug && !isFormatError(err)) {
           console.warn("AI question generation failed after retry", err);
         }
         return null;
@@ -593,7 +699,9 @@ async function generateAiTemplate(orgId: string, memberId: string, dayIndex: num
 
   let questions = await fetchQuestions({ count: QUESTIONS_PER_SURVEY });
   if (!questions) {
-    console.warn("AI template generation returned no questions", { orgId, memberId, dayIndex, locale });
+    if (shouldLogAiDebug) {
+      console.warn("AI template generation returned no questions", { orgId, memberId, dayIndex, locale });
+    }
     return null;
   }
   let normalizedQuestions = dedupeQuestions(questions.map((q) => normalizeAiQuestion(q, locale)));
@@ -609,16 +717,33 @@ async function generateAiTemplate(orgId: string, memberId: string, dayIndex: num
   }
 
   if (normalizedQuestions.length < QUESTIONS_PER_SURVEY) {
-    console.warn("AI template generation incomplete", {
-      orgId,
-      memberId,
-      dayIndex,
-      locale,
-      count: normalizedQuestions.length,
-    });
+    if (shouldLogAiDebug) {
+      console.warn("AI template generation incomplete", {
+        orgId,
+        memberId,
+        dayIndex,
+        locale,
+        count: normalizedQuestions.length,
+      });
+    }
     return null;
   }
   normalizedQuestions = normalizedQuestions.slice(0, QUESTIONS_PER_SURVEY);
+
+  const usedTexts = await getMemberDailyQuestionTexts(memberId);
+  const repeated = normalizedQuestions.filter((q) => usedTexts.has(q.title.trim()));
+  if (repeated.length > 0) {
+    if (shouldLogAiDebug) {
+      console.warn("AI template repeated previous questions, skipping", {
+        orgId,
+        memberId,
+        dayIndex,
+        locale,
+        repeated: repeated.map((q) => q.title).slice(0, 5),
+      });
+    }
+    return null;
+  }
 
   const title = locale === "ru" ? `День ${dayIndex} · AI-опрос` : `Day ${dayIndex} · AI survey`;
   return prisma.surveyTemplate.create({
@@ -673,42 +798,13 @@ export async function maybeUpgradeDailyRunToAi(
   if (responseCount > 0) return run;
 
   const dayIndex = run.dayIndex ?? SEED_DAYS + 1;
+  if (!allowAi) return null;
   const templateLanguage = run.template?.language ?? null;
-  if (templateLanguage && templateLanguage !== locale) {
-    let template = null;
-    let source: "seed" | "ai" = "seed";
-    if (allowAi && dayIndex > SEED_DAYS) {
-      source = "ai";
-      template = await generateAiTemplate(run.orgId, run.memberId, dayIndex, locale);
-      if (!template) {
-        source = "seed";
-        template = await ensureSeedTemplateFallback(run.orgId, dayIndex, locale);
-      }
-    } else {
-      template =
-        dayIndex <= SEED_DAYS
-          ? await ensureSeedTemplate(run.orgId, dayIndex, locale)
-          : await ensureSeedTemplateFallback(run.orgId, dayIndex, locale);
-    }
-    if (template) {
-      return prisma.surveyRun.update({
-        where: { id: run.id },
-        data: {
-          templateId: template.id,
-          title: template.title,
-          source,
-        },
-        include: { template: { include: { questions: true } } },
-      });
-    }
-  }
-
-  if (!allowAi) return run;
-  if (dayIndex <= SEED_DAYS) return run;
-  if (run.source === "ai") return run;
+  if (run.source === "ai" && (!templateLanguage || templateLanguage === locale)) return run;
 
   const template = await generateAiTemplate(run.orgId, run.memberId, dayIndex, locale);
-  if (!template) return run;
+  if (!template) return null;
+  if (templateLanguage && templateLanguage === locale && run.source === "ai") return run;
 
   return prisma.surveyRun.update({
     where: { id: run.id },
@@ -762,27 +858,20 @@ export async function getOrCreateDailySurveyRun(options: {
     }
   }
 
-  const priorRuns = await prisma.surveyRun.count({
-    where: { memberId, runType: "daily", runDate: { lt: runDate } },
-  });
+  const priorRuns = allowMultiplePerDay
+    ? await prisma.surveyRun.count({ where: { memberId, runType: "daily" } })
+    : await prisma.surveyRun.count({
+        where: { memberId, runType: "daily", runDate: { lt: runDate } },
+      });
   const dayIndex = Math.max(1, priorRuns + 1);
 
   let template = null;
   let source: "seed" | "ai" = "seed";
   try {
-    if (allowAi && dayIndex > SEED_DAYS) {
-      source = "ai";
-      template = await generateAiTemplate(member.organizationId, memberId, dayIndex, locale);
-      if (!template) {
-        source = "seed";
-        template = await ensureSeedTemplateFallback(member.organizationId, dayIndex, locale);
-      }
-    } else {
-      template =
-        dayIndex <= SEED_DAYS
-          ? await ensureSeedTemplate(member.organizationId, dayIndex, locale)
-          : await ensureSeedTemplateFallback(member.organizationId, dayIndex, locale);
-    }
+    if (!allowAi) return null;
+    source = "ai";
+    template = await generateAiTemplate(member.organizationId, memberId, dayIndex, locale);
+    if (!template) return null;
   } catch (error) {
     await prisma.surveyGenerationLog.create({
       data: {

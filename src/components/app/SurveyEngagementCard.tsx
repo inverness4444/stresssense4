@@ -163,7 +163,7 @@ export function SurveyEngagementCard({
             </div>
 
             <div className="h-56 w-full rounded-2xl border border-white/60 bg-white/70 p-3 shadow-inner">
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
                 <AreaChart data={data.timeseries}>
                   <defs>
                     <linearGradient id="colorEngagement" x1="0" y1="0" x2="0" y2="1">

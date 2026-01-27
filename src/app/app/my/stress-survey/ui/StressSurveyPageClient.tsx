@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { useSelfStressSurvey } from "@/components/app/SelfStressSurveyProvider";
+import { SelfStressSurveyProvider, useSelfStressSurvey } from "@/components/app/SelfStressSurveyProvider";
 import type { Locale } from "@/lib/i18n";
 
 type HistoryItem = {
@@ -36,7 +36,20 @@ function formatDuration(ms: number, locale: Locale) {
   return locale === "ru" ? `${mins} мин ${secs.toString().padStart(2, "0")} c` : `${mins}m ${secs.toString().padStart(2, "0")}s`;
 }
 
-export default function StressSurveyPageClient({
+type StressSurveyPageClientProps = {
+  userName: string;
+  userId?: string;
+  userEmail?: string | null;
+  locale: Locale;
+  todaySurvey: DailySurveySummary | null;
+  todayCompletedAt: string | null;
+  todayScore: number | null;
+  canStart: boolean;
+  aiLocked: boolean;
+  history: HistoryItem[];
+};
+
+function StressSurveyPageInner({
   userName,
   locale,
   todaySurvey,
@@ -45,16 +58,7 @@ export default function StressSurveyPageClient({
   canStart,
   aiLocked,
   history,
-}: {
-  userName: string;
-  locale: Locale;
-  todaySurvey: DailySurveySummary | null;
-  todayCompletedAt: string | null;
-  todayScore: number | null;
-  canStart: boolean;
-  aiLocked: boolean;
-  history: HistoryItem[];
-}) {
+}: Omit<StressSurveyPageClientProps, "userId" | "userEmail">) {
   const { openSurvey } = useSelfStressSurvey();
   const isRu = locale === "ru";
   const lockedCopy = isRu
@@ -194,5 +198,14 @@ export default function StressSurveyPageClient({
       </section>
 
     </div>
+  );
+}
+
+export default function StressSurveyPageClient(props: StressSurveyPageClientProps) {
+  const { locale, userId, userEmail, ...rest } = props;
+  return (
+    <SelfStressSurveyProvider locale={locale} userId={userId} userEmail={userEmail}>
+      <StressSurveyPageInner locale={locale} {...rest} />
+    </SelfStressSurveyProvider>
   );
 }

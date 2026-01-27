@@ -729,7 +729,7 @@ export function SurveyReport({
         </div>
 
         <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-3 shadow-inner">
-          <ResponsiveContainer width="100%" height={220}>
+          <ResponsiveContainer width="100%" height={220} minWidth={1} minHeight={1}>
             <AreaChart data={chartSeries} onClick={handleChartClick}>
               <defs>
                 <linearGradient id="colorScore" x1="0" y1="0" x2="0" y2="1">

@@ -186,7 +186,10 @@ const ensureTrendPoints = (
 };
 
 const pickDrivers = (drivers: DriverMetric[], sentiment: DriverSentiment) => {
-  const sorted = [...drivers].sort((a, b) => (sentiment === "positive" ? b.delta - a.delta : a.delta - b.delta));
+  const filtered = drivers.filter((d) => d.sampleSize > 0 && Number.isFinite(d.avgScore));
+  const sorted = [...filtered].sort((a, b) =>
+    sentiment === "positive" ? a.avgScore - b.avgScore : b.avgScore - a.avgScore
+  );
   return sorted.slice(0, 3);
 };
 
@@ -219,6 +222,8 @@ const buildTrendInsight = (deltaEngagement: number, locale: AnalysisLocale) => {
     : "Engagement is stable; focus on incremental improvements.";
 };
 
+const TRIAL_MIN_SURVEY_DAYS = 7;
+
 const buildParticipationNote = (participationRate: number, locale: AnalysisLocale) => {
   if (participationRate <= 0) {
     return locale === "ru"
@@ -238,6 +243,34 @@ const buildParticipationNote = (participationRate: number, locale: AnalysisLocal
   return locale === "ru"
     ? "Участие высокое — выводы выглядят надежно."
     : "Participation is strong; insights look reliable.";
+};
+
+const countSurveyDaysForOrg = async (orgId: string) => {
+  const responses = await prisma.surveyResponse.findMany({
+    where: { run: { orgId } },
+    select: { submittedAt: true, run: { select: { runDate: true } } },
+  });
+  const daySet = new Set<string>();
+  responses.forEach((resp) => {
+    const date = resp.submittedAt ?? resp.run?.runDate ?? null;
+    if (!date) return;
+    const key = new Date(date).toISOString().slice(0, 10);
+    daySet.add(key);
+  });
+  return daySet.size;
+};
+
+const markTrialAiUsed = async (organizationId: string, flags: Record<string, unknown> | null) => {
+  const nextFlags = {
+    ...(flags ?? {}),
+    trialAiAnalysisUsed: true,
+    trialAiAnalysisUsedAt: new Date().toISOString(),
+  };
+  await prisma.organizationSettings.upsert({
+    where: { organizationId },
+    create: { organizationId, featureFlags: nextFlags },
+    update: { featureFlags: nextFlags },
+  });
 };
 
 const buildFocusFallback = (drivers: DriverMetric[], locale: AnalysisLocale, audience: "employee" | "manager") =>
@@ -501,10 +534,45 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "payment_required", disabled: true }, { status: 402 });
   }
 
-  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
-  const rl = rateLimit(`ai:analyze:${user.id}:${ip}`, { limit: 10, windowMs: 5 * 60_000 });
-  if (!rl.allowed) {
-    return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 });
+  let trialFlags: Record<string, unknown> | null = null;
+  let shouldMarkTrialUsage = false;
+  if (gateStatus.trialActive && !gateStatus.hasPaidAccess) {
+    const settings = await prisma.organizationSettings.findUnique({
+      where: { organizationId: user.organizationId },
+      select: { featureFlags: true },
+    });
+    const flagsRaw = settings?.featureFlags;
+    const flagsObj =
+      flagsRaw && typeof flagsRaw === "object" && !Array.isArray(flagsRaw) ? (flagsRaw as Record<string, unknown>) : {};
+    trialFlags = flagsObj;
+    const trialUsed = flagsObj.trialAiAnalysisUsed === true;
+    if (trialUsed) {
+      return NextResponse.json(
+        { error: "trial_ai_used", message: t(locale, "aiTrialAlreadyUsed") },
+        { status: 403 }
+      );
+    }
+    const surveyDays = await countSurveyDaysForOrg(user.organizationId);
+    if (surveyDays < TRIAL_MIN_SURVEY_DAYS) {
+      return NextResponse.json(
+        {
+          error: "trial_ai_min_days",
+          message: t(locale, "aiTrialRequiresDays").replace("{{count}}", String(TRIAL_MIN_SURVEY_DAYS)),
+          requiredDays: TRIAL_MIN_SURVEY_DAYS,
+          currentDays: surveyDays,
+        },
+        { status: 403 }
+      );
+    }
+    shouldMarkTrialUsage = true;
+  }
+
+  if (!env.isDev && role !== "SUPER_ADMIN") {
+    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    const rl = rateLimit(`ai:analyze:${user.id}:${ip}`, { limit: 10, windowMs: 5 * 60_000 });
+    if (!rl.allowed) {
+      return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 });
+    }
   }
 
   const baseWhere: any = {
@@ -566,7 +634,12 @@ export async function POST(req: Request) {
   const useCache = !env.isDev;
   if (useCache) {
     const cached = await getCache<AnalysisPayload>(cacheKey);
-    if (cached) return NextResponse.json(cached);
+    if (cached) {
+      if (shouldMarkTrialUsage && cached?.meta?.sampleSizeTotal > 0) {
+        await markTrialAiUsed(user.organizationId, trialFlags);
+      }
+      return NextResponse.json(cached);
+    }
   }
 
   const include = { run: { include: { template: { include: { questions: true } } } } };
@@ -700,19 +773,32 @@ export async function POST(req: Request) {
   const positiveDrivers = hasDriverData ? pickDrivers(drivers, "positive") : [];
   const riskDrivers = hasDriverData ? pickDrivers(drivers, "risk") : [];
 
-  const driversPositive = positiveDrivers.map((driver) => ({
-    name: driver.label,
-    score: driver.avgScore,
-    delta: driver.delta,
-    sentiment: "positive" as const,
-  }));
+  const scoredDrivers = drivers.filter((driver) => driver.sampleSize > 0 && Number.isFinite(driver.avgScore));
+  const avgDriverScore = scoredDrivers.length
+    ? scoredDrivers.reduce((acc, d) => acc + d.avgScore, 0) / scoredDrivers.length
+    : 0;
 
-  const driversRisk = riskDrivers.map((driver) => ({
-    name: driver.label,
-    score: driver.avgScore,
-    delta: driver.delta,
-    sentiment: "risk" as const,
-  }));
+  const driversPositive = positiveDrivers.map((driver) => {
+    const deviation = driver.avgScore - avgDriverScore;
+    const delta = Math.max(0, -deviation);
+    return {
+      name: driver.label,
+      score: driver.avgScore,
+      delta: Number(delta.toFixed(1)),
+      sentiment: "positive" as const,
+    };
+  });
+
+  const driversRisk = riskDrivers.map((driver) => {
+    const deviation = driver.avgScore - avgDriverScore;
+    const delta = -Math.max(0, deviation);
+    return {
+      name: driver.label,
+      score: driver.avgScore,
+      delta: Number(delta.toFixed(1)),
+      sentiment: "risk" as const,
+    };
+  });
 
   const periodLabel = formatPeriodLabel(meta.dateFrom, meta.dateTo, locale);
   const avgStress = stressMetric?.avgScore ?? 0;
@@ -788,7 +874,20 @@ export async function POST(req: Request) {
         sentiment,
       };
     });
-    return fillList(items, fallback, 3);
+    const signedItems = items.filter((item) =>
+      sentiment === "positive" ? (item.delta ?? 0) > 0 : (item.delta ?? 0) < 0
+    );
+    const signedFallback = fallback.filter((item) =>
+      sentiment === "positive" ? (item.delta ?? 0) > 0 : (item.delta ?? 0) < 0
+    );
+    if (!signedItems.length) return signedFallback.length ? signedFallback.slice(0, 3) : fallback.slice(0, 3);
+    if (signedItems.length >= 3) return signedItems.slice(0, 3);
+    const remaining = 3 - signedItems.length;
+    const fallbackPool = signedFallback.length ? signedFallback : fallback;
+    return [
+      ...signedItems,
+      ...fallbackPool.filter((f) => !signedItems.some((i) => i.name === f.name)).slice(0, remaining),
+    ];
   };
 
   const normalizeAiDrivers = (aiDrivers: z.infer<typeof aiTextSchema>["drivers"]) => {
@@ -902,20 +1001,14 @@ Requirements:
       const parsed = await requestAiText(primaryModel);
       report.managerFocus = normalizeAiFocus(parsed.managerFocus, report.managerFocus);
       report.nudges = normalizeAiNudges(parsed.nudges, report.nudges);
-      const normalizedDrivers = normalizeAiDrivers(parsed.drivers);
-      report.driversPositive = normalizedDrivers.positives;
-      report.driversRisk = normalizedDrivers.risks;
-      report.driversSummary = normalizedDrivers.summary;
+      // Keep driver lists strictly data-driven (no AI templating).
     } catch {
       if (fallbackModel !== primaryModel) {
         try {
           const parsed = await requestAiText(fallbackModel);
           report.managerFocus = normalizeAiFocus(parsed.managerFocus, report.managerFocus);
           report.nudges = normalizeAiNudges(parsed.nudges, report.nudges);
-          const normalizedDrivers = normalizeAiDrivers(parsed.drivers);
-          report.driversPositive = normalizedDrivers.positives;
-          report.driversRisk = normalizedDrivers.risks;
-          report.driversSummary = normalizedDrivers.summary;
+          // Keep driver lists strictly data-driven (no AI templating).
         } catch {
           ok = true;
           error = "AI_TEXT_FAILED";
@@ -961,6 +1054,9 @@ Requirements:
   if (useCache) {
     const ttlSeconds = meta.sampleSizeTotal > 0 ? 900 : 60;
     await setCache(cacheKey, payload, ttlSeconds);
+  }
+  if (shouldMarkTrialUsage && meta.sampleSizeTotal > 0) {
+    await markTrialAiUsed(user.organizationId, trialFlags);
   }
   return NextResponse.json(payload);
 }

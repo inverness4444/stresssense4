@@ -48,7 +48,7 @@ export function EngagementTrendCard({ scope, title, score, delta, trendLabel, pa
       </div>
 
       <div className="relative mt-5 h-56 w-full">
-        <ResponsiveContainer width="100%" height="100%">
+        <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
           <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 10 }}>
             <defs>
               <linearGradient id="engagementGradient" x1="0" y1="0" x2="0" y2="1">

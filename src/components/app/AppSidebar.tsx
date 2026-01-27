@@ -222,8 +222,8 @@ function HelpIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" {...props}>
       <circle cx="12" cy="12" r="9" />
-      <path strokeLinecap="round" strokeLinejoin="round" d="M9.5 9a2.5 2.5 0 1 1 3.6 2.3c-.9.4-1.6 1.2-1.6 2.2" />
-      <circle cx="12" cy="17" r="0.8" fill="currentColor" stroke="none" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v5" />
+      <circle cx="12" cy="7.5" r="0.8" fill="currentColor" stroke="none" />
     </svg>
   );
 }

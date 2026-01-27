@@ -4,6 +4,7 @@ import { endOfDay, startOfDay } from "date-fns";
 import { assertSameOrigin, requireApiUser } from "@/lib/apiAuth";
 import { prisma } from "@/lib/prisma";
 import { computeStatsForResponses } from "@/lib/ai/analysisAggregates";
+import { scoreAnswer } from "@/lib/stressScoring";
 import type { AnalysisLocale, ReportScope } from "@/lib/ai/analysisTypes";
 
 const bodySchema = z.object({
@@ -141,9 +142,54 @@ export async function POST(req: Request) {
         ? stats.stressTrend
         : stats.engagementTrend;
 
+  const buildResponseSeries = () => {
+    if (responses.length < 2) return trendSource;
+    const dateFormatter = new Intl.DateTimeFormat(locale === "ru" ? "ru-RU" : "en-US", { month: "short", day: "numeric" });
+    const timeFormatter = new Intl.DateTimeFormat(locale === "ru" ? "ru-RU" : "en-US", { hour: "2-digit", minute: "2-digit" });
+    const responseDates = responses
+      .map((resp) => resp.submittedAt ? new Date(resp.submittedAt) : resp.run?.runDate ? new Date(resp.run.runDate) : null)
+      .filter((d): d is Date => Boolean(d && !Number.isNaN(d.getTime())));
+    const firstKey = responseDates[0] ? responseDates[0].toISOString().slice(0, 10) : null;
+    const sameDay = firstKey ? responseDates.every((d) => d.toISOString().slice(0, 10) === firstKey) : false;
+
+    const points = responses.map((resp) => {
+      const date = resp.submittedAt ? new Date(resp.submittedAt) : resp.run?.runDate ? new Date(resp.run.runDate) : null;
+      if (!date || Number.isNaN(date.getTime())) return null;
+      const questions = resp.run?.template?.questions ?? [];
+      const questionMap = new Map<string, any>();
+      questions.forEach((q) => questionMap.set(q.id, q));
+      const answersRaw = resp.answers;
+      const answers: Record<string, any> = Array.isArray(answersRaw)
+        ? answersRaw.reduce((acc: Record<string, any>, item: any) => {
+            if (item?.questionId) acc[item.questionId] = item;
+            return acc;
+          }, {})
+        : typeof answersRaw === "object" && answersRaw !== null
+          ? answersRaw
+          : {};
+      let sum = 0;
+      let count = 0;
+      for (const [questionId, answer] of Object.entries(answers)) {
+        const question = questionMap.get(questionId);
+        const scored = scoreAnswer(answer, question);
+        if (!scored) continue;
+        sum += scored.stressScore;
+        count += 1;
+      }
+      if (!count) return null;
+      const value = Number((sum / count).toFixed(1));
+      const label = sameDay ? timeFormatter.format(date) : dateFormatter.format(date);
+      return { label, value, date: date.toISOString() };
+    }).filter(Boolean) as { label: string; value: number; date?: string }[];
+
+    return points.length >= 2 ? points : trendSource;
+  };
+
+  const points = trendSource.length < 2 ? buildResponseSeries() : trendSource;
+
   return NextResponse.json({
     ok: true,
-    points: trendSource,
+    points,
     sampleSize: stats.sampleSizeTotal,
   });
 }

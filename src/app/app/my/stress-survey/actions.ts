@@ -341,6 +341,29 @@ export async function submitDailySurvey(input: { runId: string; answers: DailySu
     }
   }
 
+  try {
+    const orgMeta = await prisma.organization.findUnique({
+      where: { id: member.organizationId },
+      select: { createdAt: true },
+    });
+    const gateStatus = await getBillingGateStatus(member.organizationId, orgMeta?.createdAt ?? null, { userRole: user.role });
+    const surveyOverride = isBackfillUser(user.email) || isSuperAdmin(user.role);
+    const allowAi = gateStatus.hasPaidAccess || env.isDev || surveyOverride;
+    if (allowAi) {
+      const nextLocale = normalizeLocale(run.template?.language ?? (await getLocale()));
+      await getOrCreateDailySurveyRun({
+        memberId: member.id,
+        date: addDays(runDate, 1),
+        locale: nextLocale,
+        createdByUserId: user.id,
+        allowAi: true,
+        allowMultiplePerDay: false,
+      });
+    }
+  } catch (err) {
+    console.warn("Failed to pre-generate next daily survey", err);
+  }
+
   await updateMemberFromPulse(member.id, { wellbeing: engagementScore, engagementScore: stressIndex });
 
   revalidatePath("/app/my/stress-survey");

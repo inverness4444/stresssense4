@@ -285,9 +285,12 @@ export function SelfStressSurveyProvider({ children, locale }: Props) {
             </button>
 
             {loading && (
-              <div className="flex flex-1 flex-col items-center justify-center gap-3 py-16 text-center">
-                <div className="h-8 w-8 animate-spin rounded-full border-2 border-slate-200 border-t-primary" />
-                <p className="text-sm text-slate-600">{t(locale, "selfSurveyLoading")}</p>
+              <div className="flex flex-1 flex-col items-center justify-center gap-4 rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50 via-white to-indigo-50/40 py-16 text-center shadow-sm">
+                <div className="h-10 w-10 animate-spin rounded-full border-2 border-slate-200 border-t-primary" />
+                <div className="space-y-1">
+                  <p className="text-sm font-semibold text-slate-900">{t(locale, "selfSurveyLoading")}</p>
+                  <p className="text-xs text-slate-500">{t(locale, "selfSurveyLoadingHint")}</p>
+                </div>
               </div>
             )}
 

@@ -505,6 +505,7 @@ export async function POST(req: Request) {
     const client = env.OPENAI_API_KEY ? new OpenAI({ apiKey: env.OPENAI_API_KEY }) : null;
     const baseModel = env.AI_MODEL_ASSISTANT ?? "gpt-5-mini";
     const fallbackVisionModel = env.AI_MODEL_ASSISTANT_VISION ?? "gpt-4o-mini";
+    const shouldLogFallback = env.isDev && process.env.AI_DEBUG === "1";
 
     if (attachmentFile && attachmentResolution) {
       const startTime = Date.now();
@@ -661,12 +662,14 @@ export async function POST(req: Request) {
 
     const needsFallback = !result.text && !result.refusal && result.status !== "completed";
     if (needsFallback && fallbackVisionModel && fallbackVisionModel !== result.model) {
-      console.warn("AI chat empty response, retrying with fallback model", {
-        model: result.model,
-        fallback: fallbackVisionModel,
-        status: result.status,
-        output: summarizeOutput(result.response),
-      });
+      if (shouldLogFallback) {
+        console.warn("AI chat empty response, retrying with fallback model", {
+          model: result.model,
+          fallback: fallbackVisionModel,
+          status: result.status,
+          output: summarizeOutput(result.response),
+        });
+      }
       result = await runResponse(fallbackVisionModel);
     }
 

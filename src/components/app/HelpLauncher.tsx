@@ -27,7 +27,7 @@ export function HelpLauncher() {
         className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:text-primary"
         aria-label="Help"
       >
-        ?
+        <InfoIcon className="h-4 w-4" />
       </button>
       {open && (
         <div className="absolute right-0 z-50 mt-2 w-80 rounded-2xl border border-slate-200 bg-white p-4 shadow-xl">
@@ -52,6 +52,16 @@ export function HelpLauncher() {
         </div>
       )}
     </div>
+  );
+}
+
+function InfoIcon(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" {...props}>
+      <circle cx="12" cy="12" r="9" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v5" />
+      <circle cx="12" cy="7.5" r="0.8" fill="currentColor" stroke="none" />
+    </svg>
   );
 }
 
