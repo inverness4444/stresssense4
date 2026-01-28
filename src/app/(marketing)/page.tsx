@@ -1,6 +1,7 @@
 import { getLocale } from "@/lib/i18n-server";
 import ProductHero from "./product/_components/ProductHero";
 import InsightStepsSection from "./_components/InsightStepsSection";
+import ResultsTimelineSection from "./_components/ResultsTimelineSection";
 import InsightQuoteSection from "./_components/InsightQuoteSection";
 import LiveDemoSection from "./_components/LiveDemoSection";
 import PricingTeaser from "./_components/PricingTeaser";
@@ -13,6 +14,7 @@ export default async function LandingPage() {
     <div className="min-h-screen bg-gradient-to-b from-indigo-50 via-white to-white text-slate-900">
       <ProductHero />
       <InsightStepsSection />
+      <ResultsTimelineSection locale={locale} />
       <InsightQuoteSection />
       <LiveDemoSection locale={locale} />
       <PricingTeaser />

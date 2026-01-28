@@ -3,11 +3,26 @@ import { signupAction } from "./actions";
 import { MIN_SEATS } from "@/config/pricing";
 import { getLocale } from "@/lib/i18n-server";
 
-export default async function SignupPage({ searchParams }: { searchParams?: Record<string, string | string[] | undefined> }) {
+type SearchParams = Record<string, string | string[] | undefined>;
+
+const getSearchParam = (params: SearchParams, key: string) => {
+  const value = params[key];
+  if (Array.isArray(value)) {
+    return value[0] ?? "";
+  }
+  return value ?? "";
+};
+
+export default async function SignupPage({
+  searchParams,
+}: {
+  searchParams?: SearchParams | Promise<SearchParams>;
+}) {
   const locale = await getLocale();
   const isRu = locale === "ru";
-  const ref = (searchParams?.ref as string) ?? "";
-  const error = (searchParams?.error as string) ?? "";
+  const resolvedSearchParams = (await Promise.resolve(searchParams)) ?? {};
+  const ref = getSearchParam(resolvedSearchParams, "ref");
+  const error = getSearchParam(resolvedSearchParams, "error");
   const errorMessage =
     error === "weak_password"
       ? isRu

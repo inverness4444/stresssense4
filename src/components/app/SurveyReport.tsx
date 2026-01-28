@@ -173,6 +173,11 @@ export function SurveyReport({
   const [analysisEnd, setAnalysisEnd] = useState<string>("");
   const [aiReport, setAiReport] = useState<{ title: string; summary: string; bullets: string[] } | null>(null);
   const [lastAnalysisAt, setLastAnalysisAt] = useState<Date | null>(null);
+  const [chartReady, setChartReady] = useState(false);
+
+  useEffect(() => {
+    setChartReady(true);
+  }, []);
 
   const normalizedSeries = useMemo(() => {
     const total = timeseries.length;
@@ -729,54 +734,58 @@ export function SurveyReport({
         </div>
 
         <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-3 shadow-inner">
-          <ResponsiveContainer width="100%" height={220} minWidth={1} minHeight={1}>
-            <AreaChart data={chartSeries} onClick={handleChartClick}>
-              <defs>
-                <linearGradient id="colorScore" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#6366f1" stopOpacity={0.35} />
-                  <stop offset="95%" stopColor="#6366f1" stopOpacity={0.06} />
-                </linearGradient>
-              </defs>
-              <XAxis dataKey="label" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
-              <YAxis
-                domain={[yMin, yMax]}
-                ticks={yTicks}
-                tickFormatter={(value) => (Number.isFinite(value) ? Number(value).toFixed(1) : "")}
-                tick={{ fontSize: 11 }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <Tooltip
-                content={({ active, payload }) => {
-                  if (!active || !payload || payload.length === 0) return null;
-                  const point = payload[0]?.payload as { dateValue: number; value?: number | null; rangeEnd?: number };
-                  if (!point || typeof point.dateValue !== "number") return null;
-                  const value =
-                    typeof point.value === "number" && Number.isFinite(point.value)
-                      ? point.value.toFixed(1)
-                      : locale === "ru"
-                        ? "Нет данных"
-                        : "No data";
-                  return (
-                    <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 shadow-lg">
-                      <p className="font-semibold text-slate-900">{formatPointRange(point)}</p>
-                      <p>{value}</p>
-                    </div>
-                  );
-                }}
-              />
-              <Area
-                type="monotone"
-                dataKey="value"
-                stroke="#3b82f6"
-                strokeWidth={3}
-                fill="url(#colorScore)"
-                dot={{ r: 3 }}
-                activeDot={{ r: 4 }}
-                connectNulls
-              />
-            </AreaChart>
-          </ResponsiveContainer>
+          {chartReady ? (
+            <ResponsiveContainer width="100%" height={220} minWidth={1} minHeight={1}>
+              <AreaChart data={chartSeries} onClick={handleChartClick}>
+                <defs>
+                  <linearGradient id="colorScore" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#6366f1" stopOpacity={0.35} />
+                    <stop offset="95%" stopColor="#6366f1" stopOpacity={0.06} />
+                  </linearGradient>
+                </defs>
+                <XAxis dataKey="label" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
+                <YAxis
+                  domain={[yMin, yMax]}
+                  ticks={yTicks}
+                  tickFormatter={(value) => (Number.isFinite(value) ? Number(value).toFixed(1) : "")}
+                  tick={{ fontSize: 11 }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <Tooltip
+                  content={({ active, payload }) => {
+                    if (!active || !payload || payload.length === 0) return null;
+                    const point = payload[0]?.payload as { dateValue: number; value?: number | null; rangeEnd?: number };
+                    if (!point || typeof point.dateValue !== "number") return null;
+                    const value =
+                      typeof point.value === "number" && Number.isFinite(point.value)
+                        ? point.value.toFixed(1)
+                        : locale === "ru"
+                          ? "Нет данных"
+                          : "No data";
+                    return (
+                      <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 shadow-lg">
+                        <p className="font-semibold text-slate-900">{formatPointRange(point)}</p>
+                        <p>{value}</p>
+                      </div>
+                    );
+                  }}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="value"
+                  stroke="#3b82f6"
+                  strokeWidth={3}
+                  fill="url(#colorScore)"
+                  dot={{ r: 3 }}
+                  activeDot={{ r: 4 }}
+                  connectNulls
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="h-[220px] w-full" />
+          )}
           {activePoint && (
             <div className="mt-2 flex items-center justify-between text-xs text-slate-600">
               <span>{formatPointRange(activePoint)}</span>

@@ -5,7 +5,7 @@ export default async function MarketingLayout({ children }: { children: React.Re
   return (
     <>
       <Header locale={locale} />
-      <main className="pt-20 sm:pt-24">{children}</main>
+      <main className="pt-0">{children}</main>
     </>
   );
 }

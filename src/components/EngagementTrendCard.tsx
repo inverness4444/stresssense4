@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, Line } from "recharts";
 import { t, type Locale } from "@/lib/i18n";
 
@@ -18,6 +19,7 @@ type Props = {
 };
 
 export function EngagementTrendCard({ scope, title, score, delta, trendLabel, participation, data, locale = "en", showOverlay = true }: Props) {
+  const [mounted, setMounted] = useState(false);
   const isRu = locale === "ru";
   const hasData = data.length > 0;
   const chartData = hasData ? data : [{ label: isRu ? "Нет данных" : "No data", value: 0 }];
@@ -32,6 +34,10 @@ export function EngagementTrendCard({ scope, title, score, delta, trendLabel, pa
       ? "text-slate-600 bg-slate-50 ring-slate-200"
       : "text-red-600 bg-red-50 ring-red-200";
   const gaugePercent = Math.min(1, Math.max(0, score / 10));
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   return (
     <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#f3f4ff] via-white to-[#eef9ff] p-6 shadow-xl ring-1 ring-slate-200">
@@ -48,24 +54,28 @@ export function EngagementTrendCard({ scope, title, score, delta, trendLabel, pa
       </div>
 
       <div className="relative mt-5 h-56 w-full">
-        <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
-          <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 10 }}>
-            <defs>
-              <linearGradient id="engagementGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#4F46E5" stopOpacity={0.35} />
-                <stop offset="95%" stopColor="#4F46E5" stopOpacity={0} />
-              </linearGradient>
-            </defs>
-            <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fontSize: 12, fill: "#475569" }} />
-            <YAxis hide domain={hasData ? [minValue - 0.5, maxValue + 0.5] : [0, 10]} />
-            <Tooltip
-              formatter={(val: number) => `${val.toFixed(1)} / 10`}
-              contentStyle={{ borderRadius: 12, border: "1px solid #e2e8f0", boxShadow: "0 10px 30px rgba(0,0,0,0.07)" }}
-            />
-            <Area type="monotone" dataKey="value" stroke="#4F46E5" fillOpacity={1} fill="url(#engagementGradient)" strokeWidth={2.5} />
-            <Line type="monotone" dataKey="value" stroke="#4338CA" strokeWidth={2.5} dot={false} activeDot={{ r: 5, fill: "#4F46E5" }} />
-          </AreaChart>
-        </ResponsiveContainer>
+        {mounted ? (
+          <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
+            <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 10 }}>
+              <defs>
+                <linearGradient id="engagementGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#4F46E5" stopOpacity={0.35} />
+                  <stop offset="95%" stopColor="#4F46E5" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fontSize: 12, fill: "#475569" }} />
+              <YAxis hide domain={hasData ? [minValue - 0.5, maxValue + 0.5] : [0, 10]} />
+              <Tooltip
+                formatter={(val: number) => `${val.toFixed(1)} / 10`}
+                contentStyle={{ borderRadius: 12, border: "1px solid #e2e8f0", boxShadow: "0 10px 30px rgba(0,0,0,0.07)" }}
+              />
+              <Area type="monotone" dataKey="value" stroke="#4F46E5" fillOpacity={1} fill="url(#engagementGradient)" strokeWidth={2.5} />
+              <Line type="monotone" dataKey="value" stroke="#4338CA" strokeWidth={2.5} dot={false} activeDot={{ r: 5, fill: "#4F46E5" }} />
+            </AreaChart>
+          </ResponsiveContainer>
+        ) : (
+          <div className="h-full w-full" />
+        )}
 
         <div className="pointer-events-none absolute inset-0">
           <div className="absolute bottom-3 left-4 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">{t(locale, "trendMonthsSprints")}</div>

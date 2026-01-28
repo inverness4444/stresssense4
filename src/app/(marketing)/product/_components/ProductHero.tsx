@@ -134,7 +134,7 @@ export default async function ProductHero() {
   };
 
   return (
-    <section className="relative overflow-hidden bg-gradient-to-b from-indigo-50 via-white to-white pb-16 pt-20 sm:pb-24 sm:pt-24" id="product">
+    <section className="relative overflow-hidden bg-gradient-to-b from-indigo-50 via-white to-white pb-16 pt-16 sm:pb-24 sm:pt-20" id="product">
       <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-white to-indigo-50" />
       <div className="relative mx-auto flex max-w-6xl flex-col gap-12 px-4 lg:flex-row lg:items-center lg:gap-12">
         <div className="flex-1 space-y-6">

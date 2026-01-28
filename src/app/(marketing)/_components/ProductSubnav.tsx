@@ -7,6 +7,7 @@ const links = [
   { href: "#solutions", label: "Решения" },
   { href: "#how", label: "Как работает" },
   { href: "#integrations", label: "Интеграции" },
+  { href: "#results-timeline", label: "Результаты" },
   { href: "#pricing", label: "Цены" },
   { href: "#demo", label: "Live demo" },
 ];
