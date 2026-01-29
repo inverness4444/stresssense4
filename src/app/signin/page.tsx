@@ -3,10 +3,25 @@ import { SignInForm } from "@/components/auth/SignInForm";
 import { getLocale } from "@/lib/i18n-server";
 import { t } from "@/lib/i18n";
 
-export default async function SignInPage({ searchParams }: { searchParams?: { error?: string } }) {
+type SearchParams = Record<string, string | string[] | undefined>;
+
+const getSearchParam = (params: SearchParams, key: string) => {
+  const value = params[key];
+  if (Array.isArray(value)) {
+    return value[0] ?? "";
+  }
+  return value ?? "";
+};
+
+export default async function SignInPage({
+  searchParams,
+}: {
+  searchParams?: SearchParams | Promise<SearchParams>;
+}) {
   const locale = await getLocale();
   const isRu = locale === "ru";
-  const errorParam = typeof searchParams?.error === "string" ? searchParams.error : "";
+  const resolvedSearchParams = (await Promise.resolve(searchParams)) ?? {};
+  const errorParam = getSearchParam(resolvedSearchParams, "error");
   const initialMessage =
     errorParam === "email_exists"
       ? isRu

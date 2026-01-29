@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 import Link from "next/link";
 import type { Notification, User } from "@prisma/client";
 import { NotificationsBell } from "./NotificationsBell";
-import { HelpLauncher } from "./HelpLauncher";
 import { t, type Locale } from "@/lib/i18n";
 import { getRoleLabel } from "@/lib/roles";
 import { setLocale } from "@/app/actions/setLocale";
@@ -40,7 +39,6 @@ export function AppTopbar({ user, notifications, unreadCount, demoMode, locale }
         {demoMode && <span className="rounded-full bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-700 ring-1 ring-amber-100">{t(locale, "demoBadge")}</span>}
       </div>
       <div className="flex items-center gap-3">
-        <HelpLauncher />
         <LanguageSwitcher locale={locale} pending={pending} onChange={(lang) => startTransition(async () => { await setLocale(lang); router.refresh(); })} />
         <NotificationsBell notifications={notifications} unreadCount={unreadCount} />
         <div className="flex items-center gap-3 rounded-full bg-slate-50 px-3 py-2 text-sm text-slate-700">

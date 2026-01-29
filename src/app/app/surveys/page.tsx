@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
-import { computeSurveyStats } from "@/lib/surveys";
 import { ensureOrgSettings, filterAccessibleSurveys } from "@/lib/access";
 
 type Props = {
@@ -74,9 +73,10 @@ export default async function SurveysPage({ searchParams }: Props) {
           </thead>
           <tbody className="divide-y divide-slate-100">
             {surveys.map((survey: any) => {
-              const stats = computeSurveyStats(survey.responses.length, survey.inviteTokens.length, [], []);
+              const inviteCount = survey._count?.inviteTokens ?? 0;
+              const responsesCount = survey._count?.responses ?? 0;
+              const participation = inviteCount ? Math.round((responsesCount / inviteCount) * 100) : 0;
               const lastActivity = survey.endsAt ?? survey.createdAt;
-              const participation = stats.participation;
               return (
                 <tr key={survey.id} className="transition hover:bg-slate-50/80">
                   <td className="px-4 py-3 text-sm font-semibold text-slate-900">{survey.name}</td>
@@ -85,7 +85,7 @@ export default async function SurveysPage({ searchParams }: Props) {
                   </td>
                   <td className="px-4 py-3 text-sm font-semibold text-slate-800">{participation}%</td>
                   <td className="px-4 py-3 text-sm text-slate-700">
-                    {survey.targets.length} team{survey.targets.length === 1 ? "" : "s"}
+                    {survey._count?.targets ?? 0} team{survey._count?.targets === 1 ? "" : "s"}
                   </td>
                   <td className="px-4 py-3 text-sm text-slate-600">
                     {lastActivity ? new Date(lastActivity).toLocaleDateString() : "—"}

@@ -679,6 +679,24 @@ export function SurveyReport({
           )}
         </div>
       </div>
+      {showCta && (
+        <div className="px-6 pt-3 sm:hidden">
+          <button
+            onClick={() => {
+              if (onCtaClick) {
+                const applied = normalizedRange ?? range;
+                onCtaClick(applied);
+                return;
+              }
+              setAnalysisOpen(true);
+            }}
+            className="w-full rounded-full bg-primary px-4 py-2 text-sm font-semibold text-white shadow-lg transition hover:bg-primary-strong"
+            type="button"
+          >
+            {ctaLabel}
+          </button>
+        </div>
+      )}
 
       <div className="grid gap-6 px-6 pb-10 lg:grid-cols-[280px,1fr] lg:items-center">
         <div className="relative flex flex-col items-start gap-3 rounded-2xl border border-slate-100 bg-slate-50/60 p-4 shadow-inner">
@@ -807,7 +825,7 @@ export function SurveyReport({
       </div>
 
       {showCta && (
-        <div className="absolute bottom-4 right-4 flex flex-col items-end gap-1">
+        <div className="absolute bottom-4 right-4 hidden flex-col items-end gap-1 sm:flex">
           <button
             onClick={() => {
               if (onCtaClick) {

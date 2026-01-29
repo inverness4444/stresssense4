@@ -10,7 +10,6 @@ import {
   DAILY_SURVEY_SEED_DAYS,
   getDailySurveyHistory,
   getOrCreateDailySurveyRun,
-  maybeUpgradeDailyRunToAi,
   serializeDailySurvey,
   recomputeTeamMetricsForDailyRun,
 } from "@/lib/dailySurveys";
@@ -39,6 +38,23 @@ function normalizeLocale(locale?: string | null) {
 
 function isBackfillUser(userEmail: string | null | undefined) {
   return Boolean(userEmail && userEmail.toLowerCase() === BACKFILL_EMAIL);
+}
+
+function getMoscowTimeParts(date = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Europe/Moscow",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(date);
+  const get = (type: string) => Number(parts.find((p) => p.type === type)?.value ?? "NaN");
+  return { hour: get("hour"), minute: get("minute") };
+}
+
+function shouldAutoCreateDailySurvey(date = new Date()) {
+  const { hour, minute } = getMoscowTimeParts(date);
+  if (Number.isNaN(hour) || Number.isNaN(minute)) return false;
+  return hour > 12 || (hour === 12 && minute >= 50);
 }
 
 function getBackfillRange() {
@@ -89,6 +105,7 @@ type DailySurveyAnswerInput = {
   selectedOptions?: string[] | null;
 };
 
+
 export async function getDailySurveyPageData() {
   const user = await getCurrentUser();
   if (!user) throw new Error("Unauthorized");
@@ -127,34 +144,23 @@ export async function getDailySurveyPageData() {
     });
   }
   const backfillDate = pendingRun ? null : await getBackfillRunDate(user.email, member.id);
-  if (!pendingRun && !backfillDate) {
-    pendingRun = await prisma.surveyRun.findFirst({
-      where: {
-        memberId: member.id,
-        runType: "daily",
-        runDate: { lte: endOfDay(now) },
-        responses: { none: {} },
-      },
-      include: { template: { include: { questions: true } } },
-      orderBy: { runDate: "asc" },
-    });
-  }
-  if (pendingRun) {
-    pendingRun = await maybeUpgradeDailyRunToAi(
-      pendingRun,
-      locale,
-      gateStatus.hasPaidAccess || env.isDev || surveyOverride
-    );
-  }
+  const allowAutoCreate = backfillDate ? true : shouldAutoCreateDailySurvey(now);
   const activeRun = pendingRun ?? await getOrCreateDailySurveyRun({
     memberId: member.id,
     date: backfillDate ?? now,
     locale,
     createdByUserId: user.id,
     allowAi: gateStatus.hasPaidAccess || env.isDev || surveyOverride,
-    allowMultiplePerDay: isSuper,
+    allowMultiplePerDay: false,
+    deferAi: !allowAutoCreate,
   });
-  const todaySurvey = activeRun ? await serializeDailySurvey(activeRun) : null;
+  const runHasResponses = Boolean((activeRun as any)?.responses?.length);
+  const hideNonAi =
+    activeRun &&
+    (activeRun.dayIndex ?? DAILY_SURVEY_SEED_DAYS + 1) > DAILY_SURVEY_SEED_DAYS &&
+    activeRun.source !== "ai" &&
+    !runHasResponses;
+  const todaySurvey = activeRun && !hideNonAi ? await serializeDailySurvey(activeRun) : null;
   let todayCompletedAt: string | null = null;
   let todayScore: number | null = null;
   let canStart = false;
@@ -235,34 +241,21 @@ export async function getTodayDailySurvey() {
     });
   }
   const backfillDate = pendingRun ? null : await getBackfillRunDate(user.email, member.id);
-  if (!pendingRun && !backfillDate) {
-    pendingRun = await prisma.surveyRun.findFirst({
-      where: {
-        memberId: member.id,
-        runType: "daily",
-        runDate: { lte: endOfDay(now) },
-        responses: { none: {} },
-      },
-      include: { template: { include: { questions: true } } },
-      orderBy: { runDate: "asc" },
-    });
-  }
-  if (pendingRun) {
-    pendingRun = await maybeUpgradeDailyRunToAi(
-      pendingRun,
-      locale,
-      gateStatus.hasPaidAccess || env.isDev || surveyOverride
-    );
-  }
+  const allowAutoCreate = backfillDate ? true : shouldAutoCreateDailySurvey(now);
   const run = pendingRun ?? await getOrCreateDailySurveyRun({
     memberId: member.id,
     date: backfillDate ?? now,
     locale,
     createdByUserId: user.id,
     allowAi: gateStatus.hasPaidAccess || env.isDev || surveyOverride,
-    allowMultiplePerDay: isSuper,
+    allowMultiplePerDay: false,
+    deferAi: !allowAutoCreate,
   });
   if (!run) return null;
+  if ((run.dayIndex ?? DAILY_SURVEY_SEED_DAYS + 1) > DAILY_SURVEY_SEED_DAYS && run.source !== "ai") {
+    const responseCount = await prisma.surveyResponse.count({ where: { runId: run.id } });
+    if (responseCount === 0) return null;
+  }
   return serializeDailySurvey(run);
 }
 
@@ -358,6 +351,7 @@ export async function submitDailySurvey(input: { runId: string; answers: DailySu
         createdByUserId: user.id,
         allowAi: true,
         allowMultiplePerDay: false,
+        deferAi: true,
       });
     }
   } catch (err) {

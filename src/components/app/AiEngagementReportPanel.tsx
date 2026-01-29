@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import clsx from "clsx";
 import { EngagementTrendCard, type TrendPoint } from "@/components/EngagementTrendCard";
 import type { AiEngagementReport, Driver, TeamFocus, FocusItem, NudgeItem } from "@/lib/ai/engagementReport";
 import { t, type Locale } from "@/lib/i18n";
+import { PDFDocument } from "pdf-lib";
+import { toPng } from "html-to-image";
 
 type PanelProps = {
   open: boolean;
@@ -16,6 +18,8 @@ type PanelProps = {
   errorMessage?: string;
   showPeriodRange?: boolean;
   audience?: "employee" | "manager";
+  autoDownload?: boolean;
+  onAutoDownloadDone?: () => void;
 };
 
 function DriverTag({ driver, locale }: { driver: Driver; locale: Locale }) {
@@ -113,6 +117,8 @@ function NudgeList({ nudges }: { nudges: NudgeItem[] }) {
   );
 }
 
+const PDF_PAGE = { width: 595.28, height: 841.89 };
+
 export function AiEngagementReportPanel({
   open,
   onClose,
@@ -123,9 +129,15 @@ export function AiEngagementReportPanel({
   errorMessage,
   showPeriodRange = true,
   audience = "manager",
+  autoDownload,
+  onAutoDownloadDone,
 }: PanelProps) {
   const [fromDate, setFromDate] = useState(report.period.from);
   const [toDate, setToDate] = useState(report.period.to);
+  const [downloading, setDownloading] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  const panelId = "ai-engagement-report";
   const dateFormatter = new Intl.DateTimeFormat(locale === "ru" ? "ru-RU" : "en-US");
   const unitLabel = locale === "ru" ? "пт" : "pt";
   const focusTitleKey = audience === "employee" ? "aiEmployeeFocusTitle" : "aiManagerFocusTitle";
@@ -144,9 +156,152 @@ export function AiEngagementReportPanel({
     if (!onChangePeriod || !fromDate || !toDate) return;
     onChangePeriod(fromDate, toDate);
   };
+
+  const handleDownloadPdf = useCallback(async () => {
+    if (downloading || isEmpty || isLoading || !panelRef.current) return;
+    setDownloading(true);
+    setIsExporting(true);
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    try {
+      const panel = panelRef.current;
+      const pixelRatio = Math.min(2, window.devicePixelRatio || 1);
+      const panelRect = panel.getBoundingClientRect();
+      const panelWidth = Math.ceil(panelRect.width);
+      const pageHeightCss = panelWidth * (PDF_PAGE.height / PDF_PAGE.width);
+      const blocks = Array.from(panel.querySelectorAll<HTMLElement>("[data-pdf-block]"));
+      const blockCandidates = blocks.length ? blocks : Array.from(panel.querySelectorAll<HTMLElement>("section"));
+      const blockRects = blockCandidates
+        .map((el) => {
+          const rect = el.getBoundingClientRect();
+          return {
+            top: rect.top - panelRect.top,
+            bottom: rect.bottom - panelRect.top,
+          };
+        })
+        .filter((rect) => rect.bottom > rect.top);
+      const pageBreaksCss: number[] = [0];
+      let currentStart = 0;
+      blockRects.forEach((rect) => {
+        const blockHeight = rect.bottom - rect.top;
+        if (blockHeight > pageHeightCss) {
+          if (rect.top > currentStart) {
+            pageBreaksCss.push(rect.top);
+            currentStart = rect.top;
+          }
+          return;
+        }
+        if (rect.bottom - currentStart > pageHeightCss) {
+          pageBreaksCss.push(rect.top);
+          currentStart = rect.top;
+        }
+      });
+      const normalizedBreaksCss = Array.from(new Set(pageBreaksCss)).sort((a, b) => a - b);
+      const pngData = await toPng(panel, {
+        cacheBust: true,
+        backgroundColor: "#ffffff",
+        pixelRatio,
+        style: {
+          maxHeight: "none",
+          overflow: "visible",
+        },
+      });
+      const image = new Image();
+      const imageLoaded = new Promise<void>((resolve, reject) => {
+        image.onload = () => resolve();
+        image.onerror = () => reject(new Error("Failed to load report image"));
+      });
+      image.src = pngData;
+      await imageLoaded;
+      const imageWidth = image.width;
+      const imageHeight = image.height;
+      const pageHeightPx = (imageWidth * PDF_PAGE.height) / PDF_PAGE.width;
+      const pageBreaksPx = normalizedBreaksCss.map((value) => Math.round(value * pixelRatio));
+      if (pageBreaksPx.length === 0) pageBreaksPx.push(0);
+      if (pageBreaksPx[0] !== 0) pageBreaksPx.unshift(0);
+      pageBreaksPx.push(imageHeight);
+      const pdfDoc = await PDFDocument.create();
+      const scale = PDF_PAGE.width / imageWidth;
+      const offsetX = 0;
+      for (let i = 0; i < pageBreaksPx.length - 1; i += 1) {
+        let start = pageBreaksPx[i];
+        let end = pageBreaksPx[i + 1];
+        if (end <= start) continue;
+        let sliceHeight = end - start;
+        if (sliceHeight > pageHeightPx) {
+          const pageCount = Math.ceil(sliceHeight / pageHeightPx);
+          for (let j = 0; j < pageCount; j += 1) {
+            const subStart = start + j * pageHeightPx;
+            const subEnd = Math.min(start + (j + 1) * pageHeightPx, end);
+            const subHeight = Math.max(1, Math.round(subEnd - subStart));
+            const canvas = document.createElement("canvas");
+            canvas.width = imageWidth;
+            canvas.height = subHeight;
+            const ctx = canvas.getContext("2d");
+            if (!ctx) continue;
+            ctx.drawImage(image, 0, subStart, imageWidth, subHeight, 0, 0, imageWidth, subHeight);
+            const sliceData = canvas.toDataURL("image/png");
+            const pngImage = await pdfDoc.embedPng(sliceData);
+            const page = pdfDoc.addPage([PDF_PAGE.width, PDF_PAGE.height]);
+            const scaledHeight = subHeight * scale;
+            page.drawImage(pngImage, {
+              x: offsetX,
+              y: PDF_PAGE.height - scaledHeight,
+              width: PDF_PAGE.width,
+              height: scaledHeight,
+            });
+          }
+          continue;
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = imageWidth;
+        canvas.height = sliceHeight;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) continue;
+        ctx.drawImage(image, 0, start, imageWidth, sliceHeight, 0, 0, imageWidth, sliceHeight);
+        const sliceData = canvas.toDataURL("image/png");
+        const pngImage = await pdfDoc.embedPng(sliceData);
+        const page = pdfDoc.addPage([PDF_PAGE.width, PDF_PAGE.height]);
+        const scaledHeight = sliceHeight * scale;
+        page.drawImage(pngImage, {
+          x: offsetX,
+          y: PDF_PAGE.height - scaledHeight,
+          width: PDF_PAGE.width,
+          height: scaledHeight,
+        });
+      }
+      const bytes = await pdfDoc.save();
+      const blob = new Blob([bytes], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `stresssense-engagement-${report.period.from}-${report.period.to}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } finally {
+      setIsExporting(false);
+      setDownloading(false);
+    }
+  }, [downloading, isEmpty, isLoading, report.period.from, report.period.to]);
+
+  useEffect(() => {
+    if (!autoDownload || !open) return;
+    let active = true;
+    const run = async () => {
+      await new Promise((resolve) => setTimeout(resolve, 60));
+      if (!active) return;
+      await handleDownloadPdf();
+      if (active) onAutoDownloadDone?.();
+    };
+    run();
+    return () => {
+      active = false;
+    };
+  }, [autoDownload, open, handleDownloadPdf, onAutoDownloadDone]);
   return (
     <div className={clsx("fixed inset-0 z-[110] flex items-start justify-end bg-slate-900/30 px-3 py-6 transition", open ? "opacity-100" : "pointer-events-none opacity-0")}>
       <div
+        ref={panelRef}
+        id={panelId}
         className={clsx(
           "w-full max-w-4xl transform rounded-3xl bg-white shadow-2xl ring-1 ring-slate-200 transition-all",
           open ? "translate-y-0" : "translate-y-6"
@@ -162,16 +317,29 @@ export function AiEngagementReportPanel({
               </p>
             )}
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-full border border-slate-200 px-3 py-1 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-          >
-            {t(locale, "aiReportClose")}
-          </button>
+          <div className={clsx("flex items-center gap-2", isExporting && "invisible")}>
+            <button
+              type="button"
+              onClick={handleDownloadPdf}
+              disabled={downloading || isEmpty || isLoading}
+              className={clsx(
+                "rounded-full border border-slate-200 px-3 py-1 text-sm font-semibold text-slate-700 transition hover:bg-slate-50",
+                (downloading || isEmpty || isLoading) && "cursor-not-allowed opacity-60"
+              )}
+            >
+              {downloading ? t(locale, "aiReportDownloadingPdf") : t(locale, "aiReportDownloadPdf")}
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-full border border-slate-200 px-3 py-1 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+            >
+              {t(locale, "aiReportClose")}
+            </button>
+          </div>
         </div>
 
-        <div className="max-h-[80vh] space-y-5 overflow-y-auto px-5 py-5">
+        <div className={clsx("max-h-[80vh] space-y-5 overflow-y-auto px-5 py-5", isExporting && "max-h-none overflow-visible")}>
           {errorMessage && (
             <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
               {errorMessage}
@@ -190,7 +358,7 @@ export function AiEngagementReportPanel({
             </section>
           ) : (
             <>
-              <section className="rounded-3xl border border-slate-200 bg-slate-50/60 p-4 shadow-sm">
+              <section data-pdf-block className="rounded-3xl border border-slate-200 bg-slate-50/60 p-4 shadow-sm">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">{t(locale, "aiSnapshotTitle")}</p>
@@ -285,7 +453,7 @@ export function AiEngagementReportPanel({
                 <p className="mt-3 text-sm text-slate-600">{report.snapshotNote}</p>
               </section>
 
-              <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+              <section data-pdf-block className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
                 <div className="space-y-1">
                   <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">{t(locale, "aiTrendsTitle")}</p>
                   <p className="text-sm text-slate-700">{t(locale, "aiTrendsSubtitle")}</p>
@@ -306,7 +474,7 @@ export function AiEngagementReportPanel({
                 <p className="mt-3 text-sm text-slate-700">{report.trendInsight}</p>
               </section>
 
-              <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+              <section data-pdf-block className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">{t(locale, "aiDriversTitle")}</p>
@@ -342,7 +510,7 @@ export function AiEngagementReportPanel({
                 <p className="mt-3 text-sm text-slate-700">{report.driversSummary}</p>
               </section>
 
-              <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+              <section data-pdf-block className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">{t(locale, "aiTeamsTitle")}</p>
@@ -360,7 +528,7 @@ export function AiEngagementReportPanel({
                 )}
               </section>
 
-              <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+              <section data-pdf-block className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">{t(locale, "aiParticipationTitle")}</p>
@@ -372,7 +540,7 @@ export function AiEngagementReportPanel({
                 <p className="mt-2 text-sm text-slate-700">{report.participationNote}</p>
               </section>
 
-              <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+              <section data-pdf-block className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">{t(locale, focusTitleKey)}</p>
                 <div className="mt-3 grid gap-3 md:grid-cols-2">
                   {report.managerFocus.map((f) => (
@@ -381,14 +549,16 @@ export function AiEngagementReportPanel({
                 </div>
               </section>
 
-              <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+              <section data-pdf-block className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">{t(locale, "aiNudgesTitle")}</p>
                 <div className="mt-3">
                   <NudgeList nudges={report.nudges} />
                 </div>
               </section>
 
-              <p className="text-[11px] text-slate-500">{report.disclaimer}</p>
+              <p data-pdf-block className="text-[11px] text-slate-500">
+                {report.disclaimer}
+              </p>
             </>
           )}
         </div>

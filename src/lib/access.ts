@@ -37,7 +37,14 @@ export async function filterAccessibleSurveys(
   if (isAdminRole) {
     return prisma.survey.findMany({
       where: { organizationId },
-      include: { targets: true, inviteTokens: true, responses: true },
+      select: {
+        id: true,
+        name: true,
+        status: true,
+        endsAt: true,
+        createdAt: true,
+        _count: { select: { targets: true, inviteTokens: true, responses: true } },
+      },
       orderBy: { createdAt: "desc" },
     });
   }
@@ -57,7 +64,14 @@ export async function filterAccessibleSurveys(
       organizationId,
       targets: { some: { teamId: { in: teamIds } } },
     },
-    include: { targets: true, inviteTokens: true, responses: true },
+    select: {
+      id: true,
+      name: true,
+      status: true,
+      endsAt: true,
+      createdAt: true,
+      _count: { select: { targets: true, inviteTokens: true, responses: true } },
+    },
     orderBy: { createdAt: "desc" },
   });
 }

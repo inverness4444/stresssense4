@@ -331,6 +331,7 @@ const demoTimeseries = buildDemoTimeseries();
 export default function LiveDemoSection({ locale = "en" }: { locale?: Locale }) {
   const isRu = locale === "ru";
   const [reportOpen, setReportOpen] = useState(false);
+  const [autoDownload, setAutoDownload] = useState(false);
   const today = startOfDay(new Date());
   const [reportRange, setReportRange] = useState<{ from: string; to: string }>({
     from: formatDateValue(addDays(today, -6)),
@@ -388,6 +389,18 @@ export default function LiveDemoSection({ locale = "en" }: { locale?: Locale }) 
     } as AiEngagementReport;
   }, [reportRange, reportVariant, locale, reportOverrides]);
 
+  const openReport = (range?: { from: string; to: string }) => {
+    if (range) setReportRange(range);
+    setAutoDownload(false);
+    setReportOpen(true);
+  };
+
+  const downloadReport = (range?: { from: string; to: string }) => {
+    if (range) setReportRange(range);
+    setAutoDownload(true);
+    setReportOpen(true);
+  };
+
   return (
     <section id="demo" className="bg-slate-50/70 py-16 lg:py-24">
       <div className="mx-auto max-w-6xl px-4">
@@ -419,6 +432,15 @@ export default function LiveDemoSection({ locale = "en" }: { locale?: Locale }) 
                 {isRu ? "Команды, стресс, вовлечённость и участие как в кабинете админа" : "Teams, stress, engagement, and participation like in the admin app"}
               </p>
             </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => downloadReport(reportRange)}
+                className="rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+              >
+                {isRu ? "Скачать PDF" : "Download PDF"}
+              </button>
+            </div>
           </div>
           <div className="mt-5">
             <SurveyReport
@@ -447,10 +469,7 @@ export default function LiveDemoSection({ locale = "en" }: { locale?: Locale }) 
                     ]
               }
               ctaLabel={isRu ? "Проанализировать вовлечённость" : "Analyse engagement"}
-              onCtaClick={(range) => {
-                setReportRange(range);
-                setReportOpen(true);
-              }}
+              onCtaClick={(range) => openReport(range)}
               dateRange={reportRange}
               locale={isRu ? "ru" : "en"}
             />
@@ -504,6 +523,8 @@ export default function LiveDemoSection({ locale = "en" }: { locale?: Locale }) 
         locale={isRu ? "ru" : "en"}
         showPeriodRange={false}
         audience="manager"
+        autoDownload={autoDownload}
+        onAutoDownloadDone={() => setAutoDownload(false)}
       />
     </section>
   );

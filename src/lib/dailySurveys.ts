@@ -445,20 +445,17 @@ async function generateAiQuestions(
   const locale = context.locale;
   const driverKeysList = AI_DRIVER_KEYS.join(", ");
   const targetCount = Math.max(1, options?.count ?? QUESTIONS_PER_SURVEY);
-  const avoidQuestions = Array.from(
-    new Set([...(context.recentQuestions ?? []), ...(options?.existingQuestions ?? [])])
-  ).slice(0, 20);
   const fillOnly = Boolean(options?.fillOnly);
   const requirementsRu = [
     "- 1 общий стресс-рейтинг 0-10 (type: scale).",
     "- 6-8 вопросов по драйверам (scale 0-10).",
-    "- 1-2 открытых вопроса (type: text).",
+    "- 1-2 открытых вопроса (type: text), один из них про пожелание/улучшение.",
     "- 1 вопрос «что бы помогло» (type: single_choice) + опции 4-6 вариантов.",
   ].join("\n");
   const requirementsEn = [
     "- 1 overall stress rating 0-10 (type: scale).",
     "- 6-8 driver questions (scale 0-10).",
-    "- 1-2 open text questions (type: text).",
+    "- 1-2 open text questions (type: text), one about an improvement wish.",
     "- 1 \"what would help\" question (type: single_choice) + 4-6 options.",
   ].join("\n");
   const systemPrompt =
@@ -469,44 +466,28 @@ async function generateAiQuestions(
   const userPrompt =
     locale === "ru"
       ? `${fillOnly ? `Нужно добить опрос. Сгенерируй ещё ${targetCount} НОВЫХ вопросов.` : `Сформируй ${targetCount} вопросов. Требования:`}
-${fillOnly ? "" : requirementsRu}
-- Не повторяй вопросы из списка recentQuestions.
+${fillOnly ? "- Добавь минимум 1 текстовый вопрос про пожелание/улучшение." : requirementsRu}
+- Не повторяй ранее использованные вопросы.
 - Вопросы короткие, 1-2 предложения.
 - Язык вопросов: только русский.
 - Типы только: scale, text, single_choice, multi_choice.
-- Если сомневаешься в driverKey/polarity, поставь needsReview=true.
-- reason: максимально коротко (3-8 слов).
 
 Для каждого вопроса верни:
-- driverKey: один из [${driverKeysList}]
+- driverKey: один из [${driverKeysList}] (если не уверен — unknown)
 - polarity: NEGATIVE (согласие повышает стресс) или POSITIVE (согласие снижает стресс)
-- reason: коротко, почему выбран driverKey/polarity
-- needsReview: true если не уверен в driverKey/polarity
 
-Данные по драйверам (avg, delta, count): ${JSON.stringify(context.driverSummary)}
-Мало данных по драйверам: ${JSON.stringify(context.missingDrivers)}
-recentAnswers: ${JSON.stringify(context.recentAnswerSamples)}
-recentQuestions: ${JSON.stringify(avoidQuestions)}
 Верни JSON: {"questions": [{"type":"scale","title":"...","description":"...","options":["..."],"driverKey":"workload_deadlines","polarity":"NEGATIVE","reason":"...","needsReview":false,"required":true}]}`
       : `${fillOnly ? `Fill the survey. Generate ${targetCount} NEW questions.` : `Build ${targetCount} questions. Requirements:`}
-${fillOnly ? "" : requirementsEn}
-- Avoid repeating recentQuestions.
+${fillOnly ? "- Include at least 1 improvement-wish text question." : requirementsEn}
+- Do not repeat previously used questions.
 - Keep questions short (1-2 sentences).
 - Language: English only.
 - Types only: scale, text, single_choice, multi_choice.
-- If unsure about driverKey/polarity, set needsReview=true.
-- reason: keep it very short (3-8 words).
 
 For each question return:
-- driverKey: one of [${driverKeysList}]
+- driverKey: one of [${driverKeysList}] (use unknown if unsure)
 - polarity: NEGATIVE (agreement increases stress) or POSITIVE (agreement decreases stress)
-- reason: short explanation for driverKey/polarity
-- needsReview: true if unsure about driverKey/polarity
 
-Driver data (avg, delta, count): ${JSON.stringify(context.driverSummary)}
-Low-coverage drivers: ${JSON.stringify(context.missingDrivers)}
-recentAnswers: ${JSON.stringify(context.recentAnswerSamples)}
-recentQuestions: ${JSON.stringify(avoidQuestions)}
 Return JSON: {"questions": [{"type":"scale","title":"...","description":"...","options":["..."],"driverKey":"workload_deadlines","polarity":"NEGATIVE","reason":"...","needsReview":false,"required":true}]}`;
 
   if (!env.OPENAI_API_KEY) {
@@ -516,15 +497,32 @@ Return JSON: {"questions": [{"type":"scale","title":"...","description":"...","o
   const client = new OpenAI({ apiKey: env.OPENAI_API_KEY });
   const model = modelOverride ?? env.AI_MODEL_SUMMARY ?? "gpt-5-mini";
 
-  const response = await client.responses.create({
-    model,
-    instructions: systemPrompt,
-    input: [{ role: "user", content: userPrompt }],
-    max_output_tokens: 3600,
-    text: { format: { type: "json_object" } },
-  });
-
-  const text = extractOutputText(response);
+  let text = "";
+  try {
+    const chat = await client.chat.completions.create({
+      model,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      max_completion_tokens: 2000,
+    });
+    text = chat.choices?.[0]?.message?.content ?? "";
+  } catch (error) {
+    if (env.isDev) {
+      console.warn("AI chat completion failed, falling back to responses", error);
+    }
+  }
+  if (!text) {
+    const response = await client.responses.create({
+      model,
+      instructions: systemPrompt,
+      input: [{ role: "user", content: userPrompt }],
+      max_output_tokens: 3600,
+      text: { format: { type: "json_object" } },
+    });
+    text = extractOutputText(response);
+  }
   if (!text) {
     if ((response as any)?.status === "incomplete") {
       throw new Error("AI response incomplete");
@@ -697,22 +695,41 @@ async function generateAiTemplate(orgId: string, memberId: string, dayIndex: num
     return deduped;
   };
 
-  let questions = await fetchQuestions({ count: QUESTIONS_PER_SURVEY });
+  const usedTexts = await getMemberDailyQuestionTexts(memberId);
+  const usedKeys = new Set(Array.from(usedTexts).map((text) => normalizeTitle(text)));
+
+  const filterUsed = <T extends { title: string }>(items: T[]) =>
+    items.filter((item) => {
+      const key = normalizeTitle(item.title);
+      return key && !usedKeys.has(key);
+    });
+
+  const batchSize = Math.min(6, QUESTIONS_PER_SURVEY);
+  let questions = await fetchQuestions({ count: batchSize });
   if (!questions) {
     if (shouldLogAiDebug) {
       console.warn("AI template generation returned no questions", { orgId, memberId, dayIndex, locale });
     }
     return null;
   }
-  let normalizedQuestions = dedupeQuestions(questions.map((q) => normalizeAiQuestion(q, locale)));
+  let normalizedQuestions = filterUsed(dedupeQuestions(questions.map((q) => normalizeAiQuestion(q, locale))));
 
   if (normalizedQuestions.length < QUESTIONS_PER_SURVEY) {
-    const missing = QUESTIONS_PER_SURVEY - normalizedQuestions.length;
-    const existing = normalizedQuestions.map((q) => q.title);
-    const filler = await fetchQuestions({ count: missing, existingQuestions: existing, fillOnly: true });
-    if (filler?.length) {
-      const normalizedFill = filler.map((q) => normalizeAiQuestion(q, locale));
-      normalizedQuestions = dedupeQuestions([...normalizedQuestions, ...normalizedFill]);
+    const usedPreview = Array.from(usedTexts).slice(0, 60);
+    let attempts = 0;
+    while (normalizedQuestions.length < QUESTIONS_PER_SURVEY && attempts < 5) {
+      const missing = QUESTIONS_PER_SURVEY - normalizedQuestions.length;
+      const existing = normalizedQuestions.map((q) => q.title);
+      const filler = await fetchQuestions({
+        count: Math.min(6, missing),
+        existingQuestions: [...existing, ...usedPreview],
+        fillOnly: true,
+      });
+      if (filler?.length) {
+        const normalizedFill = filler.map((q) => normalizeAiQuestion(q, locale));
+        normalizedQuestions = filterUsed(dedupeQuestions([...normalizedQuestions, ...normalizedFill]));
+      }
+      attempts += 1;
     }
   }
 
@@ -729,21 +746,6 @@ async function generateAiTemplate(orgId: string, memberId: string, dayIndex: num
     return null;
   }
   normalizedQuestions = normalizedQuestions.slice(0, QUESTIONS_PER_SURVEY);
-
-  const usedTexts = await getMemberDailyQuestionTexts(memberId);
-  const repeated = normalizedQuestions.filter((q) => usedTexts.has(q.title.trim()));
-  if (repeated.length > 0) {
-    if (shouldLogAiDebug) {
-      console.warn("AI template repeated previous questions, skipping", {
-        orgId,
-        memberId,
-        dayIndex,
-        locale,
-        repeated: repeated.map((q) => q.title).slice(0, 5),
-      });
-    }
-    return null;
-  }
 
   const title = locale === "ru" ? `День ${dayIndex} · AI-опрос` : `Day ${dayIndex} · AI survey`;
   return prisma.surveyTemplate.create({
@@ -798,7 +800,8 @@ export async function maybeUpgradeDailyRunToAi(
   if (responseCount > 0) return run;
 
   const dayIndex = run.dayIndex ?? SEED_DAYS + 1;
-  if (!allowAi) return null;
+  if (dayIndex <= SEED_DAYS) return run;
+  if (!allowAi) return run;
   const templateLanguage = run.template?.language ?? null;
   if (run.source === "ai" && (!templateLanguage || templateLanguage === locale)) return run;
 
@@ -825,8 +828,10 @@ export async function getOrCreateDailySurveyRun(options: {
   timeZone?: string;
   createdByUserId?: string | null;
   allowMultiplePerDay?: boolean;
+  deferAi?: boolean;
 }) {
   const { memberId } = options;
+  const deferAi = Boolean(options.deferAi);
   const date = options.date ?? new Date();
   const member = await prisma.member.findUnique({
     where: { id: memberId },
@@ -848,29 +853,42 @@ export async function getOrCreateDailySurveyRun(options: {
     allowAi = gateStatus.hasPaidAccess || env.isDev;
   }
 
-  if (!allowMultiplePerDay) {
-    const existing = await prisma.surveyRun.findFirst({
-      where: { memberId, runDate, runType: "daily" },
-      include: { template: { include: { questions: true } }, responses: { select: { id: true } } },
-    });
-    if (existing) {
-      return maybeUpgradeDailyRunToAi(existing, locale, allowAi);
+  const existing = await prisma.surveyRun.findFirst({
+    where: { memberId, runDate, runType: "daily" },
+    include: { template: { include: { questions: true } }, responses: { select: { id: true } } },
+  });
+  if (existing) {
+    if (deferAi && (existing.dayIndex ?? SEED_DAYS + 1) > SEED_DAYS && existing.source !== "ai") {
+      return null;
     }
+    if (deferAi) return existing;
+    return maybeUpgradeDailyRunToAi(existing, locale, allowAi);
   }
 
-  const priorRuns = allowMultiplePerDay
-    ? await prisma.surveyRun.count({ where: { memberId, runType: "daily" } })
-    : await prisma.surveyRun.count({
-        where: { memberId, runType: "daily", runDate: { lt: runDate } },
-      });
-  const dayIndex = Math.max(1, priorRuns + 1);
+  const maxDayIndex = await prisma.surveyRun.aggregate({
+    where: { memberId, runType: "daily" },
+    _max: { dayIndex: true },
+  });
+  const dayIndex = Math.max(1, (maxDayIndex._max.dayIndex ?? 0) + 1);
 
   let template = null;
   let source: "seed" | "ai" = "seed";
   try {
-    if (!allowAi) return null;
-    source = "ai";
-    template = await generateAiTemplate(member.organizationId, memberId, dayIndex, locale);
+    if (dayIndex <= SEED_DAYS) {
+      source = "seed";
+      template = await ensureSeedTemplate(member.organizationId, dayIndex, locale);
+      if (!template) {
+        template = await ensureSeedTemplateFallback(member.organizationId, dayIndex, locale);
+      }
+      if (!template) {
+        template = await ensureUniqueSeedTemplateForMember(member.organizationId, memberId, dayIndex, locale);
+      }
+    } else {
+      if (!allowAi) return null;
+      if (deferAi) return null;
+      source = "ai";
+      template = await generateAiTemplate(member.organizationId, memberId, dayIndex, locale);
+    }
     if (!template) return null;
   } catch (error) {
     await prisma.surveyGenerationLog.create({

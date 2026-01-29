@@ -11,6 +11,8 @@ type CronResult = {
   created: number;
   skipped: number;
   errors: number;
+  reason?: string;
+  moscowHour?: number;
 };
 
 function isAuthorized(req: NextRequest) {
@@ -26,6 +28,35 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
   }
 
+  const now = new Date();
+  const moscowParts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Europe/Moscow",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(now);
+  const getPart = (type: string) => Number(moscowParts.find((p) => p.type === type)?.value ?? "NaN");
+  const moscowHour = getPart("hour");
+  const moscowMinute = getPart("minute");
+  const inWindow =
+    (moscowHour === 12 && moscowMinute >= 50 && moscowMinute <= 59) ||
+    (moscowHour === 13 && moscowMinute === 0);
+  if (!inWindow) {
+    const reason = Number.isNaN(moscowHour) || Number.isNaN(moscowMinute) || moscowHour < 12 || (moscowHour === 12 && moscowMinute < 50)
+      ? "too_early"
+      : "too_late";
+    return NextResponse.json({
+      ok: true,
+      processed: 0,
+      created: 0,
+      skipped: 0,
+      errors: 0,
+      reason,
+      moscowHour,
+      moscowMinute,
+    });
+  }
+
   const members = await prisma.member.findMany({
     where: {
       userId: { not: null },
@@ -34,7 +65,6 @@ export async function POST(req: NextRequest) {
     select: { id: true, userId: true },
   });
 
-  const now = new Date();
   let created = 0;
   let skipped = 0;
   let errors = 0;
@@ -44,6 +74,7 @@ export async function POST(req: NextRequest) {
       const run = await getOrCreateDailySurveyRun({
         memberId: member.id,
         date: now,
+        timeZone: "Europe/Moscow",
         createdByUserId: member.userId ?? undefined,
       });
       if (run) {

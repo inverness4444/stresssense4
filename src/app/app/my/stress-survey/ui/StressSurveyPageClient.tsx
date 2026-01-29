@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { SelfStressSurveyProvider, useSelfStressSurvey } from "@/components/app/SelfStressSurveyProvider";
 import type { Locale } from "@/lib/i18n";
 
@@ -60,6 +61,7 @@ function StressSurveyPageInner({
   history,
 }: Omit<StressSurveyPageClientProps, "userId" | "userEmail">) {
   const { openSurvey } = useSelfStressSurvey();
+  const router = useRouter();
   const isRu = locale === "ru";
   const lockedCopy = isRu
     ? "Опросы после 10-го дня доступны только при активной подписке."
@@ -69,6 +71,31 @@ function StressSurveyPageInner({
     if (!canStart) return;
     openSurvey();
   };
+
+  useEffect(() => {
+    if (canStart || aiLocked || todayCompletedAt) return;
+    const getMoscowTime = () => {
+      const parts = new Intl.DateTimeFormat("en-US", {
+        timeZone: "Europe/Moscow",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      }).formatToParts(new Date());
+      const get = (type: string) => Number(parts.find((p) => p.type === type)?.value ?? "NaN");
+      return { hour: get("hour"), minute: get("minute") };
+    };
+    const inWindow = () => {
+      const { hour, minute } = getMoscowTime();
+      if (Number.isNaN(hour) || Number.isNaN(minute)) return false;
+      return (hour === 12 && minute >= 50) || (hour === 13 && minute <= 5);
+    };
+    const maybeRefresh = () => {
+      if (inWindow()) router.refresh();
+    };
+    maybeRefresh();
+    const id = setInterval(maybeRefresh, 30000);
+    return () => clearInterval(id);
+  }, [aiLocked, canStart, router, todayCompletedAt]);
 
   const streak = useMemo(() => {
     const daySet = new Set(
